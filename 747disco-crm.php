@@ -350,7 +350,7 @@ final class Disco747_CRM_Plugin {
         // AJAX Handlers
         try {
             add_action('init', function() {
-                $ajax_path = DISCO747_CRM_PLUGIN_DIR . 'includes/handlers/class-disco747-ajax.php';
+                $ajax_path = DISCO747_CRM_PLUGIN_DIR . 'includes/handlers/class-disco747-ajax-new.php';
                 if (file_exists($ajax_path)) {
                     require_once $ajax_path;
                     $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Caricato: includes/handlers/class-disco747-ajax.php');
