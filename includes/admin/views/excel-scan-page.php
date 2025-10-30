@@ -75,12 +75,12 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
                     </div>
 
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button id="start-scan-btn" class="btn-scan" style="flex: 1;">
+                        <button id="disco747-start-batch-scan" class="btn-scan" style="flex: 1;">
                             <span class="dashicons dashicons-update"></span>
                             Analizza Ora
                         </button>
                         
-                        <button id="reset-scan-btn" class="btn-reset" style="flex: 0 0 auto;">
+                        <button id="disco747-reset-scan" class="btn-reset" style="flex: 0 0 auto;">
                             <span class="dashicons dashicons-trash"></span>
                             Svuota e Rianalizza
                         </button>

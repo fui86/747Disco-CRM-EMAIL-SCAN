@@ -163,6 +163,7 @@ class Disco747_Admin {
                 wp_localize_script('disco747-excel-scan-js', 'disco747ExcelScanData', array(
                     'ajaxurl' => admin_url('admin-ajax.php'),
                     'nonce' => wp_create_nonce('disco747_excel_scan'),
+                    'gdriveAvailable' => $this->is_googledrive_configured(),
                     'i18n' => array(
                         'error' => __('Errore', 'disco747'),
                         'success' => __('Successo', 'disco747'),
@@ -293,51 +294,11 @@ class Disco747_Admin {
             wp_die(__('Non hai i permessi.', 'disco747'));
         }
 
-        // ✅ Inizializza SEMPRE le variabili
-        $is_googledrive_configured = false;
+        // ✅ Usa il metodo centralizzato per verificare Google Drive
+        $is_googledrive_configured = $this->is_googledrive_configured();
         $excel_files_list = array();
 
-        try {
-            $this->log('=== VERIFICA GOOGLE DRIVE v11.9.0 ===');
-            
-            // ✅ STEP 1: Verifica token direttamente (più affidabile)
-            $access_token = get_option('disco747_googledrive_access_token', '');
-            $refresh_token = get_option('disco747_googledrive_refresh_token', '');
-            $storage_type = get_option('disco747_storage_type', '');
-            
-            $this->log('Storage type: ' . $storage_type);
-            $this->log('Access token: ' . (!empty($access_token) ? 'PRESENTE (' . strlen($access_token) . ' chars)' : 'MANCANTE'));
-            $this->log('Refresh token: ' . (!empty($refresh_token) ? 'PRESENTE' : 'MANCANTE'));
-            
-            // ✅ PRIORITÀ 1: Se ci sono i token, considera configurato
-            if (!empty($access_token) && !empty($refresh_token) && $storage_type === 'googledrive') {
-                $is_googledrive_configured = true;
-                $this->log('✅ CONFIGURATO via token (priorità 1)');
-            } else {
-                // ✅ PRIORITÀ 2: Verifica con handler solo se mancano i token
-                if ($this->storage_manager) {
-                    $gd_handler = $this->storage_manager->get_active_handler();
-                    
-                    if ($gd_handler) {
-                        $this->log('Handler trovato: ' . get_class($gd_handler));
-                        
-                        if (method_exists($gd_handler, 'is_connected')) {
-                            $is_googledrive_configured = $gd_handler->is_connected();
-                            $this->log('is_connected(): ' . ($is_googledrive_configured ? 'SI' : 'NO'));
-                        } elseif (method_exists($gd_handler, 'is_authenticated')) {
-                            $is_googledrive_configured = $gd_handler->is_authenticated();
-                            $this->log('is_authenticated(): ' . ($is_googledrive_configured ? 'SI' : 'NO'));
-                        }
-                    } else {
-                        $this->log('Handler NULL');
-                    }
-                }
-            }
-            
-        } catch (\Exception $e) {
-            $this->log('Errore verifica GoogleDrive: ' . $e->getMessage(), 'error');
-        }
-
+        $this->log('=== VERIFICA GOOGLE DRIVE v11.9.0 ===');
         $this->log('=== FINALE is_googledrive_configured: ' . ($is_googledrive_configured ? 'TRUE' : 'FALSE') . ' ===');
 
         require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/excel-scan-page.php';
@@ -373,6 +334,19 @@ class Disco747_Admin {
                 throw new \Exception('Permessi insufficienti');
             }
 
+            // Verifica nonce
+            if (!wp_verify_nonce($_POST['nonce'] ?? '', 'disco747_excel_scan')) {
+                throw new \Exception('Nonce non valido');
+            }
+
+            // Verifica se è richiesto il reset
+            $reset_requested = isset($_POST['reset']) && $_POST['reset'] === 'true';
+            
+            if ($reset_requested) {
+                $this->log('Reset richiesto - svuotamento database preventivi');
+                $this->reset_preventivi_database();
+            }
+
             $this->log('Permessi OK - avvio batch scan reale');
 
             if (!class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive_Sync')) {
@@ -391,11 +365,79 @@ class Disco747_Admin {
             }
 
             $result = $gdrive_sync->scan_excel_files_batch(true, 5);
+            
+            // Aggiungi info sul reset al risultato
+            if ($reset_requested) {
+                $result['reset_performed'] = true;
+                $this->log('Reset completato e scansione eseguita');
+            }
+            
             wp_send_json_success($result);
 
         } catch (\Exception $e) {
             $this->log('Errore handle_batch_scan: ' . $e->getMessage(), 'error');
             wp_send_json_error(array('message' => $e->getMessage()));
+        }
+    }
+
+    /**
+     * Svuota il database dei preventivi
+     */
+    private function reset_preventivi_database() {
+        global $wpdb;
+        
+        $table_name = $wpdb->prefix . 'disco747_preventivi';
+        
+        // Verifica che la tabella esista
+        if ($wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") !== $table_name) {
+            $this->log('Tabella preventivi non esiste, niente da resettare');
+            return;
+        }
+        
+        // Svuota la tabella
+        $result = $wpdb->query("TRUNCATE TABLE {$table_name}");
+        
+        if ($result !== false) {
+            $this->log('Database preventivi svuotato con successo');
+        } else {
+            $this->log('Errore durante lo svuotamento del database: ' . $wpdb->last_error, 'error');
+            throw new \Exception('Errore durante il reset del database');
+        }
+    }
+
+    /**
+     * Verifica se Google Drive è configurato
+     */
+    private function is_googledrive_configured() {
+        try {
+            // Verifica token direttamente (più affidabile)
+            $access_token = get_option('disco747_googledrive_access_token', '');
+            $refresh_token = get_option('disco747_googledrive_refresh_token', '');
+            $storage_type = get_option('disco747_storage_type', '');
+            
+            // Se ci sono i token, considera configurato
+            if (!empty($access_token) && !empty($refresh_token) && $storage_type === 'googledrive') {
+                return true;
+            }
+            
+            // Verifica con handler se disponibile
+            if ($this->storage_manager) {
+                $gd_handler = $this->storage_manager->get_active_handler();
+                
+                if ($gd_handler) {
+                    if (method_exists($gd_handler, 'is_connected')) {
+                        return $gd_handler->is_connected();
+                    } elseif (method_exists($gd_handler, 'is_authenticated')) {
+                        return $gd_handler->is_authenticated();
+                    }
+                }
+            }
+            
+            return false;
+            
+        } catch (\Exception $e) {
+            $this->log('Errore verifica GoogleDrive: ' . $e->getMessage(), 'error');
+            return false;
         }
     }
 

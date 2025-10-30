@@ -158,6 +158,22 @@
                 DebugPanel.log('BINDING', 'Handler click collegato a #disco747-start-batch-scan', 'success');
             }
             
+            // ✅ Pulsante reset scan
+            const $resetBtn = $('#disco747-reset-scan');
+            if ($resetBtn.length === 0) {
+                DebugPanel.logError('BINDING', '#disco747-reset-scan NON TROVATO nel DOM!');
+            } else {
+                DebugPanel.log('BINDING', `#disco747-reset-scan TROVATO (${$resetBtn.length} elementi)`, 'success');
+                
+                $resetBtn.on('click', (e) => {
+                    DebugPanel.logClick('#disco747-reset-scan');
+                    DebugPanel.log('EVENT', 'Handler reset scan invocato', 'success');
+                    this.resetAndScan();
+                });
+                
+                DebugPanel.log('BINDING', 'Handler click collegato a #disco747-reset-scan', 'success');
+            }
+            
             // Ricerca e filtri
             $('#search-files-btn').on('click', () => this.loadExcelTable(1));
             $('#refresh-files-btn').on('click', () => this.loadExcelTable(1));
@@ -287,6 +303,109 @@
                     
                     // Reset stato
                     this.isBatchScanning = false;
+                    $('#disco747-start-batch-scan').prop('disabled', false).text('✅ Analizza Ora');
+                    
+                    if ($progress.length) {
+                        setTimeout(() => $progress.fadeOut(), 3000);
+                    }
+                }
+            });
+        },
+
+        /**
+         * Reset e rianalizza tutti i file Excel
+         */
+        resetAndScan: function() {
+            DebugPanel.logStep('RESET-1', 'Avvio reset e rianalisi...');
+            
+            if (this.isBatchScanning) {
+                DebugPanel.logError('RESET', 'Batch scan già in corso');
+                alert('⚠️ Scansione batch già in corso');
+                return;
+            }
+            
+            if (!window.disco747ExcelScanData?.gdriveAvailable) {
+                DebugPanel.logError('RESET', 'Google Drive non configurato');
+                alert('❌ Google Drive non configurato');
+                return;
+            }
+            
+            // Conferma azione
+            if (!confirm('⚠️ ATTENZIONE: Questa operazione eliminerà tutti i preventivi esistenti e rianalizzerà i file Excel.\n\nSei sicuro di voler continuare?')) {
+                DebugPanel.log('RESET', 'Operazione annullata dall\'utente', 'info');
+                return;
+            }
+            
+            DebugPanel.logStep('RESET-2', 'Confermato - preparazione reset...');
+            
+            // Stato UI
+            this.isBatchScanning = true;
+            $('#disco747-reset-scan').prop('disabled', true).text('🔄 Reset in corso...');
+            $('#disco747-start-batch-scan').prop('disabled', true);
+            
+            DebugPanel.logStep('RESET-3', 'UI aggiornata - pulsanti disabilitati');
+            
+            // Mostra progress se presente
+            const $progress = $('#batch-scan-progress');
+            if ($progress.length) {
+                $progress.show().find('.progress-bar').css('width', '0%');
+                DebugPanel.log('RESET', 'Progress bar mostrata', 'info');
+            }
+            
+            // Dati AJAX per reset e scan
+            const ajaxData = {
+                action: 'batch_scan_excel',
+                nonce: window.disco747ExcelScanData?.nonce || '',
+                _wpnonce: window.disco747ExcelScanData?.nonce || '',
+                reset: true  // Flag per indicare reset
+            };
+            
+            DebugPanel.logStep('RESET-4', 'Dati AJAX preparati con flag reset');
+            DebugPanel.log('AJAX-DATA', `action: ${ajaxData.action}, reset: ${ajaxData.reset}`, 'ajax');
+            
+            $.ajax({
+                url: window.disco747ExcelScanData?.ajaxurl || ajaxurl,
+                type: 'POST',
+                data: ajaxData,
+                dataType: 'json',
+                beforeSend: function(xhr) {
+                    DebugPanel.logAjax('reset_and_scan', 'INVIO...');
+                },
+                success: (response) => {
+                    DebugPanel.logAjax('reset_and_scan', 'SUCCESS');
+                    DebugPanel.log('RESET', 'Risposta ricevuta: ' + JSON.stringify(response), 'success');
+                    
+                    if (response.success && response.data) {
+                        const result = response.data;
+                        DebugPanel.logStep('RESET-5', `Reset completato: ${result.processed || 0} file processati`);
+                        
+                        // Notifica successo
+                        if (result.processed > 0) {
+                            this.showNotification('success', `✅ Reset e scansione completati: ${result.processed} file processati`);
+                        } else {
+                            this.showNotification('warning', '⚠️ Reset completato ma nessun file processato');
+                        }
+                        
+                        // Ricarica la tabella con i nuovi dati
+                        this.loadExcelTable();
+                        
+                    } else {
+                        const errorMsg = response.data?.message || response.data || 'Errore sconosciuto';
+                        DebugPanel.logError('RESET', errorMsg);
+                        this.showNotification('error', `❌ Errore: ${errorMsg}`);
+                    }
+                },
+                error: (xhr, status, error) => {
+                    DebugPanel.logError('AJAX', `${status}: ${error}`);
+                    console.error('AJAX Error:', xhr.responseText);
+                    this.showNotification('error', `❌ Errore di connessione: ${error}`);
+                },
+                complete: () => {
+                    DebugPanel.log('RESET', 'Operazione completata', 'info');
+                    
+                    // Reset stato
+                    this.isBatchScanning = false;
+                    $('#disco747-reset-scan').prop('disabled', false).text('🗑️ Svuota e Rianalizza');
                     $('#disco747-start-batch-scan').prop('disabled', false).text('✅ Analizza Ora');
                     
                     if ($progress.length) {
