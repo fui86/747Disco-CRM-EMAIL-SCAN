@@ -1,11 +1,11 @@
 <?php
 /**
  * Classe per gestione richieste AJAX - 747 Disco CRM
- * VERSIONE 11.6.2 con Batch Scan endpoint
+ * VERSIONE 11.8.9 con Batch Scan endpoint
  *
  * @package    Disco747_CRM
  * @subpackage Handlers
- * @version    11.6.2-BATCH-SCAN
+ * @version    11.8.9-BATCH-SCAN
  * @author     747 Disco Team
  */
 
@@ -198,15 +198,7 @@ class Disco747_Ajax {
             error_log("[747Disco-Scan] Eliminati {$deleted} record dal database");
             
             // Esegui batch scan normale
-            $result = $this->handle_batch_scan();
-            
-            // Aggiungi info reset al risultato
-            if (is_array($result) && isset($result['data'])) {
-                $result['data']['reset_count'] = $deleted;
-                $result['data']['messages'][] = "🗑️ Database svuotato: {$deleted} record eliminati";
-            }
-            
-            return $result;
+            $this->handle_batch_scan();
             
         } catch (\Exception $e) {
             error_log('[747Disco-Scan] Errore reset and scan: ' . $e->getMessage());
@@ -604,7 +596,7 @@ class Disco747_Ajax {
             $from_name = get_option('disco747_from_name', '747 Disco');
             
             // Solo se WP Mail SMTP non è attivo, aggiungi From manualmente
-            if (!class_exists('WPMailSMTP\Options')) {
+            if (!class_exists('WPMailSMTP\\Options')) {
                 $headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
             }
             
@@ -621,7 +613,7 @@ class Disco747_Ajax {
             
             // Verifica WP Mail SMTP
             $smtp_active = false;
-            if (class_exists('WPMailSMTP\Options')) {
+            if (class_exists('WPMailSMTP\\Options')) {
                 $smtp_active = true;
                 $mailer = \WPMailSMTP\Options::init()->get('mail', 'mailer');
                 $this->log("✅ WP Mail SMTP attivo - Mailer: $mailer");
