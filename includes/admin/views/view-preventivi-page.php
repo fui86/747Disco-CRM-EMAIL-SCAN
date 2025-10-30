@@ -604,143 +604,24 @@ jQuery(document).ready(function($) {
     });
 
     // ========================================================================
-    // MODIFICA PREVENTIVO
+    // MODIFICA PREVENTIVO - Reindirizza a form-preventivo precompilato
     // ========================================================================
     $(document).on('click', '.btn-edit-preventivo', function() {
         var preventivoId = $(this).data('id');
         console.log('✏️ Modifica preventivo ID:', preventivoId);
         
-        loadPreventivoData(preventivoId);
-    });
-
-    function loadPreventivoData(id) {
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'disco747_get_preventivo',
-                nonce: '<?php echo wp_create_nonce('disco747_get_preventivo'); ?>',
-                preventivo_id: id
-            },
-            beforeSend: function() {
-                console.log('⏳ Caricamento dati preventivo...');
-            },
-            success: function(response) {
-                console.log('✅ Risposta server:', response);
-                
-                if (response.success && response.data) {
-                    populateEditForm(response.data);
-                    $('#modal-edit-preventivo').fadeIn(300);
-                } else {
-                    alert('❌ Errore: ' + (response.data || 'Preventivo non trovato'));
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX:', error);
-                alert('❌ Errore di connessione al server');
-            }
-        });
-    }
-
-    function populateEditForm(data) {
-        console.log('📝 Precompilo form con:', data);
-        
-        $('#edit-preventivo-id').val(data.id);
-        $('#edit-nome-cliente').val(data.nome_cliente || '');
-        $('#edit-telefono').val(data.telefono || '');
-        $('#edit-email').val(data.email || '');
-        $('#edit-tipo-evento').val(data.tipo_evento || '');
-        $('#edit-data-evento').val(data.data_evento || '');
-        $('#edit-orario-evento').val(data.orario_evento || '');
-        $('#edit-tipo-menu').val(data.tipo_menu || 'Menu 7');
-        $('#edit-numero-invitati').val(data.numero_invitati || 0);
-        $('#edit-importo-totale').val(data.importo_totale || 0);
-        $('#edit-acconto').val(data.acconto || 0);
-        $('#edit-stato').val(data.stato || 'attivo');
-        
-        // Omaggi
-        $('#edit-omaggio1').val(data.omaggio1 || '');
-        $('#edit-omaggio2').val(data.omaggio2 || '');
-        $('#edit-omaggio3').val(data.omaggio3 || '');
-        
-        // Extra
-        $('#edit-extra1').val(data.extra1 || '');
-        $('#edit-extra1-importo').val(data.extra1_importo || 0);
-        $('#edit-extra2').val(data.extra2 || '');
-        $('#edit-extra2-importo').val(data.extra2_importo || 0);
-        $('#edit-extra3').val(data.extra3 || '');
-        $('#edit-extra3-importo').val(data.extra3_importo || 0);
-    }
-
-    // ========================================================================
-    // SUBMIT FORM MODIFICA
-    // ========================================================================
-    $('#form-edit-preventivo').on('submit', function(e) {
-        e.preventDefault();
-        console.log('💾 Submit modifica preventivo');
-        
-        var formData = new FormData(this);
-        formData.append('nonce', '<?php echo wp_create_nonce('disco747_save_preventivo'); ?>');
-        
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            beforeSend: function() {
-                $('#form-edit-preventivo button[type="submit"]')
-                    .prop('disabled', true)
-                    .text('⏳ Salvataggio...');
-            },
-            success: function(response) {
-                console.log('✅ Risposta salvataggio:', response);
-                
-                if (response.success) {
-                    alert('✅ ' + (response.data.message || 'Preventivo aggiornato con successo!'));
-                    $('#modal-edit-preventivo').fadeOut(300);
-                    
-                    // Ricarica pagina dopo 500ms
-                    setTimeout(function() {
-                        location.reload();
-                    }, 500);
-                } else {
-                    alert('❌ Errore: ' + (response.data || 'Impossibile salvare il preventivo'));
-                    $('#form-edit-preventivo button[type="submit"]')
-                        .prop('disabled', false)
-                        .text('💾 Salva Modifiche');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX:', error);
-                alert('❌ Errore di connessione al server');
-                $('#form-edit-preventivo button[type="submit"]')
-                    .prop('disabled', false)
-                    .text('💾 Salva Modifiche');
-            }
-        });
+        // Reindirizza alla pagina form-preventivo con parametro action=edit_preventivo&id=X
+        var editUrl = '<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo'); ?>&id=' + preventivoId;
+        console.log('🔗 Reindirizzo a:', editUrl);
+        window.location.href = editUrl;
     });
 
     // ========================================================================
-    // CHIUDI MODAL
+    // ⚠️ NOTA: Le funzioni loadPreventivoData, populateEditForm e i relativi
+    // handler della modal sono stati rimossi perché ora il click su "Modifica"
+    // reindirizza direttamente alla pagina form-preventivo.php precompilata.
+    // La modal HTML è stata mantenuta per compatibilità futura.
     // ========================================================================
-    $('#close-modal, #cancel-edit').on('click', function() {
-        $('#modal-edit-preventivo').fadeOut(300);
-    });
-
-    // Chiudi modal cliccando fuori
-    $('#modal-edit-preventivo').on('click', function(e) {
-        if ($(e.target).is('#modal-edit-preventivo')) {
-            $(this).fadeOut(300);
-        }
-    });
-
-    // ESC per chiudere modal
-    $(document).on('keydown', function(e) {
-        if (e.key === 'Escape') {
-            $('#modal-edit-preventivo').fadeOut(300);
-        }
-    });
 
     // ========================================================================
     // ELIMINA PREVENTIVO

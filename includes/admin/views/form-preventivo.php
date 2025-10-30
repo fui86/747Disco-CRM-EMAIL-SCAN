@@ -14,15 +14,22 @@
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================
-// MODALITÃ€ MODIFICA: Carica dati esistenti se presente edit_id
+// MODALITÀ MODIFICA: Carica dati esistenti se presente edit_id o id
+// ✅ Supporta sia ?edit_id=X che ?action=edit_preventivo&id=X
 // ============================================================================
 $is_edit_mode = false;
 $edit_data = null;
 $edit_id = 0;
 
+// Controlla entrambi i parametri possibili
 if (!empty($_GET['edit_id'])) {
-    $is_edit_mode = true;
     $edit_id = intval($_GET['edit_id']);
+} elseif (!empty($_GET['id'])) {
+    $edit_id = intval($_GET['id']);
+}
+
+if ($edit_id > 0) {
+    $is_edit_mode = true;
     
     global $wpdb;
     $table = $wpdb->prefix . 'disco747_preventivi';
@@ -30,9 +37,14 @@ if (!empty($_GET['edit_id'])) {
     $edit_data = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $edit_id), ARRAY_A);
     
     if ($edit_data) {
+        // Normalizza i nomi dei campi (supporta varianti)
         $edit_data['email'] = $edit_data['mail'] ?? $edit_data['email'] ?? '';
         $edit_data['telefono'] = $edit_data['cellulare'] ?? $edit_data['telefono'] ?? '';
         $edit_data['importo_totale'] = $edit_data['importo_preventivo'] ?? $edit_data['importo_totale'] ?? 0;
+    } else {
+        // ID non trovato nel database
+        $is_edit_mode = false;
+        $edit_id = 0;
     }
 }
 

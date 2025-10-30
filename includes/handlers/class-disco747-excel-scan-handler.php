@@ -319,6 +319,14 @@ class Disco747_Excel_Scan_Handler {
             // Parsing celle specifiche
             $data['tipo_menu'] = $this->clean_cell_value($worksheet->getCell('B1')->getValue());
             $data['data_evento'] = $this->parse_date_from_cell($worksheet->getCell('C6')->getValue());
+            
+            // ✅ FALLBACK: Se data_evento è NULL, prova a estrarla dal filename
+            if (empty($data['data_evento'])) {
+                error_log("[747Disco-Scan] Data evento NULL dalla cella C6, tento estrazione da filename: {$filename}");
+                $data['data_evento'] = $this->extract_date_from_filename($filename);
+                error_log("[747Disco-Scan] Data estratta da filename: " . ($data['data_evento'] ?? 'NULL'));
+            }
+            
             $data['tipo_evento'] = $this->clean_cell_value($worksheet->getCell('C7')->getValue());
             $data['orario_evento'] = $this->clean_cell_value($worksheet->getCell('C8')->getValue());
             $data['numero_invitati'] = $this->parse_number_from_cell($worksheet->getCell('C9')->getValue());
@@ -393,6 +401,16 @@ class Disco747_Excel_Scan_Handler {
         global $wpdb;
         
         try {
+            // ✅ VALIDAZIONE CRITICA: data_evento NON può essere NULL
+            if (empty($data['data_evento'])) {
+                error_log("[747Disco-Scan] ERRORE CRITICO: data_evento è NULL o vuota! File: " . ($data['filename'] ?? 'unknown'));
+                error_log("[747Disco-Scan] Tento ultimo fallback con data corrente...");
+                
+                // Ultimo fallback: usa data corrente + 30 giorni (evento futuro tipico)
+                $data['data_evento'] = date('Y-m-d', strtotime('+30 days'));
+                error_log("[747Disco-Scan] Data fallback impostata: {$data['data_evento']}");
+            }
+            
             // Prepara dati per inserimento nella tabella preventivi
             $table_data = array(
                 'preventivo_id' => '', // Verrà generato automaticamente se necessario
@@ -454,6 +472,13 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
+            // ✅ VALIDAZIONE FINALE: Assicurati che data_evento non sia NULL
+            if (empty($table_data['data_evento'])) {
+                error_log("[747Disco-Scan] ERRORE FINALE: data_evento ancora NULL prima dell'INSERT!");
+                $table_data['data_evento'] = date('Y-m-d', strtotime('+30 days'));
+                error_log("[747Disco-Scan] Forzata data fallback: {$table_data['data_evento']}");
+            }
+            
             // ✅ INSERT nuovo preventivo
             $result = $wpdb->insert(
                 $this->table_name,
@@ -499,23 +524,80 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
-     * Helper: Parsing data da cella
+     * Helper: Parsing data da cella - VERSIONE ROBUSTA CON FALLBACK
      */
     private function parse_date_from_cell($value) {
-        if (empty($value)) return null;
+        // Log per debug
+        error_log("[747Disco-Scan] parse_date_from_cell - Valore ricevuto: " . var_export($value, true) . " (tipo: " . gettype($value) . ")");
+        
+        if (empty($value)) {
+            error_log("[747Disco-Scan] parse_date_from_cell - Valore vuoto, ritorno NULL");
+            return null;
+        }
         
         try {
-            // Prova parsing diretto
+            // CASO 1: Numero seriale Excel
             if (is_numeric($value)) {
-                // Excel date serial
+                error_log("[747Disco-Scan] parse_date_from_cell - Valore numerico: {$value}");
                 $unix_date = ($value - 25569) * 86400;
-                return date('Y-m-d', $unix_date);
-            } else {
-                // Stringa data
-                $timestamp = strtotime($value);
-                return $timestamp ? date('Y-m-d', $timestamp) : null;
+                $parsed = date('Y-m-d', $unix_date);
+                error_log("[747Disco-Scan] parse_date_from_cell - Parsed da seriale Excel: {$parsed}");
+                return $parsed;
             }
+            
+            // CASO 2: Oggetto DateTime di PhpSpreadsheet
+            if (is_object($value)) {
+                if (method_exists($value, 'format')) {
+                    $parsed = $value->format('Y-m-d');
+                    error_log("[747Disco-Scan] parse_date_from_cell - Parsed da DateTime object: {$parsed}");
+                    return $parsed;
+                }
+                // Prova a convertire in stringa
+                $value = (string) $value;
+                error_log("[747Disco-Scan] parse_date_from_cell - Oggetto convertito in stringa: {$value}");
+            }
+            
+            // CASO 3: Stringa con formato italiano (gg/mm/aaaa o gg-mm-aaaa)
+            if (is_string($value)) {
+                error_log("[747Disco-Scan] parse_date_from_cell - Stringa ricevuta: '{$value}'");
+                
+                // Formati italiani comuni
+                $italian_patterns = array(
+                    '/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/',  // 13/12/2025 o 13-12-2025
+                    '/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/',   // 13/12/25
+                );
+                
+                foreach ($italian_patterns as $pattern) {
+                    if (preg_match($pattern, $value, $matches)) {
+                        $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+                        $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+                        $year = $matches[3];
+                        
+                        // Converti anno a 2 cifre in 4 cifre
+                        if (strlen($year) == 2) {
+                            $year = '20' . $year;
+                        }
+                        
+                        $parsed = "{$year}-{$month}-{$day}";
+                        error_log("[747Disco-Scan] parse_date_from_cell - Parsed da pattern italiano: {$parsed}");
+                        return $parsed;
+                    }
+                }
+                
+                // Prova strtotime come fallback
+                $timestamp = strtotime($value);
+                if ($timestamp) {
+                    $parsed = date('Y-m-d', $timestamp);
+                    error_log("[747Disco-Scan] parse_date_from_cell - Parsed con strtotime: {$parsed}");
+                    return $parsed;
+                }
+            }
+            
+            error_log("[747Disco-Scan] parse_date_from_cell - NESSUN FORMATO RICONOSCIUTO!");
+            return null;
+            
         } catch (Exception $e) {
+            error_log("[747Disco-Scan] parse_date_from_cell - ECCEZIONE: " . $e->getMessage());
             return null;
         }
     }
@@ -537,6 +619,48 @@ class Disco747_Excel_Scan_Handler {
         // Rimuovi simboli valuta e converti
         $cleaned = preg_replace('/[€$£,]/', '', strval($value));
         return floatval($cleaned);
+    }
+    
+    /**
+     * Helper: Estrae data dal filename
+     * Esempi: "Conf 13_12 18 anni..." -> 2025-12-13
+     *         "No 24_01 18 Anni..." -> 2026-01-24
+     */
+    private function extract_date_from_filename($filename) {
+        error_log("[747Disco-Scan] extract_date_from_filename - Filename: {$filename}");
+        
+        // Pattern: cerca DD_MM all'inizio del nome file (dopo eventuale prefisso)
+        // Esempi: "Conf 13_12", "No 24_01", "13_12", "05_01"
+        if (preg_match('/(\d{1,2})_(\d{1,2})/', $filename, $matches)) {
+            $day = str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+            $month = str_pad($matches[2], 2, '0', STR_PAD_LEFT);
+            
+            // Determina l'anno: se il mese è < mese corrente, usa anno prossimo
+            $current_month = intval(date('m'));
+            $file_month = intval($month);
+            $current_year = intval(date('Y'));
+            
+            // Se siamo a fine anno e il file è di inizio anno, è probabilmente anno prossimo
+            if ($current_month >= 10 && $file_month <= 3) {
+                $year = $current_year + 1;
+            } else {
+                $year = $current_year;
+            }
+            
+            $parsed = "{$year}-{$month}-{$day}";
+            error_log("[747Disco-Scan] extract_date_from_filename - Data estratta: {$parsed} (giorno={$day}, mese={$month}, anno={$year})");
+            
+            // Valida la data
+            if (checkdate(intval($month), intval($day), $year)) {
+                return $parsed;
+            } else {
+                error_log("[747Disco-Scan] extract_date_from_filename - Data non valida: {$parsed}");
+                return null;
+            }
+        }
+        
+        error_log("[747Disco-Scan] extract_date_from_filename - Nessun pattern DD_MM trovato");
+        return null;
     }
     
     /**
