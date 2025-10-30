@@ -396,6 +396,26 @@ class Disco747_Excel_Scan_Handler {
         global $wpdb;
         
         try {
+            // ------------------------------------------------------------------
+            // Data evento obbligatoria: se assente cerchiamo di ricavarla oppure
+            // utilizziamo la data corrente per evitare errori di NOT NULL SQL.
+            // ------------------------------------------------------------------
+
+            if (empty($data['data_evento']) || $data['data_evento'] === null) {
+                // Fallback 1: prova a dedurre dal filename (es. 13_11 Nome.xlsx)
+                if (isset($data['filename']) && preg_match('/(?P<day>\d{1,2})[ _-](?P<month>\d{1,2})/', $data['filename'], $m)) {
+                    $day   = str_pad($m['day'], 2, '0', STR_PAD_LEFT);
+                    $month = str_pad($m['month'], 2, '0', STR_PAD_LEFT);
+                    $year  = date('Y');
+                    $data['data_evento'] = sprintf('%s-%s-%s', $year, $month, $day);
+                }
+
+                // Fallback 2: oggi
+                if (empty($data['data_evento'])) {
+                    $data['data_evento'] = date('Y-m-d');
+                }
+            }
+
             // Prepara dati per inserimento nella tabella preventivi
             $table_data = array(
                 'preventivo_id' => '', // Verrà generato automaticamente se necessario
