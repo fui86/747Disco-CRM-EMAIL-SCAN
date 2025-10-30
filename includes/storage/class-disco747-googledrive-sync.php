@@ -1,11 +1,11 @@
 <?php
 /**
  * Classe per sincronizzazione preventivi da Google Drive
- * VERSIONE 11.8.1-FIXED: Con metodo is_available() e preventivo_id autogenerato
+ * VERSIONE 12.0.0-COMPLETE: Batch scan completo con mapping corretto
  * 
  * @package    Disco747_CRM
  * @subpackage Storage
- * @since      11.8.1
+ * @since      12.0.0
  * @author     747 Disco Team
  */
 
@@ -19,11 +19,8 @@ class Disco747_GoogleDrive_Sync {
 
     private $googledrive;
     private $database;
-    private $preventivi_cache = null;
-    private $cache_duration = 300;
     private $debug_mode = true;
     private $sync_available = false;
-    private $last_error = '';
 
     /**
      * Costruttore
@@ -67,145 +64,365 @@ class Disco747_GoogleDrive_Sync {
 
     /**
      * ✅ METODO PUBBLICO: Verifica se Google Drive Sync è disponibile
-     * 
-     * @return bool
      */
     public function is_available() {
         return $this->sync_available;
     }
 
     /**
-     * METODO BATCH SCAN con TEST LIMITATO a 5 file
+     * ✅ METODO PRINCIPALE: Batch scan Excel files con limite di 2 file per volta
+     * 
+     * @param string $year Anno da scansionare
+     * @param string $month Mese da scansionare (opzionale)
+     * @param bool $reset Se true, è una scansione dopo reset
+     * @return array Risultati scansione
      */
-    public function scan_excel_files_batch($test_mode = true, $limit = 5) {
-        $this->log('[BATCH-SCAN] ========== INIZIO BATCH SCAN CON ANALISI ==========');
+    public function batch_scan_excel_files($year = '', $month = '', $reset = false) {
+        $this->log('[747Disco-Scan] ========== INIZIO BATCH SCAN ==========');
         
+        $start_time = microtime(true);
         $messages = array();
-        $new_count = 0;
-        $updated_count = 0;
-        $error_count = 0;
+        $processed = 0;
+        $inserted = 0;
+        $updated = 0;
+        $errors = 0;
+        $skipped = 0;
+        $total_files = 0;
         
         try {
-            // Step 1: Verifica token
+            // Verifica disponibilità
+            if (!$this->sync_available || !$this->googledrive) {
+                throw new \Exception('Google Drive non disponibile');
+            }
+            
+            $messages[] = '✅ Google Drive disponibile';
+            $this->log('[747Disco-Scan] Google Drive handler OK');
+            
+            // Ottieni token valido
             $token = $this->googledrive->get_valid_access_token();
             if (!$token) {
-                throw new \Exception('Token Google Drive non valido');
+                throw new \Exception('Token Google Drive non valido. Riautenticare.');
             }
-            $this->log('[Token] Token ottenuto con successo');
+            
             $messages[] = '✅ Token Google Drive ottenuto';
+            $this->log('[747Disco-Scan] Token ottenuto');
             
-            // Step 2: Trova cartella principale
-            $main_folder_id = $this->find_main_folder_safe($token);
+            // Trova cartella principale /747-Preventivi/
+            $main_folder_id = $this->find_main_folder($token);
             if (!$main_folder_id) {
-                throw new \Exception('Cartella /747-Preventivi/ non trovata');
+                throw new \Exception('Cartella /747-Preventivi/ non trovata su Google Drive');
             }
-            $this->log("Cartella 747-Preventivi trovata: {$main_folder_id}");
+            
             $messages[] = '✅ Cartella /747-Preventivi/ trovata';
+            $this->log('[747Disco-Scan] Cartella principale ID: ' . $main_folder_id);
             
-            // Step 3: Trova TUTTI i file Excel
-            $all_files = $this->scan_all_excel_files_recursive($main_folder_id, $token);
+            // Trova tutti i file Excel nella struttura Anno/Mese
+            $all_files = $this->find_excel_files_in_structure($main_folder_id, $token, $year, $month);
             $total_files = count($all_files);
-            $this->log("[BATCH] Trovati {$total_files} file Excel totali");
-            $messages[] = "📊 Trovati {$total_files} file Excel totali";
             
-            // TEST MODE: Limita a 5 file
-            if ($test_mode && $total_files > $limit) {
-                $all_files = array_slice($all_files, 0, $limit);
-                $messages[] = "🔧 TEST MODE: Analisi limitata a {$limit} file";
-                $this->log("[BATCH] TEST MODE: Limitato a {$limit} file");
+            $messages[] = "📊 Trovati {$total_files} file Excel";
+            $this->log("[747Disco-Scan] Trovati {$total_files} file totali");
+            
+            if ($total_files === 0) {
+                return array(
+                    'success' => true,
+                    'total_files' => 0,
+                    'processed' => 0,
+                    'inserted' => 0,
+                    'updated' => 0,
+                    'errors' => 0,
+                    'skipped' => 0,
+                    'duration_ms' => round((microtime(true) - $start_time) * 1000),
+                    'messages' => array_merge($messages, array('⚠️ Nessun file da processare'))
+                );
             }
             
-            // Step 4: Processa ogni file
-            foreach ($all_files as $index => $file) {
-                $file_number = $index + 1;
-                $file_name = $file['filename'] ?? 'Unknown';
+            // Processa file 2 alla volta per evitare timeout
+            $batch_size = 2;
+            $batches = array_chunk($all_files, $batch_size);
+            
+            foreach ($batches as $batch_index => $batch) {
+                $this->log("[747Disco-Scan] Batch " . ($batch_index + 1) . "/" . count($batches) . " con " . count($batch) . " file");
                 
-                $this->log("[BATCH] Processamento file: {$file_name}");
-                
-                try {
-                    $result = $this->process_single_excel_file($file, $token);
-                    
-                    if ($result['success']) {
-                        if ($result['action'] === 'inserted') {
-                            $new_count++;
+                foreach ($batch as $file) {
+                    try {
+                        $this->log('[747Disco-Scan] Processando file: ' . $file['filename']);
+                        
+                        $result = $this->process_single_file($file, $token);
+                        
+                        if ($result['success']) {
+                            $processed++;
+                            if ($result['action'] === 'inserted') {
+                                $inserted++;
+                            } elseif ($result['action'] === 'updated') {
+                                $updated++;
+                            }
+                            $messages[] = "✅ " . $file['filename'];
                         } else {
-                            $updated_count++;
+                            $errors++;
+                            $messages[] = "❌ " . $file['filename'] . ": " . $result['error'];
+                            $this->log('[747Disco-Scan] Errore: ' . $result['error'], 'ERROR');
                         }
-                    } else {
-                        $error_count++;
-                        $messages[] = "❌ Errore: {$file_name} - " . ($result['error'] ?? 'Errore sconosciuto');
+                        
+                    } catch (\Exception $e) {
+                        $errors++;
+                        $messages[] = "❌ " . $file['filename'] . ": " . $e->getMessage();
+                        $this->log('[747Disco-Scan] Exception: ' . $e->getMessage(), 'ERROR');
                     }
-                    
-                } catch (\Exception $e) {
-                    $error_count++;
-                    $messages[] = "❌ Errore: {$file_name} - " . $e->getMessage();
-                    $this->log("[BATCH] Errore processamento: " . $e->getMessage(), 'ERROR');
+                }
+                
+                // Pausa tra batch per evitare rate limiting
+                if ($batch_index < count($batches) - 1) {
+                    usleep(500000); // 500ms
                 }
             }
             
-            $messages[] = '✅ Batch scan completato';
-            $messages[] = "📊 Risultati: {$new_count} nuovi, {$updated_count} aggiornati, {$error_count} errori";
+            $duration_ms = round((microtime(true) - $start_time) * 1000);
+            
+            $messages[] = "✅ Scansione completata in {$duration_ms}ms";
+            $messages[] = "📊 Processati: {$processed}, Nuovi: {$inserted}, Aggiornati: {$updated}, Errori: {$errors}";
+            
+            $this->log('[747Disco-Scan] ========== BATCH SCAN COMPLETATO ==========');
+            $this->log("[747Disco-Scan] Totale: {$total_files}, Processati: {$processed}, Nuovi: {$inserted}, Aggiornati: {$updated}, Errori: {$errors}");
+            
+            return array(
+                'success' => $errors < $total_files, // Success se almeno qualche file è stato processato
+                'total_files' => $total_files,
+                'processed' => $processed,
+                'inserted' => $inserted,
+                'updated' => $updated,
+                'errors' => $errors,
+                'skipped' => $skipped,
+                'duration_ms' => $duration_ms,
+                'messages' => $messages
+            );
             
         } catch (\Exception $e) {
-            $messages[] = '❌ Errore batch scan: ' . $e->getMessage();
-            $this->log('[BATCH-SCAN] Errore: ' . $e->getMessage(), 'ERROR');
+            $duration_ms = round((microtime(true) - $start_time) * 1000);
+            
+            $this->log('[747Disco-Scan] ERRORE CRITICO: ' . $e->getMessage(), 'ERROR');
+            
+            return array(
+                'success' => false,
+                'total_files' => $total_files,
+                'processed' => $processed,
+                'inserted' => $inserted,
+                'updated' => $updated,
+                'errors' => $errors + 1,
+                'skipped' => $skipped,
+                'duration_ms' => $duration_ms,
+                'messages' => array_merge($messages, array('❌ Errore: ' . $e->getMessage()))
+            );
         }
+    }
+
+    /**
+     * Trova cartella principale /747-Preventivi/
+     */
+    private function find_main_folder($token) {
+        try {
+            $query = "mimeType='application/vnd.google-apps.folder' and name='747-Preventivi' and trashed=false";
+            
+            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+                'q' => $query,
+                'fields' => 'files(id,name)',
+                'pageSize' => 10
+            ));
+            
+            $response = wp_remote_get($url, array(
+                'headers' => array('Authorization' => 'Bearer ' . $token),
+                'timeout' => 30
+            ));
+            
+            if (is_wp_error($response)) {
+                throw new \Exception($response->get_error_message());
+            }
+            
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            
+            if (isset($data['files']) && !empty($data['files'])) {
+                return $data['files'][0]['id'];
+            }
+            
+            return null;
+            
+        } catch (\Exception $e) {
+            $this->log("[747Disco-Scan] Errore ricerca cartella: " . $e->getMessage(), 'ERROR');
+            return null;
+        }
+    }
+
+    /**
+     * Trova file Excel nella struttura Anno/Mese
+     */
+    private function find_excel_files_in_structure($main_folder_id, $token, $year = '', $month = '') {
+        $all_files = array();
         
-        $this->log('[BATCH-SCAN] ========== FINE BATCH SCAN ==========');
-        
-        return array(
-            'success' => $error_count === 0,
-            'found' => $total_files ?? 0,
-            'processed' => $new_count + $updated_count,
-            'new' => $new_count,
-            'updated' => $updated_count,
-            'errors' => $error_count,
-            'messages' => $messages
-        );
+        try {
+            // Se non specificato anno, usa anno corrente
+            if (empty($year)) {
+                $year = date('Y');
+            }
+            
+            // Trova cartella anno
+            $year_folders = $this->find_subfolders($main_folder_id, $token);
+            
+            foreach ($year_folders as $year_folder) {
+                // Filtra per anno se specificato
+                if (!empty($year) && $year_folder['name'] !== $year) {
+                    continue;
+                }
+                
+                $this->log("[747Disco-Scan] Scansione anno: " . $year_folder['name']);
+                
+                // Trova cartelle mesi
+                $month_folders = $this->find_subfolders($year_folder['id'], $token);
+                
+                foreach ($month_folders as $month_folder) {
+                    // Filtra per mese se specificato
+                    if (!empty($month) && strtoupper($month_folder['name']) !== strtoupper($month)) {
+                        continue;
+                    }
+                    
+                    $this->log("[747Disco-Scan] Scansione mese: " . $month_folder['name']);
+                    
+                    // Trova file Excel in questa cartella
+                    $excel_files = $this->find_excel_files_in_folder($month_folder['id'], $token);
+                    
+                    // Aggiungi metadati path
+                    foreach ($excel_files as $file) {
+                        $file['year'] = $year_folder['name'];
+                        $file['month'] = $month_folder['name'];
+                        $all_files[] = $file;
+                    }
+                }
+            }
+            
+            return $all_files;
+            
+        } catch (\Exception $e) {
+            $this->log("[747Disco-Scan] Errore scansione struttura: " . $e->getMessage(), 'ERROR');
+            return array();
+        }
+    }
+
+    /**
+     * Trova sottocartelle
+     */
+    private function find_subfolders($parent_id, $token) {
+        try {
+            $query = "'{$parent_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
+            
+            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+                'q' => $query,
+                'fields' => 'files(id,name)',
+                'pageSize' => 100
+            ));
+            
+            $response = wp_remote_get($url, array(
+                'headers' => array('Authorization' => 'Bearer ' . $token),
+                'timeout' => 30
+            ));
+            
+            if (is_wp_error($response)) {
+                return array();
+            }
+            
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            
+            return $data['files'] ?? array();
+            
+        } catch (\Exception $e) {
+            $this->log("[747Disco-Scan] Errore ricerca sottocartelle: " . $e->getMessage(), 'ERROR');
+            return array();
+        }
+    }
+
+    /**
+     * Trova file Excel in una cartella specifica
+     */
+    private function find_excel_files_in_folder($folder_id, $token) {
+        try {
+            $query = "'{$folder_id}' in parents and (mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or name contains '.xlsx') and trashed=false";
+            
+            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+                'q' => $query,
+                'fields' => 'files(id,name,size,modifiedTime)',
+                'pageSize' => 100
+            ));
+            
+            $response = wp_remote_get($url, array(
+                'headers' => array('Authorization' => 'Bearer ' . $token),
+                'timeout' => 30
+            ));
+            
+            if (is_wp_error($response)) {
+                return array();
+            }
+            
+            $body = wp_remote_retrieve_body($response);
+            $data = json_decode($body, true);
+            
+            $files = array();
+            if (isset($data['files'])) {
+                foreach ($data['files'] as $file) {
+                    $files[] = array(
+                        'googledrive_id' => $file['id'],
+                        'filename' => $file['name'],
+                        'file_size' => $file['size'] ?? 0,
+                        'modified_time' => $file['modifiedTime'] ?? ''
+                    );
+                }
+            }
+            
+            return $files;
+            
+        } catch (\Exception $e) {
+            $this->log("[747Disco-Scan] Errore ricerca file Excel: " . $e->getMessage(), 'ERROR');
+            return array();
+        }
     }
 
     /**
      * Processa singolo file Excel
      */
-    private function process_single_excel_file($file, $token) {
-        $this->log('[PROCESS] Inizio processamento: ' . $file['filename']);
+    private function process_single_file($file, $token) {
+        $this->log('[747Disco-Scan] Processando file: ' . $file['filename']);
         
         $temp_file_path = null;
         
         try {
             // Download file temporaneo
-            $file_id = $file['googledrive_id'];
-            $temp_result = $this->download_file_to_temp($file_id, $token);
+            $temp_result = $this->download_file_to_temp($file['googledrive_id'], $token);
             
             if (!$temp_result['success']) {
                 throw new \Exception('Errore download: ' . $temp_result['error']);
             }
             
             $temp_file_path = $temp_result['path'];
-            $this->log('[PROCESS] File scaricato: ' . $temp_file_path);
+            $this->log('[747Disco-Scan] File scaricato: ' . $temp_file_path);
             
-            // Estrai dati dal file Excel
-            $extracted_data = $this->extract_data_from_excel($temp_file_path);
+            // Parsing Excel
+            $extracted_data = $this->parse_excel_file($temp_file_path, $file['filename']);
             
             if (!$extracted_data) {
-                throw new \Exception('Impossibile estrarre dati dal file Excel');
+                throw new \Exception('Parsing fallito');
             }
             
-            $this->log('[PROCESS] Dati estratti: cliente=' . ($extracted_data['nome_cliente'] ?? 'N/A'));
+            $this->log('[747Disco-Scan] Dati estratti da: ' . $file['filename']);
             
-            // Aggiungi metadati Google Drive
-            $extracted_data['googledrive_file_id'] = $file_id;
-            $extracted_data['googledrive_url'] = 'https://drive.google.com/file/d/' . $file_id . '/view';
-            $extracted_data['excel_url'] = '';
-            $extracted_data['pdf_url'] = '';
+            // Aggiungi metadati
+            $extracted_data['googledrive_file_id'] = $file['googledrive_id'];
+            $extracted_data['googledrive_url'] = 'https://drive.google.com/file/d/' . $file['googledrive_id'] . '/view';
             
             // Salva nel database
             $save_result = $this->save_to_database($extracted_data);
             
-            // Cleanup file temporaneo
+            // Cleanup
             if (file_exists($temp_file_path)) {
-                unlink($temp_file_path);
-                $this->log('[PROCESS] ✅ File temp cancellato: ' . $temp_file_path);
+                @unlink($temp_file_path);
             }
             
             return $save_result;
@@ -213,154 +430,13 @@ class Disco747_GoogleDrive_Sync {
         } catch (\Exception $e) {
             // Cleanup in caso di errore
             if ($temp_file_path && file_exists($temp_file_path)) {
-                unlink($temp_file_path);
+                @unlink($temp_file_path);
             }
             
-            $this->log('[PROCESS] Errore: ' . $e->getMessage(), 'ERROR');
             return array(
                 'success' => false,
                 'error' => $e->getMessage()
             );
-        }
-    }
-
-    /**
-     * ✅ METODO CORRETTO: Salva o aggiorna preventivo nel database con preventivo_id autogenerato
-     */
-    private function save_to_database($data) {
-        global $wpdb;
-        
-        try {
-            $table_name = $wpdb->prefix . 'disco747_preventivi';
-            
-            // Controlla se esiste già tramite googledrive_file_id
-            $existing = null;
-            if (!empty($data['googledrive_file_id'])) {
-                $existing = $wpdb->get_row($wpdb->prepare(
-                    "SELECT * FROM {$table_name} WHERE googledrive_file_id = %s",
-                    $data['googledrive_file_id']
-                ));
-            }
-            
-            if ($existing) {
-                // UPDATE preventivo esistente
-                $this->log('[DB] Preventivo esistente trovato (ID: ' . $existing->id . '), UPDATE');
-                
-                $update_data = array(
-                    'data_evento' => $data['data_evento'] ?? $existing->data_evento,
-                    'tipo_evento' => $data['tipo_evento'] ?? $existing->tipo_evento,
-                    'tipo_menu' => $data['tipo_menu'] ?? $existing->tipo_menu,
-                    'numero_invitati' => intval($data['numero_invitati'] ?? $existing->numero_invitati),
-                    'orario_evento' => $data['orario_evento'] ?? $existing->orario_evento,
-                    'nome_cliente' => $data['nome_cliente'] ?? $existing->nome_cliente,
-                    'telefono' => $data['telefono'] ?? $existing->telefono,
-                    'email' => $data['email'] ?? $existing->email,
-                    'importo_totale' => floatval($data['importo_totale'] ?? $existing->importo_totale),
-                    'acconto' => floatval($data['acconto'] ?? $existing->acconto),
-                    'omaggio1' => $data['omaggio1'] ?? $existing->omaggio1,
-                    'omaggio2' => $data['omaggio2'] ?? $existing->omaggio2,
-                    'omaggio3' => $data['omaggio3'] ?? $existing->omaggio3,
-                    'extra1' => $data['extra1'] ?? $existing->extra1,
-                    'extra1_importo' => floatval($data['extra1_importo'] ?? $existing->extra1_importo),
-                    'extra2' => $data['extra2'] ?? $existing->extra2,
-                    'extra2_importo' => floatval($data['extra2_importo'] ?? $existing->extra2_importo),
-                    'extra3' => $data['extra3'] ?? $existing->extra3,
-                    'extra3_importo' => floatval($data['extra3_importo'] ?? $existing->extra3_importo),
-                    'stato' => $data['stato'] ?? $existing->stato,
-                    'googledrive_url' => $data['googledrive_url'] ?? $existing->googledrive_url,
-                    'updated_at' => current_time('mysql')
-                );
-                
-                $result = $wpdb->update(
-                    $table_name,
-                    $update_data,
-                    array('id' => $existing->id),
-                    array('%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%f', '%s', '%s', '%s'),
-                    array('%d')
-                );
-                
-                if ($result === false) {
-                    $this->log('[DB] Errore update: ' . $wpdb->last_error, 'ERROR');
-                    return array('success' => false, 'error' => $wpdb->last_error);
-                }
-                
-                return array(
-                    'success' => true,
-                    'id' => $existing->id,
-                    'action' => 'updated'
-                );
-                
-            } else {
-                // ✅ INSERT nuovo preventivo con preventivo_id AUTOGENERATO
-                $this->log('[DB] Preventivo nuovo, INSERT');
-                
-                // ✅ GENERA preventivo_id PROGRESSIVO
-                $max_id = $wpdb->get_var("
-                    SELECT MAX(CAST(preventivo_id AS UNSIGNED)) 
-                    FROM {$table_name}
-                    WHERE preventivo_id != '' AND preventivo_id IS NOT NULL
-                ");
-                
-                $next_id = intval($max_id) + 1;
-                $preventivo_id = str_pad($next_id, 3, '0', STR_PAD_LEFT); // 001, 002, 003...
-                
-                $this->log("[DB] ✅ Generato preventivo_id: {$preventivo_id}");
-                
-                $insert_data = array(
-                    'preventivo_id' => $preventivo_id, // ✅ CAMPO OBBLIGATORIO
-                    'data_evento' => $data['data_evento'] ?? date('Y-m-d'),
-                    'tipo_evento' => $data['tipo_evento'] ?? '',
-                    'tipo_menu' => $data['tipo_menu'] ?? '',
-                    'numero_invitati' => intval($data['numero_invitati'] ?? 0),
-                    'orario_evento' => $data['orario_evento'] ?? '',
-                    'nome_cliente' => $data['nome_cliente'] ?? '',
-                    'telefono' => $data['telefono'] ?? '',
-                    'email' => $data['email'] ?? '',
-                    'importo_totale' => floatval($data['importo_totale'] ?? 0),
-                    'acconto' => floatval($data['acconto'] ?? 0),
-                    'omaggio1' => $data['omaggio1'] ?? '',
-                    'omaggio2' => $data['omaggio2'] ?? '',
-                    'omaggio3' => $data['omaggio3'] ?? '',
-                    'extra1' => $data['extra1'] ?? '',
-                    'extra1_importo' => floatval($data['extra1_importo'] ?? 0),
-                    'extra2' => $data['extra2'] ?? '',
-                    'extra2_importo' => floatval($data['extra2_importo'] ?? 0),
-                    'extra3' => $data['extra3'] ?? '',
-                    'extra3_importo' => floatval($data['extra3_importo'] ?? 0),
-                    'stato' => $data['stato'] ?? 'attivo',
-                    'excel_url' => '',
-                    'pdf_url' => '',
-                    'googledrive_url' => $data['googledrive_url'] ?? '',
-                    'googledrive_file_id' => $data['googledrive_file_id'] ?? '',
-                    'created_at' => current_time('mysql'),
-                    'created_by' => get_current_user_id(),
-                    'updated_at' => current_time('mysql')
-                );
-                
-                $result = $wpdb->insert(
-                    $table_name,
-                    $insert_data,
-                    array('%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s', '%s', '%s', '%s', '%f', '%s', '%f', '%s', '%f', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s')
-                );
-                
-                if ($result === false) {
-                    $this->log('[DB] Errore insert: ' . $wpdb->last_error, 'ERROR');
-                    return array('success' => false, 'error' => $wpdb->last_error);
-                }
-                
-                $insert_id = $wpdb->insert_id;
-                $this->log("[DB] ✅ Preventivo inserito con ID: {$insert_id}");
-                
-                return array(
-                    'success' => true,
-                    'id' => $insert_id,
-                    'action' => 'inserted'
-                );
-            }
-            
-        } catch (\Exception $e) {
-            $this->log('[DB] Exception: ' . $e->getMessage(), 'ERROR');
-            return array('success' => false, 'error' => $e->getMessage());
         }
     }
 
@@ -370,14 +446,14 @@ class Disco747_GoogleDrive_Sync {
     private function download_file_to_temp($file_id, $token) {
         try {
             $upload_dir = wp_upload_dir();
-            $temp_dir = $upload_dir['basedir'] . '/disco747-temp';
+            $temp_dir = $upload_dir['basedir'] . '/preventivi/temp/';
             
             if (!is_dir($temp_dir)) {
                 wp_mkdir_p($temp_dir);
             }
             
-            $temp_filename = 'temp_' . time() . '_' . sanitize_file_name(basename($file_id)) . '.xlsx';
-            $temp_path = $temp_dir . '/' . $temp_filename;
+            $temp_filename = 'temp_' . time() . '_' . wp_rand(1000, 9999) . '.xlsx';
+            $temp_path = $temp_dir . $temp_filename;
             
             $download_url = 'https://www.googleapis.com/drive/v3/files/' . $file_id . '?alt=media';
             
@@ -398,7 +474,7 @@ class Disco747_GoogleDrive_Sync {
             
             file_put_contents($temp_path, $body);
             
-            $this->log('[DOWNLOAD] File salvato: ' . $temp_path . ' (' . strlen($body) . ' bytes)');
+            $this->log('[747Disco-Scan] File salvato temporaneamente: ' . $temp_filename);
             
             return array('success' => true, 'path' => $temp_path);
             
@@ -408,65 +484,147 @@ class Disco747_GoogleDrive_Sync {
     }
 
     /**
-     * Estrai dati da file Excel
+     * ✅ PARSING COMPLETO: Estrae dati da file Excel secondo mapping richiesto
      */
-    private function extract_data_from_excel($file_path) {
+    private function parse_excel_file($file_path, $filename) {
         try {
-            $this->log('[EXCEL] Apertura file: ' . $file_path);
+            $this->log('[747Disco-Scan] Apertura Excel con PhpSpreadsheet');
             
-            require_once DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php';
+            // Carica PhpSpreadsheet
+            $autoload = DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php';
+            if (file_exists($autoload)) {
+                require_once $autoload;
+            }
+            
+            if (!class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
+                throw new \Exception('PhpSpreadsheet non disponibile');
+            }
             
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Leggi celle specifiche (Template Nuovo)
+            // Leggi tipo_menu da B1 per determinare il mapping corretto
+            $tipo_menu_raw = trim($sheet->getCell('B1')->getValue() ?? '');
+            $tipo_menu = $this->extract_menu_type($tipo_menu_raw, $filename);
+            
+            $this->log('[747Disco-Scan] Tipo menu rilevato: ' . $tipo_menu);
+            
+            // ✅ MAPPING CELLE secondo specifiche
             $data = array(
-                'nome_cliente' => trim($sheet->getCell('C5')->getValue() ?? ''),
-                'telefono' => trim($sheet->getCell('C6')->getValue() ?? ''),
-                'email' => trim($sheet->getCell('C7')->getValue() ?? ''),
-                'tipo_evento' => trim($sheet->getCell('C8')->getValue() ?? ''),
-                'data_evento' => $this->normalize_date($sheet->getCell('C9')->getValue()),
-                'orario_evento' => trim($sheet->getCell('C10')->getValue() ?? ''),
-                'numero_invitati' => intval($sheet->getCell('C11')->getValue() ?? 0),
-                'tipo_menu' => trim($sheet->getCell('A18')->getValue() ?? ''),
-                'importo_totale' => floatval($sheet->getCell('D23')->getValue() ?? 0),
-                'acconto' => 0, // Da implementare se necessario
-                'omaggio1' => trim($sheet->getCell('A27')->getValue() ?? ''),
-                'omaggio2' => trim($sheet->getCell('A28')->getValue() ?? ''),
-                'omaggio3' => trim($sheet->getCell('A29')->getValue() ?? ''),
-                'extra1' => trim($sheet->getCell('A31')->getValue() ?? ''),
-                'extra1_importo' => floatval($sheet->getCell('D31')->getValue() ?? 0),
-                'extra2' => trim($sheet->getCell('A32')->getValue() ?? ''),
-                'extra2_importo' => floatval($sheet->getCell('D32')->getValue() ?? 0),
-                'extra3' => '',
-                'extra3_importo' => 0,
-                'stato' => 'attivo'
+                // Dati evento
+                'data_evento' => $this->parse_date($sheet->getCell('C6')->getValue()),
+                'tipo_evento' => $this->clean_value($sheet->getCell('C7')->getValue()),
+                'tipo_menu' => $tipo_menu,
+                'orario_evento' => $this->clean_value($sheet->getCell('C8')->getValue()),
+                'numero_invitati' => $this->parse_number($sheet->getCell('C9')->getValue()),
+                
+                // Dati cliente/referente
+                'nome_referente' => $this->clean_value($sheet->getCell('C11')->getValue()),
+                'cognome_referente' => $this->clean_value($sheet->getCell('C12')->getValue()),
+                'telefono' => $this->clean_value($sheet->getCell('C14')->getValue()),
+                'email' => $this->clean_value($sheet->getCell('C15')->getValue()),
+                
+                // Omaggi
+                'omaggio1' => $this->clean_value($sheet->getCell('C17')->getValue()),
+                'omaggio2' => $this->clean_value($sheet->getCell('C18')->getValue()),
+                'omaggio3' => $this->clean_value($sheet->getCell('C19')->getValue()),
+                
+                // Importi
+                'importo_totale' => $this->parse_currency($sheet->getCell('F27')->getValue()),
+                'acconto' => $this->parse_currency($sheet->getCell('F28')->getValue()),
+                'saldo' => $this->parse_currency($sheet->getCell('F30')->getValue()),
+                
+                // Extra a pagamento
+                'extra1' => $this->clean_value($sheet->getCell('C33')->getValue()),
+                'extra1_importo' => $this->parse_currency($sheet->getCell('F33')->getValue()),
+                'extra2' => $this->clean_value($sheet->getCell('C34')->getValue()),
+                'extra2_importo' => $this->parse_currency($sheet->getCell('F34')->getValue()),
+                'extra3' => $this->clean_value($sheet->getCell('C35')->getValue()),
+                'extra3_importo' => $this->parse_currency($sheet->getCell('F35')->getValue()),
             );
             
-            $this->log('[EXCEL] Dati estratti: ' . $data['nome_cliente'] . ' - ' . $data['data_evento']);
+            // Costruisci nome_cliente da nome e cognome
+            $data['nome_cliente'] = trim($data['nome_referente'] . ' ' . $data['cognome_referente']);
+            
+            // Calcola importo_preventivo e saldo se necessario
+            $extra_totale = $data['extra1_importo'] + $data['extra2_importo'] + $data['extra3_importo'];
+            $data['importo_preventivo'] = $data['importo_totale'] + $extra_totale;
+            
+            // Determina stato dal filename
+            $data['stato'] = $this->determine_stato($filename, $data['acconto']);
+            
+            // Split orario in inizio/fine se possibile
+            $this->parse_orario($data);
+            
+            $this->log('[747Disco-Scan] Parsing completato: ' . $filename . ' - Evento: ' . $data['tipo_evento'] . ', Importo: €' . number_format($data['importo_totale'], 2));
             
             return $data;
             
         } catch (\Exception $e) {
-            $this->log('[EXCEL] Errore: ' . $e->getMessage(), 'ERROR');
+            $this->log('[747Disco-Scan] Errore parsing: ' . $e->getMessage(), 'ERROR');
             return null;
         }
     }
 
     /**
-     * Normalizza data Excel
+     * Estrae tipo menu
      */
-    private function normalize_date($value) {
+    private function extract_menu_type($tipo_menu_cell, $filename) {
+        // Prova da cella B1
+        if (!empty($tipo_menu_cell)) {
+            if (preg_match('/(Menu\s*7-4-7|Menu\s*747|7-4-7|747)/i', $tipo_menu_cell)) {
+                return 'Menu 7-4-7';
+            }
+            if (preg_match('/(Menu\s*7-4|Menu\s*74|7-4|74)/i', $tipo_menu_cell)) {
+                return 'Menu 7-4';
+            }
+            if (preg_match('/(Menu\s*7|^7$)/i', $tipo_menu_cell)) {
+                return 'Menu 7';
+            }
+        }
+        
+        // Prova da filename
+        if (preg_match('/\(Menu\s*(7-4-7|747)\)/i', $filename)) {
+            return 'Menu 7-4-7';
+        }
+        if (preg_match('/\(Menu\s*(7-4|74)\)/i', $filename)) {
+            return 'Menu 7-4';
+        }
+        if (preg_match('/\(Menu\s*7\)/i', $filename)) {
+            return 'Menu 7';
+        }
+        
+        // Default
+        return 'Menu 7';
+    }
+
+    /**
+     * Determina stato dal filename e acconto
+     */
+    private function determine_stato($filename, $acconto) {
+        if (stripos($filename, 'CONF ') === 0 || $acconto > 0) {
+            return 'confermato';
+        }
+        if (stripos($filename, 'NO ') === 0) {
+            return 'annullato';
+        }
+        return 'attivo';
+    }
+
+    /**
+     * Parsing data
+     */
+    private function parse_date($value) {
         if (empty($value)) {
             return date('Y-m-d');
         }
         
-        // Se è già formato Y-m-d
+        // Se è già Y-m-d
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
             return $value;
         }
         
-        // Se è formato d/m/Y
+        // Se è d/m/Y
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $value, $matches)) {
             return $matches[3] . '-' . str_pad($matches[2], 2, '0', STR_PAD_LEFT) . '-' . str_pad($matches[1], 2, '0', STR_PAD_LEFT);
         }
@@ -477,112 +635,207 @@ class Disco747_GoogleDrive_Sync {
             return date('Y-m-d', $unix_date);
         }
         
+        // Prova strtotime
+        $timestamp = strtotime($value);
+        if ($timestamp) {
+            return date('Y-m-d', $timestamp);
+        }
+        
         return date('Y-m-d');
     }
 
     /**
-     * Trova cartella principale
+     * Parsing numero
      */
-    private function find_main_folder_safe($token) {
-        try {
-            $query = "mimeType='application/vnd.google-apps.folder' and name='747-Preventivi' and trashed=false";
-            
-            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
-                'q' => $query,
-                'fields' => 'files(id,name)',
-                'pageSize' => 10
-            ));
-            
-            $response = wp_remote_get($url, array(
-                'headers' => array('Authorization' => 'Bearer ' . $token),
-                'timeout' => 30
-            ));
-            
-            if (!is_wp_error($response)) {
-                $body = wp_remote_retrieve_body($response);
-                $data = json_decode($body, true);
-                
-                if (isset($data['files']) && !empty($data['files'])) {
-                    return $data['files'][0]['id'];
-                }
-            }
-            
-            return null;
-            
-        } catch (\Exception $e) {
-            $this->log("Errore ricerca cartella: " . $e->getMessage(), 'ERROR');
-            return null;
+    private function parse_number($value) {
+        if (empty($value)) {
+            return 0;
+        }
+        return intval($value);
+    }
+
+    /**
+     * Parsing valuta
+     */
+    private function parse_currency($value) {
+        if (empty($value)) {
+            return 0.00;
+        }
+        
+        $cleaned = preg_replace('/[€$£,\s]/', '', strval($value));
+        return floatval($cleaned);
+    }
+
+    /**
+     * Pulisce valore
+     */
+    private function clean_value($value) {
+        if ($value === null) {
+            return '';
+        }
+        return trim(strval($value));
+    }
+
+    /**
+     * Parsing orario
+     */
+    private function parse_orario(&$data) {
+        if (!empty($data['orario_evento']) && strpos($data['orario_evento'], '-') !== false) {
+            $parts = explode('-', $data['orario_evento']);
+            $data['orario_inizio'] = trim($parts[0]);
+            $data['orario_fine'] = trim($parts[1]);
+        } else {
+            $data['orario_inizio'] = $data['orario_evento'] ?: '20:30';
+            $data['orario_fine'] = '01:30';
         }
     }
 
     /**
-     * Scansione ricorsiva file Excel
+     * ✅ Salva nel database con upsert
      */
-    private function scan_all_excel_files_recursive($folder_id, $token) {
-        $all_files = array();
+    private function save_to_database($data) {
+        global $wpdb;
         
         try {
-            // Cerca file Excel nella cartella corrente
-            $query = "'{$folder_id}' in parents and (mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or mimeType='application/vnd.ms-excel') and trashed=false";
+            $table_name = $wpdb->prefix . 'disco747_preventivi';
             
-            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
-                'q' => $query,
-                'fields' => 'files(id,name,size,modifiedTime)',
-                'pageSize' => 100
-            ));
-            
-            $response = wp_remote_get($url, array(
-                'headers' => array('Authorization' => 'Bearer ' . $token),
-                'timeout' => 30
-            ));
-            
-            if (!is_wp_error($response)) {
-                $body = wp_remote_retrieve_body($response);
-                $data = json_decode($body, true);
-                
-                if (isset($data['files'])) {
-                    foreach ($data['files'] as $file) {
-                        $all_files[] = array(
-                            'googledrive_id' => $file['id'],
-                            'filename' => $file['name'],
-                            'file_size' => $file['size'] ?? 0,
-                            'modified_time' => $file['modifiedTime'] ?? ''
-                        );
-                    }
-                }
+            // Controlla se esiste già tramite googledrive_file_id
+            $existing = null;
+            if (!empty($data['googledrive_file_id'])) {
+                $existing = $wpdb->get_row($wpdb->prepare(
+                    "SELECT * FROM {$table_name} WHERE googledrive_file_id = %s",
+                    $data['googledrive_file_id']
+                ));
             }
             
-            // Cerca nelle sottocartelle
-            $query_folders = "'{$folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
-            
-            $url_folders = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
-                'q' => $query_folders,
-                'fields' => 'files(id,name)',
-                'pageSize' => 50
-            ));
-            
-            $response_folders = wp_remote_get($url_folders, array(
-                'headers' => array('Authorization' => 'Bearer ' . $token),
-                'timeout' => 30
-            ));
-            
-            if (!is_wp_error($response_folders)) {
-                $body_folders = wp_remote_retrieve_body($response_folders);
-                $data_folders = json_decode($body_folders, true);
+            if ($existing) {
+                // UPDATE
+                $this->log('[747Disco-Scan] Preventivo esistente trovato (ID: ' . $existing->id . '), UPDATE');
                 
-                if (isset($data_folders['files'])) {
-                    foreach ($data_folders['files'] as $subfolder) {
-                        $subfiles = $this->scan_all_excel_files_recursive($subfolder['id'], $token);
-                        $all_files = array_merge($all_files, $subfiles);
-                    }
+                $update_data = array(
+                    'data_evento' => $data['data_evento'],
+                    'tipo_evento' => $data['tipo_evento'],
+                    'tipo_menu' => $data['tipo_menu'],
+                    'numero_invitati' => $data['numero_invitati'],
+                    'orario_evento' => $data['orario_evento'] ?? '',
+                    'orario_inizio' => $data['orario_inizio'] ?? '20:30',
+                    'orario_fine' => $data['orario_fine'] ?? '01:30',
+                    'nome_cliente' => $data['nome_cliente'],
+                    'nome_referente' => $data['nome_referente'],
+                    'cognome_referente' => $data['cognome_referente'],
+                    'telefono' => $data['telefono'],
+                    'email' => $data['email'],
+                    'importo_totale' => $data['importo_totale'],
+                    'importo_preventivo' => $data['importo_preventivo'],
+                    'acconto' => $data['acconto'],
+                    'saldo' => $data['saldo'],
+                    'omaggio1' => $data['omaggio1'],
+                    'omaggio2' => $data['omaggio2'],
+                    'omaggio3' => $data['omaggio3'],
+                    'extra1' => $data['extra1'],
+                    'extra1_importo' => $data['extra1_importo'],
+                    'extra2' => $data['extra2'],
+                    'extra2_importo' => $data['extra2_importo'],
+                    'extra3' => $data['extra3'],
+                    'extra3_importo' => $data['extra3_importo'],
+                    'stato' => $data['stato'],
+                    'googledrive_url' => $data['googledrive_url'],
+                    'updated_at' => current_time('mysql')
+                );
+                
+                $result = $wpdb->update(
+                    $table_name,
+                    $update_data,
+                    array('id' => $existing->id)
+                );
+                
+                if ($result === false) {
+                    $this->log('[747Disco-Scan] Errore UPDATE: ' . $wpdb->last_error, 'ERROR');
+                    return array('success' => false, 'error' => $wpdb->last_error);
                 }
+                
+                $this->log('[747Disco-Scan] ✅ Preventivo aggiornato ID: ' . $existing->id);
+                
+                return array(
+                    'success' => true,
+                    'id' => $existing->id,
+                    'action' => 'updated'
+                );
+                
+            } else {
+                // INSERT nuovo preventivo
+                $this->log('[747Disco-Scan] Preventivo nuovo, INSERT');
+                
+                // Genera preventivo_id progressivo
+                $max_id = $wpdb->get_var("
+                    SELECT MAX(CAST(SUBSTRING(preventivo_id, 2) AS UNSIGNED)) 
+                    FROM {$table_name}
+                    WHERE preventivo_id LIKE '#%'
+                ");
+                
+                $next_id = intval($max_id) + 1;
+                $preventivo_id = '#' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
+                
+                $this->log("[747Disco-Scan] Generato preventivo_id: {$preventivo_id}");
+                
+                $insert_data = array(
+                    'preventivo_id' => $preventivo_id,
+                    'data_evento' => $data['data_evento'],
+                    'tipo_evento' => $data['tipo_evento'],
+                    'tipo_menu' => $data['tipo_menu'],
+                    'numero_invitati' => $data['numero_invitati'],
+                    'orario_evento' => $data['orario_evento'] ?? '',
+                    'orario_inizio' => $data['orario_inizio'] ?? '20:30',
+                    'orario_fine' => $data['orario_fine'] ?? '01:30',
+                    'nome_cliente' => $data['nome_cliente'],
+                    'nome_referente' => $data['nome_referente'],
+                    'cognome_referente' => $data['cognome_referente'],
+                    'telefono' => $data['telefono'],
+                    'email' => $data['email'],
+                    'importo_totale' => $data['importo_totale'],
+                    'importo_preventivo' => $data['importo_preventivo'],
+                    'acconto' => $data['acconto'],
+                    'saldo' => $data['saldo'],
+                    'omaggio1' => $data['omaggio1'],
+                    'omaggio2' => $data['omaggio2'],
+                    'omaggio3' => $data['omaggio3'],
+                    'extra1' => $data['extra1'],
+                    'extra1_importo' => $data['extra1_importo'],
+                    'extra2' => $data['extra2'],
+                    'extra2_importo' => $data['extra2_importo'],
+                    'extra3' => $data['extra3'],
+                    'extra3_importo' => $data['extra3_importo'],
+                    'stato' => $data['stato'],
+                    'excel_url' => '',
+                    'pdf_url' => '',
+                    'googledrive_url' => $data['googledrive_url'],
+                    'googledrive_file_id' => $data['googledrive_file_id'],
+                    'created_at' => current_time('mysql'),
+                    'created_by' => get_current_user_id(),
+                    'updated_at' => current_time('mysql')
+                );
+                
+                $result = $wpdb->insert($table_name, $insert_data);
+                
+                if ($result === false) {
+                    $this->log('[747Disco-Scan] Errore INSERT: ' . $wpdb->last_error, 'ERROR');
+                    return array('success' => false, 'error' => $wpdb->last_error);
+                }
+                
+                $insert_id = $wpdb->insert_id;
+                $this->log("[747Disco-Scan] ✅ Preventivo inserito con ID: {$insert_id}");
+                
+                return array(
+                    'success' => true,
+                    'id' => $insert_id,
+                    'action' => 'inserted'
+                );
             }
             
         } catch (\Exception $e) {
-            $this->log("Errore scansione: " . $e->getMessage(), 'ERROR');
+            $this->log('[747Disco-Scan] Exception DB: ' . $e->getMessage(), 'ERROR');
+            return array('success' => false, 'error' => $e->getMessage());
         }
-        
-        return $all_files;
     }
 
     /**
@@ -591,7 +844,6 @@ class Disco747_GoogleDrive_Sync {
     private function log($message, $level = 'INFO') {
         if (!$this->debug_mode) return;
         
-        $prefix = '[747Disco-GDriveSync]';
-        error_log("{$prefix} {$message}");
+        error_log("[747Disco-GDriveSync] {$message}");
     }
 }
