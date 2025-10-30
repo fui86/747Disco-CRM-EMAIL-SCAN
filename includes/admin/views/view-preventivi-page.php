@@ -384,6 +384,20 @@ $stats = array(
                                 <?php endif; ?>
                             </div>
                         </div>
+
+<!-- Inline script: redirect Modifica to form-preventivo in edit mode -->
+<script type="text/javascript">
+  (function($){
+    $(document).on('click','.btn-edit-preventivo',function(){
+      const id = $(this).data('id');
+      if(!id) return;
+      // admin_url + page=disco747-crm route esistente per edit
+      const url = ajaxurl.replace('admin-ajax.php','admin.php')+
+                 '?page=disco747-crm&action=new_preventivo&edit_id='+id;
+      window.location.href = url;
+    });
+  })(jQuery);
+</script>
                     </div>
                 <?php endif; ?>
 
