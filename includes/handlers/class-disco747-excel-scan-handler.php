@@ -105,8 +105,11 @@ class Disco747_Excel_Scan_Handler {
             $results = array();
             
             // ✅ REALE: Trova file Excel da Google Drive
-            $excel_files = $this->get_excel_files_from_googledrive();
-            $counters['listed'] = count($excel_files);
+            $all_excel_files = $this->get_excel_files_from_googledrive();
+            $counters['listed'] = count($all_excel_files);
+
+            // Limita il batch all'elaborazione di massimo 2 file alla volta per evitare timeout
+            $excel_files = array_slice($all_excel_files, 0, 2);
             
             error_log("Disco747 Excel Scan - Trovati {$counters['listed']} file Excel REALI da Google Drive");
             
