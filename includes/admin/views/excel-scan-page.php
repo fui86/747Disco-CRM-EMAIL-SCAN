@@ -322,7 +322,7 @@ jQuery(document).ready(function($) {
         $('#progress-status').text('Connessione a Google Drive...');
         $('#results-section').hide();
         $('#new-files-box').hide();
-        $('#debug-log').text('Avvio scansione...\n');
+        $('#debug-log').text('Avvio scansione...\\n');
 
         btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
         resetBtn.prop('disabled', true);
@@ -330,7 +330,12 @@ jQuery(document).ready(function($) {
         $.ajax({
             url: ajaxurl,
             type: 'POST',
-            data: { action: 'batch_scan_excel', nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>', year: year, month: month },
+            data: { 
+                action: 'batch_scan_excel', 
+                nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>', 
+                year: year, 
+                month: month 
+            },
             success: function(response) {
                 if (response.success) {
                     const d = response.data;
@@ -348,23 +353,35 @@ jQuery(document).ready(function($) {
                     $('#summary-errors').text(d.errors || 0);
                     if (d.errors > 0) $('#error-card').show();
                     $('#results-section').fadeIn();
-                    let log = `✅ SCANSIONE COMPLETATA\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${d.total_files}\n   Processati:      ${d.processed}\n   Nuovi:           ${d.new_records}\n   Aggiornati:      ${d.updated_records}\n   Errori:          ${d.errors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
+                    
+                    // Log dettagliato con messaggi
+                    let log = `✅ SCANSIONE COMPLETATA\\n${'='.repeat(50)}\\n\\n📊 RISULTATI:\\n   File trovati:    ${d.total_files}\\n   Processati:      ${d.processed}\\n   Nuovi:           ${d.new_records}\\n   Aggiornati:      ${d.updated_records}\\n   Errori:          ${d.errors}\\n\\n`;
+                    
+                    if (d.messages && d.messages.length > 0) {
+                        log += `📋 DETTAGLI:\\n`;
+                        d.messages.forEach(msg => {
+                            log += `   ${msg}\\n`;
+                        });
+                    }
+                    
+                    log += `\\n${'='.repeat(50)}\\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
                     $('#debug-log').text(log);
+                    
                     if (d.new_files_list && d.new_files_list.length > 0) {
                         showNewFiles(d.new_files_list);
                     } else {
                         $('#new-files-box').fadeIn();
-                        $('#new-files-table-body').html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nessun file processato</td></tr>');
+                        $('#new-files-table-body').html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;\">Nessun file processato</td></tr>');
                     }
                 } else {
                     $('#progress-status').text('❌ Errore');
-                    $('#debug-log').text('❌ ERRORE:\n' + (response.data.message || 'Sconosciuto'));
+                    $('#debug-log').text('❌ ERRORE:\\n' + (response.data.message || 'Sconosciuto'));
                     alert('❌ Errore: ' + (response.data.message || 'Errore sconosciuto'));
                 }
             },
             error: function(xhr, status, error) {
                 $('#progress-status').text('❌ Errore connessione');
-                $('#debug-log').text('❌ ERRORE AJAX:\nStatus: ' + status + '\nError: ' + error);
+                $('#debug-log').text('❌ ERRORE AJAX:\\nStatus: ' + status + '\\nError: ' + error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
@@ -375,7 +392,7 @@ jQuery(document).ready(function($) {
     });
 
     $('#reset-scan-btn').on('click', function() {
-        if (!confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\n\nSei sicuro di voler procedere?')) return;
+        if (!confirm('⚠️ ATTENZIONE!\\n\\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\\n\\nSei sicuro di voler procedere?')) return;
         
         const year = $('#scan-year').val();
         const month = $('#scan-month').val();
@@ -388,7 +405,7 @@ jQuery(document).ready(function($) {
         $('#progress-status').text('🗑️ Svuotamento database...');
         $('#results-section').hide();
         $('#new-files-box').hide();
-        $('#debug-log').text('🗑️ Svuotamento database in corso...\n');
+        $('#debug-log').text('🗑️ Svuotamento database in corso...\\n');
 
         btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Elaborazione...');
         scanBtn.prop('disabled', true);
@@ -414,8 +431,20 @@ jQuery(document).ready(function($) {
                     $('#summary-errors').text(d.errors || 0);
                     if (d.errors > 0) $('#error-card').show();
                     $('#results-section').fadeIn();
-                    let log = `✅ DATABASE SVUOTATO E RIANALIZZATO\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${d.total_files}\n   Processati:      ${d.processed}\n   Nuovi:           ${d.new_records}\n   Errori:          ${d.errors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
+                    
+                    // Log dettagliato con messaggi
+                    let log = `✅ DATABASE SVUOTATO E RIANALIZZATO\\n${'='.repeat(50)}\\n\\n📊 RISULTATI:\\n   File trovati:    ${d.total_files}\\n   Processati:      ${d.processed}\\n   Nuovi:           ${d.new_records}\\n   Errori:          ${d.errors}\\n\\n`;
+                    
+                    if (d.messages && d.messages.length > 0) {
+                        log += `📋 DETTAGLI:\\n`;
+                        d.messages.forEach(msg => {
+                            log += `   ${msg}\\n`;
+                        });
+                    }
+                    
+                    log += `\\n${'='.repeat(50)}\\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
                     $('#debug-log').text(log);
+                    
                     if (d.new_files_list && d.new_files_list.length > 0) {
                         showNewFiles(d.new_files_list);
                     } else {
@@ -424,13 +453,13 @@ jQuery(document).ready(function($) {
                     }
                 } else {
                     $('#progress-status').text('❌ Errore');
-                    $('#debug-log').text('❌ ERRORE:\n' + (response.data.message || 'Sconosciuto'));
+                    $('#debug-log').text('❌ ERRORE:\\n' + (response.data.message || 'Sconosciuto'));
                     alert('❌ Errore: ' + (response.data.message || 'Errore sconosciuto'));
                 }
             },
             error: function(xhr, status, error) {
                 $('#progress-status').text('❌ Errore connessione');
-                $('#debug-log').text('❌ ERRORE AJAX:\nStatus: ' + status + '\nError: ' + error);
+                $('#debug-log').text('❌ ERRORE AJAX:\\nStatus: ' + status + '\\nError: ' + error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {

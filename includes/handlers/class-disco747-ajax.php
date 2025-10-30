@@ -102,7 +102,8 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_update_setting', array($this, 'handle_update_setting'));
         
         // Batch scan Excel da Google Drive
-        add_action('wp_ajax_disco747_scan_drive_batch', array($this, 'handle_batch_scan'));
+        add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan'));
+        add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan'));
         
         // Template messaggi
         add_action('wp_ajax_disco747_get_templates', array($this, 'handle_get_templates'));
@@ -114,62 +115,101 @@ class Disco747_Ajax {
     }
 
     /**
-     * Ã¢Å“â€¦ NUOVO: Handler per batch scan di file Excel su Google Drive
+     * 🎯 Handler per batch scan di file Excel su Google Drive
      */
     public function handle_batch_scan() {
-        error_log('[747Disco-AJAX] handle_batch_scan chiamato');
+        error_log('[747Disco-Scan] handle_batch_scan chiamato');
         
         try {
             // Verifica nonce
-            if (!check_ajax_referer('disco747_admin_nonce', 'nonce', false)) {
-                error_log('[747Disco-AJAX] Nonce non valido');
+            if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+                error_log('[747Disco-Scan] Nonce non valido');
                 wp_send_json_error('Nonce non valido');
                 return;
             }
             
-            error_log('[747Disco-AJAX] Nonce OK');
+            error_log('[747Disco-Scan] Nonce OK');
             
             // Verifica permessi
             if (!current_user_can('manage_options')) {
-                error_log('[747Disco-AJAX] Permessi insufficienti');
+                error_log('[747Disco-Scan] Permessi insufficienti');
                 wp_send_json_error('Permessi insufficienti');
                 return;
             }
             
-            error_log('[747Disco-AJAX] Permessi OK');
+            error_log('[747Disco-Scan] Permessi OK');
             
             // Verifica che GoogleDrive Sync sia disponibile
             if (!$this->googledrive_sync) {
-                error_log('[747Disco-AJAX] GoogleDrive Sync non disponibile');
+                error_log('[747Disco-Scan] GoogleDrive Sync non disponibile');
                 wp_send_json_error('Servizio GoogleDrive Sync non disponibile');
                 return;
             }
             
-            error_log('[747Disco-AJAX] GoogleDrive Sync disponibile, avvio scansione...');
+            error_log('[747Disco-Scan] GoogleDrive Sync disponibile, avvio scansione...');
             
-            // Ã¢Å“â€¦ TEMPORANEO: Risposta di test (Step 2)
-            // Nello Step 3 sostituiremo con: $result = $this->googledrive_sync->scan_excel_files_batch();
+            // Ottieni parametri
+            $year = sanitize_text_field($_POST['year'] ?? date('Y'));
+            $month = sanitize_text_field($_POST['month'] ?? '');
             
-            $result = array(
-                'found' => 15,
-                'processed' => 15,
-                'inserted' => 5,
-                'updated' => 10,
-                'errors' => 0,
-                'messages' => array(
-                    'Ã¢Å“â€¦ TEST STEP 2: Endpoint AJAX funzionante',
-                    'Ã°Å¸â€œÂ¡ Comunicazione server OK',
-                    'Ã°Å¸â€â€˜ Nonce e permessi verificati',
-                    'Ã¢ÂÂ­Ã¯Â¸Â Prossimo step: implementare logica scan vera'
-                )
-            );
+            error_log("[747Disco-Scan] Parametri: anno={$year}, mese={$month}");
             
-            error_log('[747Disco-AJAX] Risposta test generata: ' . json_encode($result));
+            // Esegui batch scan
+            $result = $this->googledrive_sync->scan_excel_files_batch($year, $month);
+            
+            error_log('[747Disco-Scan] Risultato batch scan: ' . json_encode($result));
             
             wp_send_json_success($result);
             
         } catch (\Exception $e) {
-            error_log('[747Disco-AJAX] Errore batch scan: ' . $e->getMessage());
+            error_log('[747Disco-Scan] Errore batch scan: ' . $e->getMessage());
+            wp_send_json_error('Errore: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 🗑️ Handler per reset e scan completo
+     */
+    public function handle_reset_and_scan() {
+        error_log('[747Disco-Scan] handle_reset_and_scan chiamato');
+        
+        try {
+            // Verifica nonce
+            if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+                error_log('[747Disco-Scan] Nonce non valido');
+                wp_send_json_error('Nonce non valido');
+                return;
+            }
+            
+            // Verifica permessi
+            if (!current_user_can('manage_options')) {
+                error_log('[747Disco-Scan] Permessi insufficienti');
+                wp_send_json_error('Permessi insufficienti');
+                return;
+            }
+            
+            error_log('[747Disco-Scan] Svuotamento database...');
+            
+            // Svuota tabella preventivi
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'disco747_preventivi';
+            $deleted = $wpdb->query("DELETE FROM {$table_name}");
+            
+            error_log("[747Disco-Scan] Eliminati {$deleted} record dal database");
+            
+            // Esegui batch scan normale
+            $result = $this->handle_batch_scan();
+            
+            // Aggiungi info reset al risultato
+            if (is_array($result) && isset($result['data'])) {
+                $result['data']['reset_count'] = $deleted;
+                $result['data']['messages'][] = "🗑️ Database svuotato: {$deleted} record eliminati";
+            }
+            
+            return $result;
+            
+        } catch (\Exception $e) {
+            error_log('[747Disco-Scan] Errore reset and scan: ' . $e->getMessage());
             wp_send_json_error('Errore: ' . $e->getMessage());
         }
     }
@@ -425,11 +465,11 @@ class Disco747_Ajax {
                 'orario_fine' => $preventivo['orario_fine'] ?? '01:30',
                 'menu' => $preventivo['tipo_menu'],
                 'tipo_menu' => $preventivo['tipo_menu'],
-                'importo_totale' => number_format($preventivo['importo_totale'], 2, ',', '.') . 'â‚¬',
-                'importo_preventivo' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . 'â‚¬',
-                'totale' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . 'â‚¬',
-                'acconto' => number_format($preventivo['acconto'], 2, ',', '.') . 'â‚¬',
-                'saldo' => number_format($preventivo['saldo'] ?? 0, 2, ',', '.') . 'â‚¬',
+                'importo_totale' => number_format($preventivo['importo_totale'], 2, ',', '.') . '€',
+                'importo_preventivo' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . '€',
+                'totale' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . '€',
+                'acconto' => number_format($preventivo['acconto'], 2, ',', '.') . '€',
+                'saldo' => number_format($preventivo['saldo'] ?? 0, 2, ',', '.') . '€',
                 'extra1' => $preventivo['extra1'] ?? '',
                 'extra2' => $preventivo['extra2'] ?? '',
                 'extra3' => $preventivo['extra3'] ?? '',
@@ -532,11 +572,11 @@ class Disco747_Ajax {
                 'orario_fine' => $preventivo['orario_fine'] ?? '01:30',
                 'menu' => $preventivo['tipo_menu'],
                 'tipo_menu' => $preventivo['tipo_menu'],
-                'importo_totale' => number_format($preventivo['importo_totale'], 2, ',', '.') . 'â‚¬',
-                'importo_preventivo' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . 'â‚¬',
-                'totale' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . 'â‚¬',
-                'acconto' => number_format($preventivo['acconto'], 2, ',', '.') . 'â‚¬',
-                'saldo' => number_format($preventivo['saldo'] ?? 0, 2, ',', '.') . 'â‚¬',
+                'importo_totale' => number_format($preventivo['importo_totale'], 2, ',', '.') . '€',
+                'importo_preventivo' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . '€',
+                'totale' => number_format($preventivo['importo_preventivo'] ?? $preventivo['importo_totale'], 2, ',', '.') . '€',
+                'acconto' => number_format($preventivo['acconto'], 2, ',', '.') . '€',
+                'saldo' => number_format($preventivo['saldo'] ?? 0, 2, ',', '.') . '€',
                 'extra1' => $preventivo['extra1'] ?? '',
                 'extra2' => $preventivo['extra2'] ?? '',
                 'extra3' => $preventivo['extra3'] ?? '',
@@ -555,7 +595,7 @@ class Disco747_Ajax {
             
             // Headers email - Compatibile con WP Mail SMTP
             $headers = array(
-                'Content-Type: text/html; charset=UTF-8'
+                'Content-Type' => 'text/html; charset=UTF-8'
             );
             
             // From name e email (WP Mail SMTP li gestisce automaticamente se configurati)
@@ -563,7 +603,7 @@ class Disco747_Ajax {
             $from_email = get_option('disco747_from_email', 'eventi@747disco.it');
             $from_name = get_option('disco747_from_name', '747 Disco');
             
-            // Solo se WP Mail SMTP non Ã¨ attivo, aggiungi From manualmente
+            // Solo se WP Mail SMTP non è attivo, aggiungi From manualmente
             if (!class_exists('WPMailSMTP\Options')) {
                 $headers[] = 'From: ' . $from_name . ' <' . $from_email . '>';
             }
@@ -584,12 +624,12 @@ class Disco747_Ajax {
             if (class_exists('WPMailSMTP\Options')) {
                 $smtp_active = true;
                 $mailer = \WPMailSMTP\Options::init()->get('mail', 'mailer');
-                $this->log("âœ… WP Mail SMTP attivo - Mailer: $mailer");
+                $this->log("✅ WP Mail SMTP attivo - Mailer: $mailer");
             } elseif (function_exists('wp_mail_smtp')) {
                 $smtp_active = true;
-                $this->log("âœ… WP Mail SMTP attivo (versione legacy)");
+                $this->log("✅ WP Mail SMTP attivo (versione legacy)");
             } else {
-                $this->log("âš ï¸  WP Mail SMTP non rilevato, uso wp_mail() standard", 'WARNING');
+                $this->log("⚠️  WP Mail SMTP non rilevato, uso wp_mail() standard", 'WARNING');
             }
             
             // Allegati
@@ -616,7 +656,7 @@ class Disco747_Ajax {
             $sent = wp_mail($to_email, $subject, $body, $headers, $attachments);
             
             if ($sent) {
-                $this->log("âœ… Email inviata con successo a $to_email");
+                $this->log("✅ Email inviata con successo a $to_email");
                 
                 // Salva log invio nel database (se la tabella esiste)
                 global $wpdb;
@@ -641,12 +681,12 @@ class Disco747_Ajax {
                 }
                 
                 wp_send_json_success(array(
-                    'message' => 'âœ… Email inviata con successo!',
+                    'message' => '✅ Email inviata con successo!',
                     'to' => $to_email,
                     'subject' => $subject
                 ));
             } else {
-                $this->log("âŒ Errore invio email a $to_email", 'ERROR');
+                $this->log("❌ Errore invio email a $to_email", 'ERROR');
                 
                 // Salva errore nel log
                 global $wpdb;
@@ -663,7 +703,7 @@ class Disco747_Ajax {
                     array('%d', '%s', '%s', '%s', '%s', '%s')
                 );
                 
-                wp_send_json_error('Impossibile inviare email. Verifica configurazione WP Mail SMTP in Impostazioni â†’ Email.');
+                wp_send_json_error('Impossibile inviare email. Verifica configurazione WP Mail SMTP in Impostazioni → Email.');
             }
             
         } catch (\Exception $e) {
