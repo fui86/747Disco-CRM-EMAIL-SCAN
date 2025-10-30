@@ -332,7 +332,7 @@ final class Disco747_CRM_Plugin {
         // Google Drive Sync
         try {
             add_action('init', function() {
-                $gdrive_sync_path = DISCO747_CRM_PLUGIN_DIR . 'includes/storage/class-disco747-googledrive-sync.php';
+                $gdrive_sync_path = DISCO747_CRM_PLUGIN_DIR . 'includes/storage/class-disco747-googledrive-sync-new.php';
                 if (file_exists($gdrive_sync_path)) {
                     require_once $gdrive_sync_path;
                     $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Caricato: includes/storage/class-disco747-googledrive-sync.php');
