@@ -123,15 +123,15 @@ final class Disco747_CRM_Plugin {
 
     private function init_core_components() {
         if (class_exists('Disco747_CRM\\Core\\Disco747_Config')) {
-            $this->config = new Disco747_CRM\Core\Disco747_Config();
+            $this->config = Disco747_CRM\Core\Disco747_Config::get_instance();
         }
         
         if (class_exists('Disco747_CRM\\Core\\Disco747_Database')) {
-            $this->database = new Disco747_CRM\Core\Disco747_Database();
+            $this->database = Disco747_CRM\Core\Disco747_Database::get_instance();
         }
         
         if (class_exists('Disco747_CRM\\Core\\Disco747_Auth')) {
-            $this->auth = new Disco747_CRM\Core\Disco747_Auth();
+            $this->auth = Disco747_CRM\Core\Disco747_Auth::get_instance();
         }
         
         if (class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive')) {
