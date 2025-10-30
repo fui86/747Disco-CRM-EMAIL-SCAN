@@ -40,8 +40,8 @@ class Disco747_Excel_Scan_Handler {
         $this->table_name = $wpdb->prefix . 'disco747_preventivi'; // ✅ TABELLA UNIFICATA
         
         // Registra hooks AJAX
-        add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
-        add_action('wp_ajax_disco747_single_scan_excel', array($this, 'handle_single_scan_ajax'));
+        add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
+        add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan_ajax'));
         
         // Inizializza Google Drive
         $this->init_googledrive();
@@ -75,7 +75,7 @@ class Disco747_Excel_Scan_Handler {
      */
     public function handle_batch_scan_ajax() {
         // Verifica nonce
-        if (!check_ajax_referer('disco747_excel_scan', 'nonce', false)) {
+        if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
             wp_send_json_error(array('message' => 'Nonce non valido'));
             return;
         }
@@ -165,11 +165,22 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("Disco747 Excel Scan - Completata REALE - Parsed: {$counters['parsed_ok']}, Saved: {$counters['saved_ok']}, Errors: {$counters['errors']}");
             
+            // Prepara messaggi per il frontend
+            $messages = array();
+            foreach ($results as $result) {
+                $messages[] = "✅ Processato: {$result['filename']} - {$result['data']['nome_cliente']}";
+            }
+            foreach (array_slice($errors, 0, 5) as $error) {
+                $messages[] = "❌ Errore: {$error}";
+            }
+            
             wp_send_json_success(array(
-                'counters' => $counters,
-                'results' => $results,
-                'errors' => array_slice($errors, 0, 3),
-                'message' => "Scansione REALE completata: {$counters['saved_ok']} preventivi salvati, {$counters['errors']} errori"
+                'total_files' => $counters['listed'],
+                'processed' => $counters['parsed_ok'],
+                'new_records' => $counters['saved_ok'],
+                'updated_records' => 0, // Non implementato in questo handler
+                'errors' => $counters['errors'],
+                'messages' => $messages
             ));
             
         } catch (Exception $e) {
@@ -179,11 +190,37 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
-     * Handler AJAX per scansione singolo file
+     * Handler AJAX per reset e scan completo
      */
-    public function handle_single_scan_ajax() {
-        // Reindirizza alla scansione batch con singolo file
-        $this->handle_batch_scan_ajax();
+    public function handle_reset_and_scan_ajax() {
+        // Verifica nonce
+        if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+            wp_send_json_error(array('message' => 'Nonce non valido'));
+            return;
+        }
+        
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+        
+        try {
+            error_log('[747Disco-Scan] Svuotamento database...');
+            
+            // Svuota tabella preventivi
+            global $wpdb;
+            $deleted = $wpdb->query("DELETE FROM {$this->table_name}");
+            
+            error_log("[747Disco-Scan] Eliminati {$deleted} record dal database");
+            
+            // Esegui batch scan normale
+            $this->handle_batch_scan_ajax();
+            
+        } catch (Exception $e) {
+            error_log('[747Disco-Scan] Errore reset and scan: ' . $e->getMessage());
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
+        }
     }
     
     /**
@@ -198,48 +235,124 @@ class Disco747_Excel_Scan_Handler {
         
         try {
             $excel_files = array();
-            $base_folder = '747-Preventivi';
             
-            // Cerca ricorsivamente nelle cartelle anno/mese
-            $current_year = date('Y');
-            $years_to_scan = array($current_year, $current_year - 1); // Ultimo anno + anno corrente
+            // Ottieni parametri dal POST
+            $year = sanitize_text_field($_POST['year'] ?? date('Y'));
+            $month = sanitize_text_field($_POST['month'] ?? '');
             
-            foreach ($years_to_scan as $year) {
-                for ($month = 1; $month <= 12; $month++) {
-                    $month_str = str_pad($month, 2, '0', STR_PAD_LEFT);
-                    $folder_path = "{$base_folder}/{$year}/{$month_str}";
-                    
-                    error_log("Disco747 Excel Scan - Ricerca in: {$folder_path}");
-                    
-                    // Lista file Excel in questa cartella
-                    $files = $this->googledrive->list_files(null, 'name contains ".xlsx"');
-                    
-                    foreach ($files as $file) {
-                        // Filtra solo file .xlsx (non .pdf o altro)
-                        if (stripos($file['name'], '.xlsx') !== false) {
-                            $excel_files[] = array(
-                                'id' => $file['id'],
-                                'name' => $file['name'],
-                                'modifiedTime' => $file['modifiedTime'] ?? '',
-                                'size' => $file['size'] ?? 0,
-                                'folder_path' => $folder_path
-                            );
-                        }
-                    }
-                    
-                    // Rate limiting tra cartelle
-                    usleep(100000); // 100ms
-                }
+            error_log("[747Disco-Scan] Parametri: anno={$year}, mese={$month}");
+            
+            // Trova cartella principale 747-Preventivi
+            $main_folder_id = $this->googledrive->get_or_create_folder('747-Preventivi');
+            if (!$main_folder_id) {
+                error_log('[747Disco-Scan] Cartella principale 747-Preventivi non trovata');
+                return array();
             }
             
-            error_log("Disco747 Excel Scan - Trovati " . count($excel_files) . " file Excel totali");
+            // Scansiona file con filtri
+            $all_files = $this->scan_excel_files_with_filters($main_folder_id, $year, $month);
             
-            return $excel_files;
+            error_log("[747Disco-Scan] Trovati " . count($all_files) . " file Excel totali");
+            
+            return $all_files;
             
         } catch (Exception $e) {
             error_log('Disco747 Excel Scan - Errore ricerca file: ' . $e->getMessage());
             return array();
         }
+    }
+    
+    /**
+     * Scansiona file Excel con filtri anno/mese
+     */
+    private function scan_excel_files_with_filters($main_folder_id, $year = null, $month = null) {
+        $all_files = array();
+        
+        try {
+            if ($year) {
+                $year_folder_id = $this->find_year_folder($main_folder_id, $year);
+                if (!$year_folder_id) {
+                    error_log("[747Disco-Scan] Cartella anno {$year} non trovata");
+                    return array();
+                }
+                
+                if ($month) {
+                    $month_folder_id = $this->find_month_folder($year_folder_id, $month);
+                    if (!$month_folder_id) {
+                        error_log("[747Disco-Scan] Cartella mese {$month} non trovata");
+                        return array();
+                    }
+                    $all_files = $this->scan_excel_files_in_folder($month_folder_id);
+                } else {
+                    $all_files = $this->scan_all_excel_files_recursive($year_folder_id);
+                }
+            } else {
+                $all_files = $this->scan_all_excel_files_recursive($main_folder_id);
+            }
+            
+            error_log("[747Disco-Scan] Filtri applicati - Anno: " . ($year ?: 'tutti') . ", Mese: " . ($month ?: 'tutti'));
+            
+        } catch (Exception $e) {
+            error_log("[747Disco-Scan] Errore scansione con filtri: " . $e->getMessage());
+        }
+        
+        return $all_files;
+    }
+    
+    /**
+     * Trova cartella anno
+     */
+    private function find_year_folder($parent_id, $year) {
+        $files = $this->googledrive->list_files($parent_id, "mimeType='application/vnd.google-apps.folder' and name='{$year}'");
+        return !empty($files) ? $files[0]['id'] : null;
+    }
+    
+    /**
+     * Trova cartella mese
+     */
+    private function find_month_folder($parent_id, $month) {
+        $files = $this->googledrive->list_files($parent_id, "mimeType='application/vnd.google-apps.folder' and name='{$month}'");
+        return !empty($files) ? $files[0]['id'] : null;
+    }
+    
+    /**
+     * Scansiona file Excel in una cartella specifica
+     */
+    private function scan_excel_files_in_folder($folder_id) {
+        $files = $this->googledrive->list_files($folder_id, "mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or mimeType='application/vnd.ms-excel'");
+        
+        $excel_files = array();
+        foreach ($files as $file) {
+            $excel_files[] = array(
+                'id' => $file['id'],
+                'name' => $file['name'],
+                'modifiedTime' => $file['modifiedTime'] ?? '',
+                'size' => $file['size'] ?? 0,
+                'webViewLink' => $file['webViewLink'] ?? ''
+            );
+        }
+        
+        return $excel_files;
+    }
+    
+    /**
+     * Scansiona ricorsivamente tutte le cartelle
+     */
+    private function scan_all_excel_files_recursive($folder_id) {
+        $all_files = array();
+        
+        // Scansiona file Excel nella cartella corrente
+        $files = $this->scan_excel_files_in_folder($folder_id);
+        $all_files = array_merge($all_files, $files);
+        
+        // Scansiona sottocartelle
+        $subfolders = $this->googledrive->list_files($folder_id, "mimeType='application/vnd.google-apps.folder'");
+        foreach ($subfolders as $subfolder) {
+            $subfolder_files = $this->scan_all_excel_files_recursive($subfolder['id']);
+            $all_files = array_merge($all_files, $subfolder_files);
+        }
+        
+        return $all_files;
     }
     
     /**
