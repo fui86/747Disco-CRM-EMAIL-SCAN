@@ -332,12 +332,11 @@ $stats = array(
                                     </td>
                                     <td>
                                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                                            <button type="button" 
-                                                    class="button button-small btn-edit-preventivo" 
-                                                    data-id="<?php echo $prev->id; ?>"
-                                                    title="Modifica preventivo">
+                                            <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo&edit_id=' . $prev->id); ?>" 
+                                               class="button button-small" 
+                                               title="Modifica preventivo">
                                                 ✏️ Modifica
-                                            </button>
+                                            </a>
                                             <?php if ($prev->googledrive_file_id): ?>
                                                 <a href="https://drive.google.com/file/d/<?php echo esc_attr($prev->googledrive_file_id); ?>/view" 
                                                    target="_blank" 

@@ -477,11 +477,10 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     </form>
     
     <!-- ============================================================================ -->
-    <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
-    <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
+    <!-- PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
     <!-- ============================================================================ -->
     
-    <div id="post-creation-actions" style="display: none; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
+    <div id="post-creation-actions" style="<?php echo $is_edit_mode ? '' : 'display: none;'; ?> background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
         
         <!-- Header Sezione -->
         <div style="background: linear-gradient(135deg, #c28a4d 0%, #a67339 100%); color: white; padding: 25px; text-align: center;">
@@ -701,14 +700,17 @@ jQuery(document).ready(function($) {
     
     console.log('🎯 [747Disco-AJAX] Form AJAX Handler caricato');
     
-    // Inizializza preventivoData se siamo in edit mode
+    // ========================================================================
+    // INIZIALIZZA DATI IN MODALITÀ EDIT
+    // ========================================================================
     <?php if ($is_edit_mode && $edit_data): ?>
     window.preventivoData = {
-        preventivo_id: <?php echo intval($edit_id); ?>,
+        preventivo_id: '<?php echo esc_js($edit_data['preventivo_id'] ?? ''); ?>',
         id: <?php echo intval($edit_id); ?>,
+        db_id: <?php echo intval($edit_id); ?>,
         nome_referente: '<?php echo esc_js($edit_data['nome_referente'] ?? $edit_data['nome_cliente'] ?? ''); ?>',
         cognome_referente: '<?php echo esc_js($edit_data['cognome_referente'] ?? ''); ?>',
-        nome_cliente: '<?php echo esc_js(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? '')); ?>',
+        nome_cliente: '<?php echo esc_js(trim(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? '')) ?: $edit_data['nome_cliente'] ?? ''); ?>',
         email: '<?php echo esc_js($edit_data['email'] ?? $edit_data['mail'] ?? ''); ?>',
         telefono: '<?php echo esc_js($edit_data['telefono'] ?? $edit_data['cellulare'] ?? ''); ?>',
         data_evento: '<?php echo esc_js($edit_data['data_evento'] ?? ''); ?>',
@@ -718,10 +720,7 @@ jQuery(document).ready(function($) {
         importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? $edit_data['importo_preventivo'] ?? 0); ?>,
         acconto: <?php echo floatval($edit_data['acconto'] ?? 0); ?>
     };
-    console.log('📝 Edit mode - preventivoData inizializzato:', window.preventivoData);
-    
-    // Mostra pulsanti post-creazione se già esistente
-    $('#post-creation-actions').show();
+    console.log('✅ [Edit Mode] preventivoData inizializzato:', window.preventivoData);
     <?php endif; ?>
     
     const $form = $('#disco747-form-preventivo');
@@ -762,18 +761,22 @@ jQuery(document).ready(function($) {
                 console.log('✅ Risposta server:', response);
                 
                 if (response.success) {
-                    alert('✅ ' + (response.data.message || 'Preventivo creato con successo!'));
+                    // ✅ AGGIORNA DATI GLOBALI
+                    window.preventivoData = response.data;
+                    console.log('✅ [Save Success] preventivoData aggiornato:', window.preventivoData);
                     
-                    // ✅ MOSTRA I PULSANTI POST-CREAZIONE
+                    // ✅ MOSTRA I PULSANTI
                     $('#post-creation-actions').slideDown(500);
                     
-                    // Salva dati per i pulsanti
-                    window.preventivoData = response.data;
+                    // ✅ MESSAGGIO SUCCESSO
+                    alert('✅ ' + (response.data.message || 'Preventivo salvato con successo!'));
                     
                     // Scroll verso i pulsanti
-                    $('html, body').animate({
-                        scrollTop: $('#post-creation-actions').offset().top - 100
-                    }, 800);
+                    setTimeout(function() {
+                        $('html, body').animate({
+                            scrollTop: $('#post-creation-actions').offset().top - 100
+                        }, 600);
+                    }, 100);
                     
                 } else {
                     const errorMsg = response.data || response.message || 'Errore sconosciuto';
@@ -806,20 +809,22 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-generate-pdf').on('click', function() {
         console.log('📄 Genera PDF cliccato');
+        console.log('📄 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        if (!window.preventivoData || (!window.preventivoData.preventivo_id && !window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
+            console.error('❌ preventivoData mancante o incompleto:', window.preventivoData);
             return;
         }
         
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Generazione PDF...');
+        var $thisBtn = $(this);
+        $thisBtn.prop('disabled', true).html('â³ Generazione PDF...');
         
-        const prevId = window.preventivoData.id || window.preventivoData.db_id || window.preventivoData.preventivo_id;
+        var pdfPrevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        console.log('📄 Preventivo ID estratto:', prevId);
+        console.log('📄 [PDF] ID estratto:', pdfPrevId);
         
-        if (!prevId) {
+        if (!pdfPrevId) {
             alert('❌ Errore: ID preventivo non trovato');
             return;
         }
@@ -830,10 +835,10 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_generate_pdf',
                 nonce: '<?php echo wp_create_nonce("disco747_generate_pdf"); ?>',
-                preventivo_id: prevId
+                preventivo_id: pdfPrevId
             },
             success: function(response) {
-                console.log('✅ Risposta generazione PDF:', response);
+                console.log('✅ [PDF] Risposta:', response);
                 
                 if (response.success && response.data.pdf_url) {
                     alert('✅ PDF generato con successo!');
@@ -850,7 +855,7 @@ jQuery(document).ready(function($) {
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $btn.prop('disabled', false).html('📄 Genera e Scarica PDF');
+                $thisBtn.prop('disabled', false).html('📄 Genera e Scarica PDF');
             }
         });
     });
@@ -859,12 +864,15 @@ jQuery(document).ready(function($) {
     // PULSANTE 2: Invia Email - Apre Modal
     // ========================================================================
     $('#btn-send-email').on('click', function() {
-        console.log('📧 Invia Email cliccato');
+        console.log('📧 [Email] Invia Email cliccato');
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
-            alert('❌ Errore: Dati preventivo non disponibili');
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
+            alert('❌ Errore: Dati preventivo non disponibili. Ricarica la pagina.');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
+        
+        console.log('📧 [Email] Dati OK:', window.preventivoData);
         
         // Mostra modal selezione template
         $('#modal-email-template').css('display', 'flex').hide().fadeIn(300);
@@ -877,23 +885,20 @@ jQuery(document).ready(function($) {
     
     // Conferma invio email
     $('#confirm-send-email').on('click', function() {
-        const templateId = $('#email-template-select').val();
-        const attachPdf = $('#email-attach-pdf').is(':checked');
+        var emailTemplateId = $('#email-template-select').val();
+        var emailAttachPdf = $('#email-attach-pdf').is(':checked');
+        var emailPrevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        console.log('📧 Invio email con template:', templateId, 'PDF allegato:', attachPdf);
+        console.log('📧 [Email] Conferma invio - Template:', emailTemplateId, 'PDF:', emailAttachPdf, 'ID:', emailPrevId);
         
-        // Verifica ID numerico
-        const prevId = window.preventivoData.id || window.preventivoData.db_id;
-        console.log('📧 ID numerico estratto:', prevId);
-        console.log('📧 preventivoData:', window.preventivoData);
-        
-        if (!prevId) {
-            alert('❌ ID preventivo mancante');
+        if (!emailPrevId) {
+            alert('❌ Errore: ID preventivo mancante');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
         
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Invio...');
+        var $thisBtn = $(this);
+        $thisBtn.prop('disabled', true).html('â³ Invio...');
         
         $.ajax({
             url: ajaxurl,
@@ -901,12 +906,12 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_send_email_template',
                 nonce: '<?php echo wp_create_nonce("disco747_send_email"); ?>',
-                preventivo_id: (window.preventivoData.id || window.preventivoData.db_id),  // ID numerico
-                template_id: templateId,
-                attach_pdf: attachPdf ? '1' : '0'
+                preventivo_id: emailPrevId,
+                template_id: emailTemplateId,
+                attach_pdf: emailAttachPdf ? '1' : '0'
             },
             success: function(response) {
-                console.log('✅ Risposta invio email:', response);
+                console.log('✅ [Email] Risposta:', response);
                 
                 if (response.success) {
                     alert('✅ Email inviata con successo!');
@@ -916,11 +921,11 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX Email:', error);
+                console.error('❌ [Email] Errore AJAX:', error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $btn.prop('disabled', false).html('📧 Invia Email');
+                $thisBtn.prop('disabled', false).html('📧 Invia Email');
             }
         });
     });
@@ -929,12 +934,15 @@ jQuery(document).ready(function($) {
     // PULSANTE 3: Invia WhatsApp - Apre Modal
     // ========================================================================
     $('#btn-send-whatsapp').on('click', function() {
-        console.log('💬 Invia WhatsApp cliccato');
+        console.log('💬 [WhatsApp] Invia WhatsApp cliccato');
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
-            alert('❌ Errore: Dati preventivo non disponibili');
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
+            alert('❌ Errore: Dati preventivo non disponibili. Ricarica la pagina.');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
+        
+        console.log('💬 [WhatsApp] Dati OK:', window.preventivoData);
         
         // Mostra modal selezione template
         $('#modal-whatsapp-template').css('display', 'flex').hide().fadeIn(300);
@@ -947,21 +955,19 @@ jQuery(document).ready(function($) {
     
     // Conferma invio whatsapp
     $('#confirm-send-whatsapp').on('click', function() {
-        const templateId = $('#whatsapp-template-select').val();
+        var whatsappTemplateId = $('#whatsapp-template-select').val();
+        var actionPrevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        // Usa id numerico
-        const prevId = window.preventivoData.id || window.preventivoData.db_id || window.preventivoData.preventivo_id;
+        console.log('💬 [WhatsApp] Conferma invio - Template:', whatsappTemplateId, 'ID:', actionPrevId);
         
-        console.log('💬 Invio WhatsApp con template:', templateId);
-        console.log('💬 Preventivo ID estratto:', prevId);
-        
-        if (!prevId) {
-            alert('❌ Errore: ID preventivo non trovato');
+        if (!actionPrevId) {
+            alert('❌ Errore: ID preventivo mancante');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
         
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Preparazione...');
+        var $thisBtn = $(this);
+        $thisBtn.prop('disabled', true).html('â³ Preparazione...');
         
         $.ajax({
             url: ajaxurl,
@@ -969,11 +975,11 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_send_whatsapp_template',
                 nonce: '<?php echo wp_create_nonce("disco747_send_whatsapp"); ?>',
-                preventivo_id: prevId,
-                template_id: templateId
+                preventivo_id: actionPrevId,
+                template_id: whatsappTemplateId
             },
             success: function(response) {
-                console.log('✅ Risposta WhatsApp:', response);
+                console.log('✅ [WhatsApp] Risposta:', response);
                 
                 if (response.success && response.data.whatsapp_url) {
                     // Apri WhatsApp in nuova finestra
@@ -986,11 +992,11 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX WhatsApp:', error);
+                console.error('❌ [WhatsApp] Errore AJAX:', error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $btn.prop('disabled', false).html('💬 Apri WhatsApp');
+                $thisBtn.prop('disabled', false).html('💬 Apri WhatsApp');
             }
         });
     });

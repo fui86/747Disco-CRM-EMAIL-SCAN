@@ -152,8 +152,12 @@ final class Disco747_CRM_Plugin {
             'includes/storage/class-disco747-storage-manager.php',
             // ✅ AGGIUNTO: Excel Scan Handler REALE
             'includes/handlers/class-disco747-excel-scan-handler.php',
-            // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ AGGIUNTO: AJAX Handlers per Excel Scan
-            'includes/admin/ajax-handlers.php'
+            // ✅ AGGIUNTO: AJAX Handlers per Excel Scan
+            'includes/admin/ajax-handlers.php',
+            // ✅ AGGIUNTO: Forms Handler (gestisce salvataggio + PDF)
+            'includes/handlers/class-disco747-forms.php',
+            // ✅ AGGIUNTO: AJAX Handler principale (gestisce email + whatsapp)
+            'includes/handlers/class-disco747-ajax.php'
         );
         
         $loaded_files = 0;
@@ -199,6 +203,9 @@ final class Disco747_CRM_Plugin {
         $message .= ")";
         
         $this->public_log($message);
+        
+        // ⚠️ NOTA: Gli handler AJAX vengono inizializzati in init_core_components()
+        // dopo che tutti i componenti core sono pronti
     }
 
     /**
@@ -238,6 +245,23 @@ final class Disco747_CRM_Plugin {
         }
         
         $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Componenti core inizializzati');
+        
+        // ✅ INIZIALIZZA HANDLER AJAX (necessario per registrare gli hook)
+        // DEVE essere fatto DOPO l'inizializzazione dei componenti core
+        if (class_exists('Disco747_CRM\\Handlers\\Disco747_Forms')) {
+            new \Disco747_CRM\Handlers\Disco747_Forms();
+            $this->public_log('✅ Forms Handler inizializzato');
+        }
+        
+        if (class_exists('Disco747_CRM\\Handlers\\Disco747_AJAX')) {
+            new \Disco747_CRM\Handlers\Disco747_AJAX();
+            $this->public_log('✅ AJAX Handler inizializzato');
+        }
+        
+        if (class_exists('Disco747_CRM\\Admin\\Disco747_AJAX_Handlers')) {
+            \Disco747_CRM\Admin\Disco747_AJAX_Handlers::init();
+            $this->public_log('✅ AJAX Handlers (Excel Scan) inizializzato');
+        }
     }
 
     /**
