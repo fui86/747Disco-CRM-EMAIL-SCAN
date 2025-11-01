@@ -477,6 +477,46 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     </form>
     
     <!-- ============================================================================ -->
+    <!-- DEBUG PANEL (rimuovi dopo il test) -->
+    <!-- ============================================================================ -->
+    <div id="debug-panel" style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-top: 20px;">
+        <h3 style="margin: 0 0 15px 0; color: #856404;">🔍 Debug Panel</h3>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+            <button type="button" onclick="
+                console.log('=== DEBUG INFO ===');
+                console.log('window.preventivoData:', window.preventivoData);
+                console.log('Pulsanti visibili?', jQuery('#post-creation-actions').is(':visible'));
+                console.log('Handler PDF registrato?', typeof jQuery('#btn-generate-pdf').data('events'));
+                alert('Controlla la Console Browser (F12)');
+            " style="background: #ffc107; color: #000; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                📊 Mostra Stato
+            </button>
+            
+            <button type="button" onclick="jQuery('#post-creation-actions').slideDown();" 
+                    style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                👁️ Mostra Pulsanti
+            </button>
+            
+            <button type="button" onclick="
+                if (!window.preventivoData) {
+                    alert('❌ window.preventivoData è undefined!');
+                } else if (!window.preventivoData.id && !window.preventivoData.db_id) {
+                    alert('❌ ID numerico mancante in preventivoData!');
+                } else {
+                    alert('✅ Dati OK! ID: ' + (window.preventivoData.id || window.preventivoData.db_id));
+                }
+            " style="background: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                🧪 Test Dati
+            </button>
+        </div>
+        
+        <div id="debug-info" style="background: white; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+            <strong>Stato:</strong> In attesa di salvataggio...
+        </div>
+    </div>
+    
+    <!-- ============================================================================ -->
     <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
     <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
     <!-- ============================================================================ -->
@@ -721,6 +761,17 @@ jQuery(document).ready(function($) {
     };
     console.log('📝 Edit mode - preventivoData inizializzato:', window.preventivoData);
     
+    // ✅ Aggiorna debug panel in modalità edit
+    $('#debug-info').html(
+        '<strong>Stato:</strong> 📝 Modalità Modifica<br><br>' +
+        '<strong>preventivo_id:</strong> ' + (window.preventivoData.preventivo_id || 'MANCANTE') + '<br>' +
+        '<strong>id (numerico):</strong> ' + (window.preventivoData.id || 'MANCANTE') + '<br>' +
+        '<strong>db_id:</strong> ' + (window.preventivoData.db_id || 'MANCANTE') + '<br>' +
+        '<strong>nome_cliente:</strong> ' + (window.preventivoData.nome_cliente || 'MANCANTE') + '<br>' +
+        '<strong>email:</strong> ' + (window.preventivoData.email || 'MANCANTE') + '<br><br>' +
+        '<em style="color: #0d6efd;">ℹ️ Modalità modifica - i pulsanti dovrebbero essere visibili</em>'
+    );
+    
     // Mostra pulsanti post-creazione se già esistente
     $('#post-creation-actions').show();
     <?php endif; ?>
@@ -769,17 +820,29 @@ jQuery(document).ready(function($) {
                     window.preventivoData = response.data;
                     console.log('💾 preventivoData aggiornato:', window.preventivoData);
                     
+                    // ✅ AGGIORNA DEBUG PANEL
+                    $('#debug-info').html(
+                        '<strong>Stato:</strong> ✅ Salvato!<br><br>' +
+                        '<strong>preventivo_id:</strong> ' + (window.preventivoData.preventivo_id || 'MANCANTE') + '<br>' +
+                        '<strong>id (numerico):</strong> ' + (window.preventivoData.id || 'MANCANTE') + '<br>' +
+                        '<strong>db_id:</strong> ' + (window.preventivoData.db_id || 'MANCANTE') + '<br>' +
+                        '<strong>nome_cliente:</strong> ' + (window.preventivoData.nome_cliente || 'MANCANTE') + '<br>' +
+                        '<strong>email:</strong> ' + (window.preventivoData.email || 'MANCANTE') + '<br><br>' +
+                        '<em style="color: #28a745;">✅ I pulsanti dovrebbero essere funzionanti</em>'
+                    );
+                    
                     // ✅ MOSTRA I PULSANTI POST-CREAZIONE (anche se era già visibile)
                     $('#post-creation-actions').slideDown(500);
                     
                     // ✅ Verifica dati chiave
                     if (!window.preventivoData.id && !window.preventivoData.db_id) {
                         console.error('⚠️ ATTENZIONE: ID numerico mancante in preventivoData!');
+                        $('#debug-info').append('<br><br><strong style="color: #dc3545;">⚠️ PROBLEMA: ID numerico MANCANTE!</strong>');
                     }
                     
-                    // Scroll verso i pulsanti
+                    // Scroll verso debug panel
                     $('html, body').animate({
-                        scrollTop: $('#post-creation-actions').offset().top - 100
+                        scrollTop: $('#debug-panel').offset().top - 100
                     }, 800);
                     
                 } else {
