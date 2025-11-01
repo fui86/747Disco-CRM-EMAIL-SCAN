@@ -704,8 +704,9 @@ jQuery(document).ready(function($) {
     // Inizializza preventivoData se siamo in edit mode
     <?php if ($is_edit_mode && $edit_data): ?>
     window.preventivoData = {
-        preventivo_id: <?php echo intval($edit_id); ?>,
+        preventivo_id: '<?php echo esc_js($edit_data['preventivo_id'] ?? ''); ?>',
         id: <?php echo intval($edit_id); ?>,
+        db_id: <?php echo intval($edit_id); ?>,
         nome_referente: '<?php echo esc_js($edit_data['nome_referente'] ?? $edit_data['nome_cliente'] ?? ''); ?>',
         cognome_referente: '<?php echo esc_js($edit_data['cognome_referente'] ?? ''); ?>',
         nome_cliente: '<?php echo esc_js(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? '')); ?>',
