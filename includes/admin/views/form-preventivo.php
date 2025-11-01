@@ -477,51 +477,10 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     </form>
     
     <!-- ============================================================================ -->
-    <!-- DEBUG PANEL (rimuovi dopo il test) -->
-    <!-- ============================================================================ -->
-    <div id="debug-panel" style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-top: 20px;">
-        <h3 style="margin: 0 0 15px 0; color: #856404;">🔍 Debug Panel</h3>
-        
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-            <button type="button" onclick="
-                console.log('=== DEBUG INFO ===');
-                console.log('window.preventivoData:', window.preventivoData);
-                console.log('Pulsanti visibili?', jQuery('#post-creation-actions').is(':visible'));
-                console.log('Handler PDF registrato?', typeof jQuery('#btn-generate-pdf').data('events'));
-                alert('Controlla la Console Browser (F12)');
-            " style="background: #ffc107; color: #000; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                📊 Mostra Stato
-            </button>
-            
-            <button type="button" onclick="jQuery('#post-creation-actions').slideDown();" 
-                    style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                👁️ Mostra Pulsanti
-            </button>
-            
-            <button type="button" onclick="
-                if (!window.preventivoData) {
-                    alert('❌ window.preventivoData è undefined!');
-                } else if (!window.preventivoData.id && !window.preventivoData.db_id) {
-                    alert('❌ ID numerico mancante in preventivoData!');
-                } else {
-                    alert('✅ Dati OK! ID: ' + (window.preventivoData.id || window.preventivoData.db_id));
-                }
-            " style="background: #17a2b8; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                🧪 Test Dati
-            </button>
-        </div>
-        
-        <div id="debug-info" style="background: white; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;">
-            <strong>Stato:</strong> In attesa di salvataggio...
-        </div>
-    </div>
-    
-    <!-- ============================================================================ -->
-    <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
-    <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
+    <!-- PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
     <!-- ============================================================================ -->
     
-    <div id="post-creation-actions" style="display: none; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
+    <div id="post-creation-actions" style="<?php echo $is_edit_mode ? '' : 'display: none;'; ?> background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
         
         <!-- Header Sezione -->
         <div style="background: linear-gradient(135deg, #c28a4d 0%, #a67339 100%); color: white; padding: 25px; text-align: center;">
@@ -741,7 +700,9 @@ jQuery(document).ready(function($) {
     
     console.log('🎯 [747Disco-AJAX] Form AJAX Handler caricato');
     
-    // Inizializza preventivoData se siamo in edit mode
+    // ========================================================================
+    // INIZIALIZZA DATI IN MODALITÀ EDIT
+    // ========================================================================
     <?php if ($is_edit_mode && $edit_data): ?>
     window.preventivoData = {
         preventivo_id: '<?php echo esc_js($edit_data['preventivo_id'] ?? ''); ?>',
@@ -749,7 +710,7 @@ jQuery(document).ready(function($) {
         db_id: <?php echo intval($edit_id); ?>,
         nome_referente: '<?php echo esc_js($edit_data['nome_referente'] ?? $edit_data['nome_cliente'] ?? ''); ?>',
         cognome_referente: '<?php echo esc_js($edit_data['cognome_referente'] ?? ''); ?>',
-        nome_cliente: '<?php echo esc_js(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? '')); ?>',
+        nome_cliente: '<?php echo esc_js(trim(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? '')) ?: $edit_data['nome_cliente'] ?? ''); ?>',
         email: '<?php echo esc_js($edit_data['email'] ?? $edit_data['mail'] ?? ''); ?>',
         telefono: '<?php echo esc_js($edit_data['telefono'] ?? $edit_data['cellulare'] ?? ''); ?>',
         data_evento: '<?php echo esc_js($edit_data['data_evento'] ?? ''); ?>',
@@ -759,21 +720,7 @@ jQuery(document).ready(function($) {
         importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? $edit_data['importo_preventivo'] ?? 0); ?>,
         acconto: <?php echo floatval($edit_data['acconto'] ?? 0); ?>
     };
-    console.log('📝 Edit mode - preventivoData inizializzato:', window.preventivoData);
-    
-    // ✅ Aggiorna debug panel in modalità edit
-    $('#debug-info').html(
-        '<strong>Stato:</strong> 📝 Modalità Modifica<br><br>' +
-        '<strong>preventivo_id:</strong> ' + (window.preventivoData.preventivo_id || 'MANCANTE') + '<br>' +
-        '<strong>id (numerico):</strong> ' + (window.preventivoData.id || 'MANCANTE') + '<br>' +
-        '<strong>db_id:</strong> ' + (window.preventivoData.db_id || 'MANCANTE') + '<br>' +
-        '<strong>nome_cliente:</strong> ' + (window.preventivoData.nome_cliente || 'MANCANTE') + '<br>' +
-        '<strong>email:</strong> ' + (window.preventivoData.email || 'MANCANTE') + '<br><br>' +
-        '<em style="color: #0d6efd;">ℹ️ Modalità modifica - i pulsanti dovrebbero essere visibili</em>'
-    );
-    
-    // Mostra pulsanti post-creazione se già esistente
-    $('#post-creation-actions').show();
+    console.log('✅ [Edit Mode] preventivoData inizializzato:', window.preventivoData);
     <?php endif; ?>
     
     const $form = $('#disco747-form-preventivo');
@@ -814,36 +761,22 @@ jQuery(document).ready(function($) {
                 console.log('✅ Risposta server:', response);
                 
                 if (response.success) {
-                    alert('✅ ' + (response.data.message || 'Preventivo salvato con successo!'));
-                    
-                    // ✅ SALVA DATI PER I PULSANTI
+                    // ✅ AGGIORNA DATI GLOBALI
                     window.preventivoData = response.data;
-                    console.log('💾 preventivoData aggiornato:', window.preventivoData);
+                    console.log('✅ [Save Success] preventivoData aggiornato:', window.preventivoData);
                     
-                    // ✅ AGGIORNA DEBUG PANEL
-                    $('#debug-info').html(
-                        '<strong>Stato:</strong> ✅ Salvato!<br><br>' +
-                        '<strong>preventivo_id:</strong> ' + (window.preventivoData.preventivo_id || 'MANCANTE') + '<br>' +
-                        '<strong>id (numerico):</strong> ' + (window.preventivoData.id || 'MANCANTE') + '<br>' +
-                        '<strong>db_id:</strong> ' + (window.preventivoData.db_id || 'MANCANTE') + '<br>' +
-                        '<strong>nome_cliente:</strong> ' + (window.preventivoData.nome_cliente || 'MANCANTE') + '<br>' +
-                        '<strong>email:</strong> ' + (window.preventivoData.email || 'MANCANTE') + '<br><br>' +
-                        '<em style="color: #28a745;">✅ I pulsanti dovrebbero essere funzionanti</em>'
-                    );
-                    
-                    // ✅ MOSTRA I PULSANTI POST-CREAZIONE (anche se era già visibile)
+                    // ✅ MOSTRA I PULSANTI
                     $('#post-creation-actions').slideDown(500);
                     
-                    // ✅ Verifica dati chiave
-                    if (!window.preventivoData.id && !window.preventivoData.db_id) {
-                        console.error('⚠️ ATTENZIONE: ID numerico mancante in preventivoData!');
-                        $('#debug-info').append('<br><br><strong style="color: #dc3545;">⚠️ PROBLEMA: ID numerico MANCANTE!</strong>');
-                    }
+                    // ✅ MESSAGGIO SUCCESSO
+                    alert('✅ ' + (response.data.message || 'Preventivo salvato con successo!'));
                     
-                    // Scroll verso debug panel
-                    $('html, body').animate({
-                        scrollTop: $('#debug-panel').offset().top - 100
-                    }, 800);
+                    // Scroll verso i pulsanti
+                    setTimeout(function() {
+                        $('html, body').animate({
+                            scrollTop: $('#post-creation-actions').offset().top - 100
+                        }, 600);
+                    }, 100);
                     
                 } else {
                     const errorMsg = response.data || response.message || 'Errore sconosciuto';
@@ -931,14 +864,15 @@ jQuery(document).ready(function($) {
     // PULSANTE 2: Invia Email - Apre Modal
     // ========================================================================
     $('#btn-send-email').on('click', function() {
-        console.log('📧 Invia Email cliccato');
-        console.log('📧 window.preventivoData:', window.preventivoData);
+        console.log('📧 [Email] Invia Email cliccato');
         
-        if (!window.preventivoData || (!window.preventivoData.preventivo_id && !window.preventivoData.id && !window.preventivoData.db_id)) {
-            alert('❌ Errore: Dati preventivo non disponibili');
-            console.error('❌ preventivoData mancante o incompleto:', window.preventivoData);
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
+            alert('❌ Errore: Dati preventivo non disponibili. Ricarica la pagina.');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
+        
+        console.log('📧 [Email] Dati OK:', window.preventivoData);
         
         // Mostra modal selezione template
         $('#modal-email-template').css('display', 'flex').hide().fadeIn(300);
@@ -953,16 +887,13 @@ jQuery(document).ready(function($) {
     $('#confirm-send-email').on('click', function() {
         const templateId = $('#email-template-select').val();
         const attachPdf = $('#email-attach-pdf').is(':checked');
-        
-        console.log('📧 Invio email con template:', templateId, 'PDF allegato:', attachPdf);
-        
-        // Verifica ID numerico
         const prevId = window.preventivoData.id || window.preventivoData.db_id;
-        console.log('📧 ID numerico estratto:', prevId);
-        console.log('📧 preventivoData:', window.preventivoData);
+        
+        console.log('📧 [Email] Conferma invio - Template:', templateId, 'PDF:', attachPdf, 'ID:', prevId);
         
         if (!prevId) {
-            alert('❌ ID preventivo mancante');
+            alert('❌ Errore: ID preventivo mancante');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
         
@@ -975,7 +906,7 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_send_email_template',
                 nonce: '<?php echo wp_create_nonce("disco747_send_email"); ?>',
-                preventivo_id: (window.preventivoData.id || window.preventivoData.db_id),  // ID numerico
+                preventivo_id: prevId,
                 template_id: templateId,
                 attach_pdf: attachPdf ? '1' : '0'
             },
@@ -1003,14 +934,15 @@ jQuery(document).ready(function($) {
     // PULSANTE 3: Invia WhatsApp - Apre Modal
     // ========================================================================
     $('#btn-send-whatsapp').on('click', function() {
-        console.log('💬 Invia WhatsApp cliccato');
-        console.log('💬 window.preventivoData:', window.preventivoData);
+        console.log('💬 [WhatsApp] Invia WhatsApp cliccato');
         
-        if (!window.preventivoData || (!window.preventivoData.preventivo_id && !window.preventivoData.id && !window.preventivoData.db_id)) {
-            alert('❌ Errore: Dati preventivo non disponibili');
-            console.error('❌ preventivoData mancante o incompleto:', window.preventivoData);
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
+            alert('❌ Errore: Dati preventivo non disponibili. Ricarica la pagina.');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
+        
+        console.log('💬 [WhatsApp] Dati OK:', window.preventivoData);
         
         // Mostra modal selezione template
         $('#modal-whatsapp-template').css('display', 'flex').hide().fadeIn(300);
@@ -1024,15 +956,13 @@ jQuery(document).ready(function($) {
     // Conferma invio whatsapp
     $('#confirm-send-whatsapp').on('click', function() {
         const templateId = $('#whatsapp-template-select').val();
+        const prevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        // Usa id numerico
-        const prevId = window.preventivoData.id || window.preventivoData.db_id || window.preventivoData.preventivo_id;
-        
-        console.log('💬 Invio WhatsApp con template:', templateId);
-        console.log('💬 Preventivo ID estratto:', prevId);
+        console.log('💬 [WhatsApp] Conferma invio - Template:', templateId, 'ID:', prevId);
         
         if (!prevId) {
-            alert('❌ Errore: ID preventivo non trovato');
+            alert('❌ Errore: ID preventivo mancante');
+            console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
         
