@@ -817,14 +817,14 @@ jQuery(document).ready(function($) {
             return;
         }
         
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Generazione PDF...');
+        var $thisBtn = $(this);
+        $thisBtn.prop('disabled', true).html('â³ Generazione PDF...');
         
-        const prevId = window.preventivoData.id || window.preventivoData.db_id || window.preventivoData.preventivo_id;
+        var pdfPrevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        console.log('📄 Preventivo ID estratto:', prevId);
+        console.log('📄 [PDF] ID estratto:', pdfPrevId);
         
-        if (!prevId) {
+        if (!pdfPrevId) {
             alert('❌ Errore: ID preventivo non trovato');
             return;
         }
@@ -835,10 +835,10 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_generate_pdf',
                 nonce: '<?php echo wp_create_nonce("disco747_generate_pdf"); ?>',
-                preventivo_id: prevId
+                preventivo_id: pdfPrevId
             },
             success: function(response) {
-                console.log('✅ Risposta generazione PDF:', response);
+                console.log('✅ [PDF] Risposta:', response);
                 
                 if (response.success && response.data.pdf_url) {
                     alert('✅ PDF generato con successo!');
@@ -855,7 +855,7 @@ jQuery(document).ready(function($) {
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $btn.prop('disabled', false).html('📄 Genera e Scarica PDF');
+                $thisBtn.prop('disabled', false).html('📄 Genera e Scarica PDF');
             }
         });
     });
@@ -885,20 +885,20 @@ jQuery(document).ready(function($) {
     
     // Conferma invio email
     $('#confirm-send-email').on('click', function() {
-        const templateId = $('#email-template-select').val();
-        const attachPdf = $('#email-attach-pdf').is(':checked');
-        const prevId = window.preventivoData.id || window.preventivoData.db_id;
+        var emailTemplateId = $('#email-template-select').val();
+        var emailAttachPdf = $('#email-attach-pdf').is(':checked');
+        var emailPrevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        console.log('📧 [Email] Conferma invio - Template:', templateId, 'PDF:', attachPdf, 'ID:', prevId);
+        console.log('📧 [Email] Conferma invio - Template:', emailTemplateId, 'PDF:', emailAttachPdf, 'ID:', emailPrevId);
         
-        if (!prevId) {
+        if (!emailPrevId) {
             alert('❌ Errore: ID preventivo mancante');
             console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
         
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Invio...');
+        var $thisBtn = $(this);
+        $thisBtn.prop('disabled', true).html('â³ Invio...');
         
         $.ajax({
             url: ajaxurl,
@@ -906,12 +906,12 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_send_email_template',
                 nonce: '<?php echo wp_create_nonce("disco747_send_email"); ?>',
-                preventivo_id: prevId,
-                template_id: templateId,
-                attach_pdf: attachPdf ? '1' : '0'
+                preventivo_id: emailPrevId,
+                template_id: emailTemplateId,
+                attach_pdf: emailAttachPdf ? '1' : '0'
             },
             success: function(response) {
-                console.log('✅ Risposta invio email:', response);
+                console.log('✅ [Email] Risposta:', response);
                 
                 if (response.success) {
                     alert('✅ Email inviata con successo!');
@@ -921,11 +921,11 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX Email:', error);
+                console.error('❌ [Email] Errore AJAX:', error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $btn.prop('disabled', false).html('📧 Invia Email');
+                $thisBtn.prop('disabled', false).html('📧 Invia Email');
             }
         });
     });
@@ -955,19 +955,19 @@ jQuery(document).ready(function($) {
     
     // Conferma invio whatsapp
     $('#confirm-send-whatsapp').on('click', function() {
-        const templateId = $('#whatsapp-template-select').val();
-        const prevId = window.preventivoData.id || window.preventivoData.db_id;
+        var whatsappTemplateId = $('#whatsapp-template-select').val();
+        var actionPrevId = window.preventivoData.id || window.preventivoData.db_id;
         
-        console.log('💬 [WhatsApp] Conferma invio - Template:', templateId, 'ID:', prevId);
+        console.log('💬 [WhatsApp] Conferma invio - Template:', whatsappTemplateId, 'ID:', actionPrevId);
         
-        if (!prevId) {
+        if (!actionPrevId) {
             alert('❌ Errore: ID preventivo mancante');
             console.error('❌ preventivoData:', window.preventivoData);
             return;
         }
         
-        const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Preparazione...');
+        var $thisBtn = $(this);
+        $thisBtn.prop('disabled', true).html('â³ Preparazione...');
         
         $.ajax({
             url: ajaxurl,
@@ -975,11 +975,11 @@ jQuery(document).ready(function($) {
             data: {
                 action: 'disco747_send_whatsapp_template',
                 nonce: '<?php echo wp_create_nonce("disco747_send_whatsapp"); ?>',
-                preventivo_id: prevId,
-                template_id: templateId
+                preventivo_id: actionPrevId,
+                template_id: whatsappTemplateId
             },
             success: function(response) {
-                console.log('✅ Risposta WhatsApp:', response);
+                console.log('✅ [WhatsApp] Risposta:', response);
                 
                 if (response.success && response.data.whatsapp_url) {
                     // Apri WhatsApp in nuova finestra
@@ -992,11 +992,11 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX WhatsApp:', error);
+                console.error('❌ [WhatsApp] Errore AJAX:', error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $btn.prop('disabled', false).html('💬 Apri WhatsApp');
+                $thisBtn.prop('disabled', false).html('💬 Apri WhatsApp');
             }
         });
     });
