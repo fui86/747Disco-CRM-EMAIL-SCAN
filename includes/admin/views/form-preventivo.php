@@ -763,13 +763,19 @@ jQuery(document).ready(function($) {
                 console.log('✅ Risposta server:', response);
                 
                 if (response.success) {
-                    alert('✅ ' + (response.data.message || 'Preventivo creato con successo!'));
+                    alert('✅ ' + (response.data.message || 'Preventivo salvato con successo!'));
                     
-                    // ✅ MOSTRA I PULSANTI POST-CREAZIONE
+                    // ✅ SALVA DATI PER I PULSANTI
+                    window.preventivoData = response.data;
+                    console.log('💾 preventivoData aggiornato:', window.preventivoData);
+                    
+                    // ✅ MOSTRA I PULSANTI POST-CREAZIONE (anche se era già visibile)
                     $('#post-creation-actions').slideDown(500);
                     
-                    // Salva dati per i pulsanti
-                    window.preventivoData = response.data;
+                    // ✅ Verifica dati chiave
+                    if (!window.preventivoData.id && !window.preventivoData.db_id) {
+                        console.error('⚠️ ATTENZIONE: ID numerico mancante in preventivoData!');
+                    }
                     
                     // Scroll verso i pulsanti
                     $('html, body').animate({
@@ -807,9 +813,11 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-generate-pdf').on('click', function() {
         console.log('📄 Genera PDF cliccato');
+        console.log('📄 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        if (!window.preventivoData || (!window.preventivoData.preventivo_id && !window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
+            console.error('❌ preventivoData mancante o incompleto:', window.preventivoData);
             return;
         }
         
@@ -861,9 +869,11 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-send-email').on('click', function() {
         console.log('📧 Invia Email cliccato');
+        console.log('📧 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        if (!window.preventivoData || (!window.preventivoData.preventivo_id && !window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
+            console.error('❌ preventivoData mancante o incompleto:', window.preventivoData);
             return;
         }
         
@@ -931,9 +941,11 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-send-whatsapp').on('click', function() {
         console.log('💬 Invia WhatsApp cliccato');
+        console.log('💬 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        if (!window.preventivoData || (!window.preventivoData.preventivo_id && !window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
+            console.error('❌ preventivoData mancante o incompleto:', window.preventivoData);
             return;
         }
         
