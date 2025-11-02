@@ -23,6 +23,11 @@ if (!defined('ABSPATH')) {
 class Disco747_Excel_Scan_Handler {
     
     /**
+     * ✅ SINGLETON: Istanza unica
+     */
+    private static $instance = null;
+    
+    /**
      * Nome della tabella unificata per i preventivi
      */
     private $table_name;
@@ -38,9 +43,19 @@ class Disco747_Excel_Scan_Handler {
     private $cached_excel_files = null;
     
     /**
-     * Costruttore
+     * ✅ SINGLETON: Get instance
      */
-    public function __construct() {
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Costruttore privato (SINGLETON)
+     */
+    private function __construct() {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'disco747_preventivi'; // ✅ TABELLA UNIFICATA
         
@@ -692,5 +707,5 @@ class Disco747_Excel_Scan_Handler {
     }
 }
 
-// Inizializza l'handler
-new Disco747_Excel_Scan_Handler();
+// ✅ SINGLETON: Inizializza l'handler unico
+Disco747_Excel_Scan_Handler::get_instance();

@@ -40,23 +40,22 @@ class Disco747_AJAX_Handlers {
     public static function handle_batch_scan() {
         error_log('[Batch-Scan-AJAX] ========== REDIRECT AL NUOVO HANDLER PROGRESSIVO ==========');
         
-        // ✅ Reindirizza al nuovo handler ottimizzato
+        // ✅ Reindirizza al nuovo handler ottimizzato (usa singleton per evitare istanziazioni multiple)
         if (class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
-            // Crea istanza del nuovo handler
-            $handler_file = DISCO747_CRM_PLUGIN_DIR . 'includes/handlers/class-disco747-excel-scan-handler.php';
-            if (file_exists($handler_file)) {
-                require_once $handler_file;
-                
-                // Istanzia e chiama il metodo handle_batch_scan_ajax
-                $handler = new \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler();
-                
-                // Cambia temporaneamente il nonce name per compatibilità
-                $_POST['nonce'] = isset($_POST['nonce']) ? $_POST['nonce'] : (isset($_POST['_wpnonce']) ? $_POST['_wpnonce'] : '');
-                
-                // Chiama il nuovo handler
-                $handler->handle_batch_scan_ajax();
-                return; // Importante: stoppa esecuzione
+            error_log('[Batch-Scan-AJAX] ✅ Classe Disco747_Excel_Scan_Handler trovata, uso singleton...');
+            
+            // ✅ Usa get_instance() per ottenere istanza singleton (evita hook duplicati)
+            $handler = \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler::get_instance();
+            
+            // Assicura compatibilità nonce
+            if (!isset($_POST['nonce']) && isset($_POST['_wpnonce'])) {
+                $_POST['nonce'] = $_POST['_wpnonce'];
             }
+            
+            // Chiama il nuovo handler
+            error_log('[Batch-Scan-AJAX] ✅ Invoco handle_batch_scan_ajax del nuovo handler...');
+            $handler->handle_batch_scan_ajax();
+            return; // Importante: stoppa esecuzione
         }
         
         // ⚠️ FALLBACK: vecchio handler (se il nuovo non è disponibile)
