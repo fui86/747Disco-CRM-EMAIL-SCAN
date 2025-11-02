@@ -101,8 +101,8 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_test_storage', array($this, 'handle_storage_test'));
         add_action('wp_ajax_disco747_update_setting', array($this, 'handle_update_setting'));
         
-        // Batch scan Excel da Google Drive
-        add_action('wp_ajax_disco747_scan_drive_batch', array($this, 'handle_batch_scan'));
+        // ❌ DISABILITATO: Batch scan Excel ora gestito da ajax-handlers.php con sistema ottimizzato
+        // add_action('wp_ajax_disco747_scan_drive_batch', array($this, 'handle_batch_scan'));
         
         // Template messaggi
         add_action('wp_ajax_disco747_get_templates', array($this, 'handle_get_templates'));
@@ -110,15 +110,22 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_send_email_template', array($this, 'handle_send_email_template'));
         add_action('wp_ajax_disco747_send_whatsapp_template', array($this, 'handle_send_whatsapp_template'));
         
-        $this->log('Hook AJAX registrati (incluso batch scan + templates + send email + whatsapp)');
+        $this->log('Hook AJAX registrati (templates + send email + whatsapp) - batch scan disabilitato, usa ajax-handlers.php');
     }
 
     /**
      * Ã¢Å“â€¦ NUOVO: Handler per batch scan di file Excel su Google Drive
      */
     public function handle_batch_scan() {
-        error_log('[747Disco-AJAX] handle_batch_scan chiamato');
+        error_log('[747Disco-AJAX] ⚠️ handle_batch_scan LEGACY chiamato - dovrebbe usare ajax-handlers.php');
         
+        // ❌ METODO DEPRECATO - Reindirizza al nuovo handler
+        wp_send_json_error(array(
+            'message' => 'Handler deprecato. Aggiorna frontend per usare action: batch_scan_excel'
+        ));
+        return;
+        
+        /* VECCHIO CODICE COMMENTATO
         try {
             // Verifica nonce
             if (!check_ajax_referer('disco747_admin_nonce', 'nonce', false)) {
@@ -128,6 +135,7 @@ class Disco747_Ajax {
             }
             
             error_log('[747Disco-AJAX] Nonce OK');
+        */
             
             // Verifica permessi
             if (!current_user_can('manage_options')) {
