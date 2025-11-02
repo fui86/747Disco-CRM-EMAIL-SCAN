@@ -134,7 +134,7 @@ class Disco747_GoogleDrive_Sync {
             
             $this->log("[BATCH] Processando batch di {$batch_count} file (da {$offset} a " . ($offset + $batch_count) . ")");
             
-            // Step 4: Processa batch corrente
+            // Step 4: Processa batch corrente con gestione errori robusta
             foreach ($batch_files as $index => $file) {
                 $file_number = $offset + $index + 1;
                 $file_name = $file['filename'] ?? 'Unknown';
@@ -142,22 +142,34 @@ class Disco747_GoogleDrive_Sync {
                 $this->log("[BATCH] [{$file_number}/{$total_files}] Processamento: {$file_name}");
                 
                 try {
+                    // ✅ TRY-CATCH ROBUSTO per evitare che un file corrotto blocchi tutto
                     $result = $this->process_single_excel_file($file, $token);
                     
-                    if ($result['success']) {
-                        if ($result['action'] === 'inserted') {
+                    if ($result && isset($result['success']) && $result['success']) {
+                        if (isset($result['action']) && $result['action'] === 'inserted') {
                             $new_count++;
                         } else {
                             $updated_count++;
                         }
+                        $this->log("[BATCH] ✅ Processato: {$file_name}");
                     } else {
                         $error_count++;
-                        $this->log("[BATCH] ❌ Errore: {$file_name}", 'ERROR');
+                        $error_msg = isset($result['error']) ? $result['error'] : 'Errore sconosciuto';
+                        $this->log("[BATCH] ❌ Errore: {$file_name} - {$error_msg}", 'ERROR');
                     }
                     
-                } catch (\Exception $e) {
+                } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+                    // Errore specifico PhpSpreadsheet (file corrotto/vuoto)
                     $error_count++;
-                    $this->log("[BATCH] Errore processamento: " . $e->getMessage(), 'ERROR');
+                    $this->log("[BATCH] ❌ File Excel corrotto/vuoto: {$file_name} - " . $e->getMessage(), 'ERROR');
+                } catch (\Exception $e) {
+                    // Qualsiasi altro errore
+                    $error_count++;
+                    $this->log("[BATCH] ❌ Errore generico: {$file_name} - " . $e->getMessage(), 'ERROR');
+                } catch (\Throwable $e) {
+                    // Catch anche errori fatali PHP 7+
+                    $error_count++;
+                    $this->log("[BATCH] ❌ Errore fatale: {$file_name} - " . $e->getMessage(), 'ERROR');
                 }
             }
             
@@ -425,15 +437,41 @@ class Disco747_GoogleDrive_Sync {
             
             $body = wp_remote_retrieve_body($response);
             
+            // ✅ VALIDAZIONE CRITICA: Verifica contenuto non vuoto
             if (empty($body)) {
-                return array('success' => false, 'error' => 'File vuoto');
+                $this->log('[DOWNLOAD] ERRORE: Contenuto vuoto per file_id: ' . $file_id, 'ERROR');
+                return array('success' => false, 'error' => 'File vuoto scaricato da Google Drive');
             }
             
-            file_put_contents($temp_path, $body);
+            $content_size = strlen($body);
+            if ($content_size < 1024) { // File Excel deve essere minimo 1KB
+                $this->log('[DOWNLOAD] WARNING: File molto piccolo (' . $content_size . ' bytes) per file_id: ' . $file_id, 'WARNING');
+            }
             
-            $this->log('[DOWNLOAD] File salvato: ' . $temp_path . ' (' . strlen($body) . ' bytes)');
+            // Salva file
+            $bytes_written = file_put_contents($temp_path, $body);
             
-            return array('success' => true, 'path' => $temp_path);
+            if ($bytes_written === false || $bytes_written === 0) {
+                $this->log('[DOWNLOAD] ERRORE: Impossibile scrivere file: ' . $temp_path, 'ERROR');
+                return array('success' => false, 'error' => 'Impossibile salvare file su disco');
+            }
+            
+            // ✅ VERIFICA FINALE: File salvato correttamente
+            if (!file_exists($temp_path) || filesize($temp_path) === 0) {
+                $this->log('[DOWNLOAD] ERRORE: File salvato ma vuoto o inesistente: ' . $temp_path, 'ERROR');
+                if (file_exists($temp_path)) {
+                    unlink($temp_path);
+                }
+                return array('success' => false, 'error' => 'File salvato ma risulta vuoto');
+            }
+            
+            $this->log('[DOWNLOAD] ✅ File salvato: ' . $temp_path . ' (' . number_format($bytes_written) . ' bytes)');
+            
+            return array(
+                'success' => true, 
+                'path' => $temp_path,
+                'size' => $bytes_written
+            );
             
         } catch (\Exception $e) {
             return array('success' => false, 'error' => $e->getMessage());
@@ -441,15 +479,45 @@ class Disco747_GoogleDrive_Sync {
     }
 
     /**
-     * Estrai dati da file Excel
+     * Estrai dati da file Excel con validazione robusta
      */
     private function extract_data_from_excel($file_path) {
         try {
             $this->log('[EXCEL] Apertura file: ' . $file_path);
             
+            // ✅ VALIDAZIONE PRE-LOAD
+            if (!file_exists($file_path)) {
+                $this->log('[EXCEL] ERRORE: File non esiste: ' . $file_path, 'ERROR');
+                return null;
+            }
+            
+            $file_size = filesize($file_path);
+            if ($file_size === 0 || $file_size === false) {
+                $this->log('[EXCEL] ERRORE: File vuoto o illeggibile (size: ' . $file_size . ')', 'ERROR');
+                return null;
+            }
+            
+            $this->log('[EXCEL] Dimensione file: ' . number_format($file_size) . ' bytes');
+            
             require_once DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php';
             
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            // ✅ LOAD CON TRY-CATCH SPECIFICO
+            try {
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+                $this->log('[EXCEL] ERRORE PhpSpreadsheet load: ' . $e->getMessage(), 'ERROR');
+                return null;
+            } catch (\Exception $e) {
+                $this->log('[EXCEL] ERRORE generico load: ' . $e->getMessage(), 'ERROR');
+                return null;
+            }
+            
+            // ✅ VALIDAZIONE FOGLIO
+            if ($spreadsheet->getSheetCount() === 0) {
+                $this->log('[EXCEL] ERRORE: Nessun foglio trovato nel file', 'ERROR');
+                return null;
+            }
+            
             $sheet = $spreadsheet->getActiveSheet();
             
             // Leggi celle specifiche (Template Nuovo)
