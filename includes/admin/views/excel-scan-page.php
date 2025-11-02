@@ -310,19 +310,211 @@ function disco747ToggleDebug() {
 }
 
 jQuery(document).ready(function($) {
-    // ✅ NUOVO: Usa batch scan chunked per evitare errore 503
-    $('#start-scan-btn').on('click', function() {
-        // Usa il metodo chunked se disponibile, altrimenti fallback al metodo standard
-        if (typeof window.ExcelScanner !== 'undefined' && typeof window.ExcelScanner.startBatchScanChunked === 'function') {
-            console.log('[Excel-Scan] 🚀 Usando metodo CHUNKED (ottimizzato)');
-            window.ExcelScanner.startBatchScanChunked();
-        } else {
-            console.log('[Excel-Scan] ⚠️ Fallback al metodo STANDARD (potrebbe causare 503)');
-            startBatchScanStandard();
+    
+    // ========================================================================
+    // ✅ BATCH SCAN CHUNKED - Metodo ottimizzato per evitare 503
+    // ========================================================================
+    
+    let isScanning = false;
+    
+    $('#start-scan-btn').on('click', async function() {
+        console.log('[Excel-Scan] 🚀 AVVIO SCAN CHUNKED (ottimizzato anti-503)');
+        
+        if (isScanning) {
+            alert('⚠️ Scansione già in corso');
+            return;
         }
+        
+        // Setup UI
+        isScanning = true;
+        const year = $('#scan-year').val();
+        const month = $('#scan-month').val();
+        const btn = $(this);
+        const resetBtn = $('#reset-scan-btn');
+        
+        btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione in corso...');
+        resetBtn.prop('disabled', true);
+        
+        $('#progress-section').show();
+        $('#progress-bar-fill').css('width', '0%');
+        $('#progress-percent').text('0%');
+        $('#progress-status').text('🔄 Inizializzazione...');
+        $('#results-section').hide();
+        $('#new-files-box').hide();
+        $('#debug-log').text('🚀 Avvio scansione CHUNKED...\n');
+        
+        // Parametri chunking
+        let offset = 0;
+        const limit = 10; // File per batch
+        let totalProcessed = 0;
+        let totalSaved = 0;
+        let totalErrors = 0;
+        let grandTotal = 0;
+        let hasMore = true;
+        let batchNumber = 1;
+        let allFiles = [];
+        
+        console.log(`[Chunked] Parametri: year=${year}, month=${month}, limit=${limit}`);
+        $('#debug-log').append(`📊 Anno: ${year}, Mese: ${month || 'tutti'}\n📦 File per batch: ${limit}\n\n`);
+        
+        // Loop ricorsivo per processare tutti i chunk
+        while (hasMore) {
+            try {
+                console.log(`[Chunked] 📦 Batch #${batchNumber}: offset=${offset}, limit=${limit}`);
+                $('#progress-status').text(`Processando batch ${batchNumber}... (${totalProcessed}/${grandTotal || '?'} file)`);
+                $('#debug-log').append(`\n📦 Batch #${batchNumber} (file ${offset+1}-${Math.min(offset+limit, grandTotal || offset+limit)})...\n`);
+                
+                // Chiamata AJAX chunked
+                const response = await $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'batch_scan_excel_chunked',
+                        offset: offset,
+                        limit: limit,
+                        year: year,
+                        month: month,
+                        nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>',
+                        _wpnonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>'
+                    },
+                    timeout: 90000 // 90 secondi per chunk
+                });
+                
+                console.log(`[Chunked] Risposta batch #${batchNumber}:`, response);
+                
+                if (response.success && response.data) {
+                    const data = response.data;
+                    
+                    // Aggiorna contatori totali
+                    totalProcessed += data.processed || 0;
+                    totalSaved += data.saved || 0;
+                    totalErrors += data.errors || 0;
+                    grandTotal = data.total || grandTotal;
+                    hasMore = data.has_more || false;
+                    offset = data.next_offset || (offset + limit);
+                    
+                    // Salva file processati
+                    if (data.files && data.files.length > 0) {
+                        allFiles = allFiles.concat(data.files);
+                        
+                        data.files.forEach(file => {
+                            const icon = file.status === 'success' ? '✅' : '❌';
+                            $('#debug-log').append(`  ${icon} ${file.name}\n`);
+                        });
+                    }
+                    
+                    // Aggiorna progress bar
+                    if (grandTotal > 0) {
+                        const percentage = data.percentage || Math.round((totalProcessed / grandTotal) * 100);
+                        $('#progress-bar-fill').css('width', percentage + '%');
+                        $('#progress-percent').text(percentage + '%');
+                        console.log(`[Progress] ${percentage}% - ${totalProcessed}/${grandTotal} file`);
+                    }
+                    
+                    $('#debug-log').append(`   Processati: ${data.processed}, Salvati: ${data.saved}, Errori: ${data.errors}\n`);
+                    
+                    batchNumber++;
+                    
+                    // ⏸️ Pausa tra batch per dare respiro al server
+                    if (hasMore) {
+                        await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+                    }
+                    
+                } else {
+                    const errorMsg = response.data?.message || response.data || 'Errore sconosciuto';
+                    throw new Error(errorMsg);
+                }
+                
+            } catch (error) {
+                console.error('[Chunked] ❌ Errore batch:', error);
+                $('#progress-status').text('❌ Errore durante la scansione');
+                $('#debug-log').append(`\n❌ ERRORE: ${error.message || error}\n`);
+                
+                totalErrors++;
+                hasMore = false; // Stop su errore critico
+                
+                alert('❌ Errore: ' + (error.message || error));
+            }
+        }
+        
+        // ========================================================================
+        // COMPLETAMENTO SCANSIONE
+        // ========================================================================
+        
+        console.log(`[Chunked] 🎉 Scansione completata! Total: ${totalProcessed}, Saved: ${totalSaved}, Errors: ${totalErrors}`);
+        
+        $('#progress-bar-fill').css('width', '100%');
+        $('#progress-percent').text('100%');
+        $('#progress-status').text(`✅ Completato! ${totalProcessed} file processati`);
+        
+        // Aggiorna statistiche
+        $('#stat-total').text(grandTotal);
+        $('#stat-processed').text(totalProcessed);
+        $('#stat-new').text(totalSaved);
+        $('#stat-updated').text(totalProcessed - totalSaved);
+        $('#stat-errors').text(totalErrors);
+        
+        $('#summary-total').text(grandTotal);
+        $('#summary-new').text(totalSaved);
+        $('#summary-updated').text(totalProcessed - totalSaved);
+        $('#summary-errors').text(totalErrors);
+        
+        if (totalErrors > 0) {
+            $('#error-card').show();
+        }
+        
+        $('#results-section').fadeIn();
+        
+        // Mostra file processati
+        if (allFiles.length > 0) {
+            const tbody = $('#new-files-table-body');
+            tbody.empty();
+            
+            allFiles.forEach(function(f) {
+                if (f.status === 'success') {
+                    const row = `<tr>
+                        <td style="font-weight: bold; color: #667eea;">-</td>
+                        <td>${f.name || '-'}</td>
+                        <td><span class="badge badge-success">✅ Salvato</span></td>
+                        <td>ID: ${f.id || '-'}</td>
+                        <td class="mobile-hide" style="font-size: 12px; color: #666;">${f.name || '-'}</td>
+                    </tr>`;
+                    tbody.append(row);
+                } else if (f.status === 'error') {
+                    const row = `<tr>
+                        <td style="font-weight: bold; color: #dc3545;">-</td>
+                        <td>${f.name || '-'}</td>
+                        <td><span class="badge badge-danger">❌ Errore</span></td>
+                        <td style="font-size: 11px; color: #999;">${f.error || '-'}</td>
+                        <td class="mobile-hide" style="font-size: 12px; color: #666;">${f.name || '-'}</td>
+                    </tr>`;
+                    tbody.append(row);
+                }
+            });
+            
+            $('#new-files-box').fadeIn();
+        }
+        
+        // Log finale
+        $('#debug-log').append(`\n${'='.repeat(50)}\n`);
+        $('#debug-log').append(`✅ SCANSIONE COMPLETATA\n\n`);
+        $('#debug-log').append(`📊 RISULTATI FINALI:\n`);
+        $('#debug-log').append(`   File trovati:     ${grandTotal}\n`);
+        $('#debug-log').append(`   Processati:       ${totalProcessed}\n`);
+        $('#debug-log').append(`   Salvati:          ${totalSaved}\n`);
+        $('#debug-log').append(`   Errori:           ${totalErrors}\n`);
+        $('#debug-log').append(`\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}\n`);
+        
+        // Reset UI
+        btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
+        resetBtn.prop('disabled', false);
+        isScanning = false;
     });
 
-    // ✅ Mantiene il metodo standard come fallback
+    // ========================================================================
+    // FALLBACK: Metodo standard (NON PIÙ USATO, ma mantenuto per sicurezza)
+    // ========================================================================
+    
     function startBatchScanStandard() {
         const year = $('#scan-year').val();
         const month = $('#scan-month').val();
