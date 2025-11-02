@@ -256,7 +256,7 @@ class Disco747_GoogleDrive {
      * OAUTH 2.0: Gestione Access Token
      * ========================================================================
      */
-    private function get_valid_access_token() {
+    public function get_valid_access_token() {
         // Check cache
         if ($this->access_token_cache) {
             $expires = get_option('disco747_googledrive_token_expires', 0);
