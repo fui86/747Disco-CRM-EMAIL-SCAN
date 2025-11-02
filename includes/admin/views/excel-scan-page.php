@@ -310,68 +310,147 @@ function disco747ToggleDebug() {
 }
 
 jQuery(document).ready(function($) {
-    $('#start-scan-btn').on('click', function() {
-        const year = $('#scan-year').val();
-        const month = $('#scan-month').val();
-        const btn = $(this);
+    let totalProcessed = 0;
+    let totalNew = 0;
+    let totalUpdated = 0;
+    let totalErrors = 0;
+    let retryCount = 0;
+    const MAX_RETRIES = 2;
+
+    function startBatchScan(year, month, offset = 0) {
+        const btn = $('#start-scan-btn');
         const resetBtn = $('#reset-scan-btn');
 
-        $('#progress-section').show();
-        $('#progress-bar-fill').css('width', '0%');
-        $('#progress-percent').text('0%');
-        $('#progress-status').text('Connessione a Google Drive...');
-        $('#results-section').hide();
-        $('#new-files-box').hide();
-        $('#debug-log').text('Avvio scansione...\n');
+        if (offset === 0) {
+            // Reset contatori al primo batch
+            totalProcessed = 0;
+            totalNew = 0;
+            totalUpdated = 0;
+            totalErrors = 0;
+            retryCount = 0;
 
-        btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
-        resetBtn.prop('disabled', true);
+            $('#progress-section').show();
+            $('#progress-bar-fill').css('width', '0%');
+            $('#progress-percent').text('0%');
+            $('#progress-status').text('🔄 Connessione a Google Drive...');
+            $('#results-section').hide();
+            $('#new-files-box').hide();
+            $('#debug-log').text('Avvio scansione batch ottimizzata...\n');
+            
+            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
+            resetBtn.prop('disabled', true);
+        }
 
         $.ajax({
             url: ajaxurl,
             type: 'POST',
-            data: { action: 'batch_scan_excel', nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>', year: year, month: month },
+            data: { 
+                action: 'batch_scan_excel', 
+                nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>', 
+                year: year, 
+                month: month,
+                offset: offset,
+                batch_size: 10
+            },
+            timeout: 90000, // 90 secondi timeout per batch
             success: function(response) {
+                console.log('Batch response:', response);
+                
                 if (response.success) {
                     const d = response.data;
-                    $('#progress-bar-fill').css('width', '100%');
-                    $('#progress-percent').text('100%');
-                    $('#progress-status').text('✅ Completato!');
-                    $('#stat-total').text(d.total_files || 0);
-                    $('#stat-processed').text(d.processed || 0);
-                    $('#stat-new').text(d.new_records || 0);
-                    $('#stat-updated').text(d.updated_records || 0);
-                    $('#stat-errors').text(d.errors || 0);
-                    $('#summary-total').text(d.total_files || 0);
-                    $('#summary-new').text(d.new_records || 0);
-                    $('#summary-updated').text(d.updated_records || 0);
-                    $('#summary-errors').text(d.errors || 0);
-                    if (d.errors > 0) $('#error-card').show();
-                    $('#results-section').fadeIn();
-                    let log = `✅ SCANSIONE COMPLETATA\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${d.total_files}\n   Processati:      ${d.processed}\n   Nuovi:           ${d.new_records}\n   Aggiornati:      ${d.updated_records}\n   Errori:          ${d.errors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
-                    $('#debug-log').text(log);
-                    if (d.new_files_list && d.new_files_list.length > 0) {
-                        showNewFiles(d.new_files_list);
+                    retryCount = 0; // Reset retry su successo
+                    
+                    // Accumula statistiche
+                    totalProcessed += d.processed_in_batch || 0;
+                    totalNew += d.new_records || 0;
+                    totalUpdated += d.updated_records || 0;
+                    totalErrors += d.errors || 0;
+                    
+                    // Aggiorna progress bar
+                    const progress = d.progress_percent || 0;
+                    $('#progress-bar-fill').css('width', progress + '%');
+                    $('#progress-percent').text(progress + '%');
+                    $('#progress-status').text(`📊 Elaborati ${totalProcessed} file...`);
+                    
+                    // Aggiorna log
+                    $('#debug-log').append(`[${new Date().toLocaleTimeString()}] Batch offset ${offset}: ${d.processed_in_batch} file processati\n`);
+                    
+                    // ✅ CONTINUA CON IL PROSSIMO BATCH se necessario
+                    if (d.has_more && d.next_offset !== undefined) {
+                        console.log('Continuo con offset:', d.next_offset);
+                        setTimeout(function() {
+                            startBatchScan(year, month, d.next_offset);
+                        }, 500); // Pausa 500ms tra batch
                     } else {
-                        $('#new-files-box').fadeIn();
-                        $('#new-files-table-body').html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nessun file processato</td></tr>');
+                        // ✅ COMPLETATO - Mostra risultati finali
+                        completeScan(d.total_files);
                     }
                 } else {
                     $('#progress-status').text('❌ Errore');
-                    $('#debug-log').text('❌ ERRORE:\n' + (response.data.message || 'Sconosciuto'));
-                    alert('❌ Errore: ' + (response.data.message || 'Errore sconosciuto'));
+                    $('#debug-log').append('❌ ERRORE:\n' + (response.data?.message || 'Sconosciuto') + '\n');
+                    handleScanError(year, month, offset);
                 }
             },
             error: function(xhr, status, error) {
-                $('#progress-status').text('❌ Errore connessione');
-                $('#debug-log').text('❌ ERRORE AJAX:\nStatus: ' + status + '\nError: ' + error);
-                alert('❌ Errore di connessione: ' + error);
-            },
-            complete: function() {
-                btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
-                resetBtn.prop('disabled', false);
+                console.error('AJAX Error:', xhr.responseText);
+                $('#debug-log').append(`[${new Date().toLocaleTimeString()}] ❌ Errore AJAX: ${status} - ${error}\n`);
+                
+                // ✅ RETRY AUTOMATICO su timeout
+                if ((status === 'timeout' || xhr.status === 503) && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    $('#progress-status').text(`⚠️ Timeout rilevato... Retry ${retryCount}/${MAX_RETRIES}`);
+                    $('#debug-log').append(`[${new Date().toLocaleTimeString()}] ⏱️ Retry ${retryCount}/${MAX_RETRIES} dopo timeout...\n`);
+                    setTimeout(function() {
+                        startBatchScan(year, month, offset);
+                    }, 3000); // Retry dopo 3 secondi
+                } else {
+                    $('#progress-status').text('❌ Errore connessione');
+                    alert('❌ Errore di connessione: ' + error + '\nProva a ridurre l\'intervallo temporale (seleziona un mese specifico)');
+                    resetButtons();
+                }
             }
         });
+    }
+
+    function completeScan(totalFiles) {
+        $('#progress-bar-fill').css('width', '100%');
+        $('#progress-percent').text('100%');
+        $('#progress-status').text('✅ Completato!');
+        
+        // Mostra statistiche finali
+        $('#stat-total').text(totalFiles || totalProcessed);
+        $('#stat-processed').text(totalProcessed);
+        $('#stat-new').text(totalNew);
+        $('#stat-updated').text(totalUpdated);
+        $('#stat-errors').text(totalErrors);
+        $('#summary-total').text(totalFiles || totalProcessed);
+        $('#summary-new').text(totalNew);
+        $('#summary-updated').text(totalUpdated);
+        $('#summary-errors').text(totalErrors);
+        
+        if (totalErrors > 0) $('#error-card').show();
+        $('#results-section').fadeIn();
+        
+        let log = `✅ SCANSIONE COMPLETATA\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${totalFiles || totalProcessed}\n   Processati:      ${totalProcessed}\n   Nuovi:           ${totalNew}\n   Aggiornati:      ${totalUpdated}\n   Errori:          ${totalErrors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
+        $('#debug-log').text(log);
+        
+        resetButtons();
+    }
+
+    function handleScanError(year, month, offset) {
+        alert('❌ Errore durante la scansione. Controlla i log per dettagli.');
+        resetButtons();
+    }
+
+    function resetButtons() {
+        $('#start-scan-btn').prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
+        $('#reset-scan-btn').prop('disabled', false);
+    }
+
+    $('#start-scan-btn').on('click', function() {
+        const year = $('#scan-year').val();
+        const month = $('#scan-month').val();
+        startBatchScan(year, month, 0);
     });
 
     $('#reset-scan-btn').on('click', function() {

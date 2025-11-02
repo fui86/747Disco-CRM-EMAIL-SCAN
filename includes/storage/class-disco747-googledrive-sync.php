@@ -75,15 +75,27 @@ class Disco747_GoogleDrive_Sync {
     }
 
     /**
-     * METODO BATCH SCAN con TEST LIMITATO a 5 file
+     * ✅ METODO BATCH SCAN OTTIMIZZATO - Elaborazione a lotti per evitare timeout
+     * 
+     * @param int $offset Offset di partenza (per paginazione)
+     * @param int $batch_size Numero di file per batch (default: 10)
+     * @return array Risultati elaborazione con informazioni next_offset
      */
-    public function scan_excel_files_batch($test_mode = true, $limit = 5) {
-        $this->log('[BATCH-SCAN] ========== INIZIO BATCH SCAN CON ANALISI ==========');
+    public function scan_excel_files_batch($offset = 0, $batch_size = 10) {
+        // ✅ TIMEOUT ESTESO per batch processing
+        set_time_limit(120); // 2 minuti per batch
+        ini_set('max_execution_time', '120');
+        
+        $this->log('[BATCH-SCAN] ========== INIZIO BATCH SCAN OTTIMIZZATO ==========');
+        $this->log('[BATCH-SCAN] Offset: ' . $offset . ', Batch size: ' . $batch_size);
         
         $messages = array();
         $new_count = 0;
         $updated_count = 0;
         $error_count = 0;
+        $total_files = 0;
+        $has_more = false;
+        $next_offset = 0;
         
         try {
             // Step 1: Verifica token
@@ -92,7 +104,6 @@ class Disco747_GoogleDrive_Sync {
                 throw new \Exception('Token Google Drive non valido');
             }
             $this->log('[Token] Token ottenuto con successo');
-            $messages[] = '✅ Token Google Drive ottenuto';
             
             // Step 2: Trova cartella principale
             $main_folder_id = $this->find_main_folder_safe($token);
@@ -100,27 +111,35 @@ class Disco747_GoogleDrive_Sync {
                 throw new \Exception('Cartella /747-Preventivi/ non trovata');
             }
             $this->log("Cartella 747-Preventivi trovata: {$main_folder_id}");
-            $messages[] = '✅ Cartella /747-Preventivi/ trovata';
             
-            // Step 3: Trova TUTTI i file Excel
-            $all_files = $this->scan_all_excel_files_recursive($main_folder_id, $token);
-            $total_files = count($all_files);
-            $this->log("[BATCH] Trovati {$total_files} file Excel totali");
-            $messages[] = "📊 Trovati {$total_files} file Excel totali";
-            
-            // TEST MODE: Limita a 5 file
-            if ($test_mode && $total_files > $limit) {
-                $all_files = array_slice($all_files, 0, $limit);
-                $messages[] = "🔧 TEST MODE: Analisi limitata a {$limit} file";
-                $this->log("[BATCH] TEST MODE: Limitato a {$limit} file");
+            // Step 3: Trova TUTTI i file Excel (solo al primo batch)
+            if ($offset === 0) {
+                // Cache lista file per i batch successivi
+                $all_files = $this->scan_all_excel_files_recursive($main_folder_id, $token);
+                set_transient('disco747_scan_files_cache', $all_files, 300); // 5 minuti cache
+            } else {
+                // Recupera da cache
+                $all_files = get_transient('disco747_scan_files_cache');
+                if (!$all_files) {
+                    throw new \Exception('Cache file scaduta. Riavvia scansione.');
+                }
             }
             
-            // Step 4: Processa ogni file
-            foreach ($all_files as $index => $file) {
-                $file_number = $index + 1;
+            $total_files = count($all_files);
+            $this->log("[BATCH] Totale file Excel: {$total_files}, Offset: {$offset}");
+            
+            // ✅ Estrai solo il batch corrente
+            $batch_files = array_slice($all_files, $offset, $batch_size);
+            $batch_count = count($batch_files);
+            
+            $this->log("[BATCH] Processando batch di {$batch_count} file (da {$offset} a " . ($offset + $batch_count) . ")");
+            
+            // Step 4: Processa batch corrente
+            foreach ($batch_files as $index => $file) {
+                $file_number = $offset + $index + 1;
                 $file_name = $file['filename'] ?? 'Unknown';
                 
-                $this->log("[BATCH] Processamento file: {$file_name}");
+                $this->log("[BATCH] [{$file_number}/{$total_files}] Processamento: {$file_name}");
                 
                 try {
                     $result = $this->process_single_excel_file($file, $token);
@@ -133,33 +152,47 @@ class Disco747_GoogleDrive_Sync {
                         }
                     } else {
                         $error_count++;
-                        $messages[] = "❌ Errore: {$file_name} - " . ($result['error'] ?? 'Errore sconosciuto');
+                        $this->log("[BATCH] ❌ Errore: {$file_name}", 'ERROR');
                     }
                     
                 } catch (\Exception $e) {
                     $error_count++;
-                    $messages[] = "❌ Errore: {$file_name} - " . $e->getMessage();
                     $this->log("[BATCH] Errore processamento: " . $e->getMessage(), 'ERROR');
                 }
             }
             
-            $messages[] = '✅ Batch scan completato';
-            $messages[] = "📊 Risultati: {$new_count} nuovi, {$updated_count} aggiornati, {$error_count} errori";
+            // ✅ Calcola se ci sono altri file
+            $next_offset = $offset + $batch_size;
+            $has_more = $next_offset < $total_files;
+            
+            if (!$has_more) {
+                // Pulizia cache alla fine
+                delete_transient('disco747_scan_files_cache');
+                $messages[] = '✅ Scansione completata!';
+            } else {
+                $messages[] = "⏳ Elaborati {$next_offset}/{$total_files} file...";
+            }
+            
             
         } catch (\Exception $e) {
             $messages[] = '❌ Errore batch scan: ' . $e->getMessage();
             $this->log('[BATCH-SCAN] Errore: ' . $e->getMessage(), 'ERROR');
         }
         
-        $this->log('[BATCH-SCAN] ========== FINE BATCH SCAN ==========');
+        $this->log('[BATCH-SCAN] ========== FINE BATCH (Offset: ' . $offset . ') ==========');
         
         return array(
-            'success' => $error_count === 0,
-            'found' => $total_files ?? 0,
-            'processed' => $new_count + $updated_count,
+            'success' => true,
+            'total_files' => $total_files,
+            'offset' => $offset,
+            'batch_size' => $batch_size,
+            'processed_in_batch' => $new_count + $updated_count,
             'new' => $new_count,
             'updated' => $updated_count,
             'errors' => $error_count,
+            'has_more' => $has_more,
+            'next_offset' => $next_offset,
+            'progress_percent' => $total_files > 0 ? round(($offset + $batch_count) / $total_files * 100) : 100,
             'messages' => $messages
         );
     }
