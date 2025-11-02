@@ -155,6 +155,10 @@ class Disco747_Admin {
                 wp_enqueue_style('disco747-excel-scan', $excel_css_url, array(), $this->asset_version . '-' . time());
                 wp_enqueue_script('disco747-excel-scan', $excel_js_url, array('jquery'), $this->asset_version . '-' . time(), true);
                 
+                // ?? CHUNKED FIX 503 - carica DOPO excel-scan.js per sovrascriverlo
+                $excel_chunked_js_url = DISCO747_CRM_PLUGIN_URL . 'assets/js/excel-scan-chunked.js';
+                wp_enqueue_script('disco747-excel-scan-chunked', $excel_chunked_js_url, array('jquery', 'disco747-excel-scan'), $this->asset_version . '-' . time(), true);
+                
                 wp_localize_script('disco747-excel-scan', 'disco747ExcelScanData', array(
                     'ajaxurl' => admin_url('admin-ajax.php'),
                     'nonce' => wp_create_nonce('disco747_admin_nonce'),
@@ -225,7 +229,7 @@ class Disco747_Admin {
             $gdrive_sync = new \Disco747_CRM\Storage\Disco747_GoogleDrive_Sync($googledrive_handler);
             error_log('[747Disco-Admin] GoogleDrive Sync istanziato');
             
-            // Verifica disponibilità
+            // Verifica disponibilit?
             if (!$gdrive_sync->is_available()) {
                 $error = $gdrive_sync->get_last_error();
                 throw new \Exception('GoogleDrive Sync non disponibile: ' . $error);
@@ -253,7 +257,7 @@ class Disco747_Admin {
                 'updated' => 0,
                 'errors' => 1,
                 'messages' => array(
-                    '❌ Errore durante il batch scan',
+                    '? Errore durante il batch scan',
                     $e->getMessage()
                 )
             ));
