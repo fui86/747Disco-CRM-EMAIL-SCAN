@@ -35,9 +35,32 @@ class Disco747_AJAX_Handlers {
 
     /**
      * Handler principale per batch scan
+     * ✅ REINDIRIZZA al nuovo handler progressivo in class-disco747-excel-scan-handler.php
      */
     public static function handle_batch_scan() {
-        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN ==========');
+        error_log('[Batch-Scan-AJAX] ========== REDIRECT AL NUOVO HANDLER PROGRESSIVO ==========');
+        
+        // ✅ Reindirizza al nuovo handler ottimizzato
+        if (class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
+            // Crea istanza del nuovo handler
+            $handler_file = DISCO747_CRM_PLUGIN_DIR . 'includes/handlers/class-disco747-excel-scan-handler.php';
+            if (file_exists($handler_file)) {
+                require_once $handler_file;
+                
+                // Istanzia e chiama il metodo handle_batch_scan_ajax
+                $handler = new \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler();
+                
+                // Cambia temporaneamente il nonce name per compatibilità
+                $_POST['nonce'] = isset($_POST['nonce']) ? $_POST['nonce'] : (isset($_POST['_wpnonce']) ? $_POST['_wpnonce'] : '');
+                
+                // Chiama il nuovo handler
+                $handler->handle_batch_scan_ajax();
+                return; // Importante: stoppa esecuzione
+            }
+        }
+        
+        // ⚠️ FALLBACK: vecchio handler (se il nuovo non è disponibile)
+        error_log('[Batch-Scan-AJAX] FALLBACK: Uso vecchio handler');
         
         // Verifica nonce
         if (!isset($_POST['nonce']) && !isset($_POST['_wpnonce'])) {
