@@ -310,10 +310,23 @@ function disco747ToggleDebug() {
 }
 
 jQuery(document).ready(function($) {
+    // ✅ NUOVO: Usa batch scan chunked per evitare errore 503
     $('#start-scan-btn').on('click', function() {
+        // Usa il metodo chunked se disponibile, altrimenti fallback al metodo standard
+        if (typeof window.ExcelScanner !== 'undefined' && typeof window.ExcelScanner.startBatchScanChunked === 'function') {
+            console.log('[Excel-Scan] 🚀 Usando metodo CHUNKED (ottimizzato)');
+            window.ExcelScanner.startBatchScanChunked();
+        } else {
+            console.log('[Excel-Scan] ⚠️ Fallback al metodo STANDARD (potrebbe causare 503)');
+            startBatchScanStandard();
+        }
+    });
+
+    // ✅ Mantiene il metodo standard come fallback
+    function startBatchScanStandard() {
         const year = $('#scan-year').val();
         const month = $('#scan-month').val();
-        const btn = $(this);
+        const btn = $('#start-scan-btn');
         const resetBtn = $('#reset-scan-btn');
 
         $('#progress-section').show();
@@ -372,7 +385,8 @@ jQuery(document).ready(function($) {
                 resetBtn.prop('disabled', false);
             }
         });
-    });
+    }
+    // Fine funzione startBatchScanStandard
 
     $('#reset-scan-btn').on('click', function() {
         if (!confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\n\nSei sicuro di voler procedere?')) return;

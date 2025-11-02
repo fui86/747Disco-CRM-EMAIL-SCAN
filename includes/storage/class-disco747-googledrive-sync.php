@@ -594,4 +594,239 @@ class Disco747_GoogleDrive_Sync {
         $prefix = '[747Disco-GDriveSync]';
         error_log("{$prefix} {$message}");
     }
+
+    // ========================================================================
+    // ✅ NUOVI METODI PER BATCH SCAN CHUNKED (Fix errore 503)
+    // Aggiunto per risolvere timeout durante scansione di molti file
+    // ========================================================================
+
+    /**
+     * ✅ SCAN CHUNKED: Processa file in batch piccoli per evitare timeout 503
+     * 
+     * @param int $offset Punto di partenza
+     * @param int $limit Numero massimo di file da processare
+     * @param string $anno Anno da scansionare (opzionale)
+     * @param string $mese Mese da scansionare (opzionale)
+     * @return array Risultati con flag has_more
+     */
+    public function scan_excel_files_chunked($offset = 0, $limit = 10, $anno = '', $mese = '') {
+        $this->log("=== SCAN BATCH CHUNKED (Offset: {$offset}, Limit: {$limit}) ===");
+        
+        try {
+            // 1. Ottieni lista completa file (con cache per performance)
+            $cache_key = 'disco747_excel_files_list_' . md5(serialize([$anno, $mese]));
+            $all_files = get_transient($cache_key);
+            
+            if (false === $all_files) {
+                $this->log("Cache miss - Caricamento lista file da Google Drive...");
+                $all_files = $this->get_all_excel_files_from_drive($anno, $mese);
+                
+                // Cache per 5 minuti
+                set_transient($cache_key, $all_files, 5 * MINUTE_IN_SECONDS);
+                $this->log("Lista file salvata in cache (" . count($all_files) . " file totali)");
+            } else {
+                $this->log("Cache hit - Lista file caricata da cache (" . count($all_files) . " file)");
+            }
+            
+            $total_files = count($all_files);
+            
+            // 2. Slice per ottenere solo il chunk corrente
+            $files_chunk = array_slice($all_files, $offset, $limit);
+            $files_count = count($files_chunk);
+            
+            $this->log("Chunk corrente: {$files_count} file di {$total_files} totali");
+            
+            // 3. Processa solo questo chunk
+            $results = [
+                'processed' => 0,
+                'saved' => 0,
+                'errors' => 0,
+                'offset' => $offset,
+                'limit' => $limit,
+                'total' => $total_files,
+                'has_more' => ($offset + $limit) < $total_files,
+                'next_offset' => $offset + $limit,
+                'files' => [],
+                'percentage' => 0
+            ];
+            
+            foreach ($files_chunk as $file) {
+                try {
+                    $this->log("Processando file: {$file['name']}");
+                    
+                    // Processa singolo file (usa metodo esistente)
+                    $data = $this->process_single_excel_file_safe($file);
+                    
+                    if ($data && $this->database) {
+                        $saved_id = $this->database->upsert_preventivo_by_file_id($data);
+                        
+                        $results['files'][] = [
+                            'name' => $file['name'],
+                            'status' => 'success',
+                            'id' => $saved_id
+                        ];
+                        
+                        $results['saved']++;
+                        $this->log("✅ File salvato con ID: {$saved_id}");
+                    }
+                    
+                    $results['processed']++;
+                    
+                    // ⚡ IMPORTANTE: Libera memoria dopo ogni file
+                    gc_collect_cycles();
+                    
+                } catch (\Exception $e) {
+                    $this->log("❌ Errore file {$file['name']}: " . $e->getMessage(), 'ERROR');
+                    
+                    $results['files'][] = [
+                        'name' => $file['name'],
+                        'status' => 'error',
+                        'error' => $e->getMessage()
+                    ];
+                    
+                    $results['errors']++;
+                }
+            }
+            
+            // 4. Calcola percentuale completamento
+            if ($total_files > 0) {
+                $results['percentage'] = round((($offset + $results['processed']) / $total_files) * 100);
+            }
+            
+            // 5. Log finale chunk
+            $this->log("✅ Chunk completato: {$results['processed']} processati, {$results['saved']} salvati, {$results['errors']} errori");
+            
+            // 6. Cancella cache se completato
+            if (!$results['has_more']) {
+                delete_transient($cache_key);
+                $this->log('🎉 SCANSIONE COMPLETATA - Cache pulita');
+            }
+            
+            return $results;
+            
+        } catch (\Exception $e) {
+            $this->log("❌ Errore scan chunked: " . $e->getMessage(), 'ERROR');
+            
+            return [
+                'processed' => 0,
+                'saved' => 0,
+                'errors' => 1,
+                'error_message' => $e->getMessage(),
+                'has_more' => false,
+                'offset' => $offset,
+                'total' => 0,
+                'percentage' => 0
+            ];
+        }
+    }
+
+    /**
+     * Helper: Ottiene TUTTI i file Excel da Google Drive (solo listing, no processing)
+     */
+    private function get_all_excel_files_from_drive($anno = '', $mese = '') {
+        $this->log("get_all_excel_files_from_drive: anno={$anno}, mese={$mese}");
+        
+        $files = [];
+        
+        try {
+            $token = $this->googledrive->get_valid_access_token();
+            if (!$token) {
+                throw new \Exception('Token non valido');
+            }
+            
+            // Trova cartella principale
+            $main_folder_id = $this->find_main_folder_safe($token);
+            if (!$main_folder_id) {
+                throw new \Exception('Cartella 747-Preventivi non trovata');
+            }
+            
+            $this->log("Cartella principale trovata: {$main_folder_id}");
+            
+            // Se anno specificato, cerca nella sottocartella anno
+            if (!empty($anno)) {
+                $year_folder_id = $this->find_subfolder_safe($main_folder_id, $anno, $token);
+                
+                if ($year_folder_id) {
+                    $this->log("Cartella anno {$anno} trovata: {$year_folder_id}");
+                    
+                    // Se mese specificato
+                    if (!empty($mese)) {
+                        $month_folder_id = $this->find_subfolder_safe($year_folder_id, $mese, $token);
+                        
+                        if ($month_folder_id) {
+                            $this->log("Cartella mese {$mese} trovata: {$month_folder_id}");
+                            $files = $this->list_excel_files_in_folder($month_folder_id, $token);
+                        }
+                    } else {
+                        // Tutti i mesi dell'anno
+                        $files = $this->list_excel_files_recursive($year_folder_id, $token);
+                    }
+                }
+            } else {
+                // Tutti gli anni/mesi
+                $files = $this->list_excel_files_recursive($main_folder_id, $token);
+            }
+            
+            $this->log("Trovati " . count($files) . " file Excel totali");
+            
+        } catch (\Exception $e) {
+            $this->log("Errore get_all_excel_files_from_drive: " . $e->getMessage(), 'ERROR');
+        }
+        
+        return $files;
+    }
+
+    /**
+     * Helper: Processa un singolo file Excel in modo sicuro
+     */
+    private function process_single_excel_file_safe($file) {
+        if (!isset($file['id']) || !isset($file['name'])) {
+            throw new \Exception('File ID o nome mancante');
+        }
+        
+        // Download file
+        $token = $this->googledrive->get_valid_access_token();
+        if (!$token) {
+            throw new \Exception('Token non valido');
+        }
+        
+        $temp_file = $this->googledrive->download_file_safe($file['id'], $token);
+        if (!$temp_file) {
+            throw new \Exception('Download file fallito');
+        }
+        
+        $this->log("File scaricato: {$temp_file}");
+        
+        // Parsing Excel
+        $parser_path = DISCO747_CRM_PLUGIN_DIR . 'includes/generators/class-disco747-excel-parser.php';
+        if (!file_exists($parser_path)) {
+            throw new \Exception('Excel parser non trovato');
+        }
+        
+        require_once $parser_path;
+        
+        if (!class_exists('Disco747_CRM\\Generators\\Disco747_Excel_Parser')) {
+            throw new \Exception('Classe Excel_Parser non trovata');
+        }
+        
+        $parser = new \Disco747_CRM\Generators\Disco747_Excel_Parser();
+        $data = $parser->parse_excel_file($temp_file);
+        
+        if (!$data || empty($data['nome_cliente'])) {
+            throw new \Exception('Dati parsing invalidi o nome cliente mancante');
+        }
+        
+        // Aggiungi metadati Google Drive
+        $data['googledrive_file_id'] = $file['id'];
+        $data['googledrive_url'] = "https://drive.google.com/file/d/{$file['id']}/view";
+        
+        // Cleanup file temporaneo
+        if (file_exists($temp_file)) {
+            @unlink($temp_file);
+        }
+        
+        $this->log("Parsing completato: {$file['name']} - Evento: {$data['tipo_evento']}, Importo: €" . number_format($data['importo_totale'], 2, ',', '.'));
+        
+        return $data;
+    }
 }

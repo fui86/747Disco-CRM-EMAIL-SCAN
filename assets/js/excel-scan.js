@@ -297,6 +297,165 @@
         },
 
         /**
+         * ✅ NUOVA FUNZIONE: Batch Scan CHUNKED per evitare errore 503
+         * Processa file in batch piccoli con chiamate ricorsive
+         */
+        startBatchScanChunked: async function() {
+            DebugPanel.log('CHUNKED-SCAN', '🚀 Avvio batch scan con chunking...', 'success');
+            
+            if (this.isBatchScanning) {
+                DebugPanel.logError('CHUNKED', 'Scansione già in corso');
+                alert('⚠️ Scansione già in corso');
+                return;
+            }
+            
+            if (!window.disco747ExcelScanData?.gdriveAvailable) {
+                DebugPanel.logError('CHUNKED', 'Google Drive non configurato');
+                alert('❌ Google Drive non configurato');
+                return;
+            }
+            
+            // Setup UI
+            this.isBatchScanning = true;
+            const $button = $('#start-scan-btn');
+            const $progressSection = $('#progress-section');
+            const $progressBar = $('#progress-bar-fill');
+            const $progressPercent = $('#progress-percent');
+            const $progressStatus = $('#progress-status');
+            const $resultsSection = $('#results-section');
+            
+            $button.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione in corso...');
+            $progressSection.show();
+            $progressBar.css('width', '0%');
+            $progressPercent.text('0%');
+            $progressStatus.text('Inizializzazione...');
+            $resultsSection.hide();
+            
+            // Parametri scansione
+            const year = $('#scan-year').val() || '';
+            const month = $('#scan-month').val() || '';
+            
+            // Variabili tracking
+            let offset = 0;
+            const limit = 10; // File per batch (modificabile)
+            let totalProcessed = 0;
+            let totalSaved = 0;
+            let totalErrors = 0;
+            let grandTotal = 0;
+            let hasMore = true;
+            let batchNumber = 1;
+            
+            DebugPanel.log('CHUNKED', `Parametri: year=${year}, month=${month}, limit=${limit}`, 'info');
+            
+            // Loop ricorsivo
+            while (hasMore) {
+                try {
+                    DebugPanel.log('CHUNKED', `📦 Batch #${batchNumber}: offset=${offset}, limit=${limit}`, 'info');
+                    
+                    $progressStatus.text(`Processando batch ${batchNumber}... (${totalProcessed}/${grandTotal || '?'} file)`);
+                    
+                    // Chiamata AJAX per questo chunk
+                    const response = await $.ajax({
+                        url: window.disco747ExcelScanData?.ajaxurl || ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'batch_scan_excel_chunked',
+                            offset: offset,
+                            limit: limit,
+                            year: year,
+                            month: month,
+                            nonce: window.disco747ExcelScanData?.nonce || '',
+                            _wpnonce: window.disco747ExcelScanData?.nonce || ''
+                        },
+                        timeout: 90000 // 90 secondi per chunk
+                    });
+                    
+                    DebugPanel.log('CHUNKED', 'Risposta ricevuta', 'success');
+                    
+                    if (response.success && response.data) {
+                        const data = response.data;
+                        
+                        // Aggiorna contatori
+                        totalProcessed += data.processed || 0;
+                        totalSaved += data.saved || 0;
+                        totalErrors += data.errors || 0;
+                        grandTotal = data.total || grandTotal;
+                        hasMore = data.has_more || false;
+                        offset = data.next_offset || (offset + limit);
+                        
+                        // Aggiorna progress bar
+                        if (grandTotal > 0) {
+                            const percentage = data.percentage || Math.round((totalProcessed / grandTotal) * 100);
+                            $progressBar.css('width', percentage + '%');
+                            $progressPercent.text(percentage + '%');
+                            
+                            DebugPanel.log('PROGRESS', `${percentage}% - ${totalProcessed}/${grandTotal} file`, 'info');
+                        }
+                        
+                        // Log file processati in questo chunk
+                        if (data.files && data.files.length > 0) {
+                            data.files.forEach(file => {
+                                const icon = file.status === 'success' ? '✅' : '❌';
+                                DebugPanel.log('FILE', `${icon} ${file.name}`, file.status === 'success' ? 'success' : 'error');
+                            });
+                        }
+                        
+                        batchNumber++;
+                        
+                        // Pausa tra batch per dare respiro al server
+                        if (hasMore) {
+                            await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+                        }
+                        
+                    } else {
+                        const errorMsg = response.data?.message || response.data || 'Errore sconosciuto';
+                        throw new Error(errorMsg);
+                    }
+                    
+                } catch (error) {
+                    DebugPanel.logError('CHUNKED', error.message || error);
+                    console.error('[Excel-Scan] Errore batch:', error);
+                    
+                    $progressStatus.text('❌ Errore durante la scansione');
+                    
+                    totalErrors++;
+                    hasMore = false; // Stop su errore critico
+                    
+                    this.showNotification('error', `❌ Errore: ${error.message || error}`);
+                }
+            }
+            
+            // Completamento
+            DebugPanel.log('CHUNKED', '🎉 Scansione completata!', 'success');
+            
+            $progressStatus.text(`✅ Completato! ${totalProcessed} file processati`);
+            
+            // Mostra risultati
+            $('#stat-total').text(grandTotal);
+            $('#stat-processed').text(totalProcessed);
+            $('#stat-new').text(totalSaved); // In realtà sono saved, ma va bene
+            $('#stat-updated').text(totalProcessed - totalSaved);
+            $('#stat-errors').text(totalErrors);
+            
+            if (totalErrors > 0) {
+                $('#error-card').show();
+            }
+            
+            $resultsSection.fadeIn();
+            
+            // Reset UI
+            $button.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
+            this.isBatchScanning = false;
+            
+            // Ricarica tabella
+            if (typeof this.loadExcelTable === 'function') {
+                this.loadExcelTable();
+            }
+            
+            this.showNotification('success', `🎉 Scansione completata: ${totalProcessed} file processati, ${totalSaved} salvati`);
+        },
+
+        /**
          * Carica la tabella dei file Excel analizzati
          * @param {number} page - Numero pagina da caricare (default: 1)
          */
