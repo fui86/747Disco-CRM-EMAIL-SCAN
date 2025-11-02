@@ -6,7 +6,8 @@
  * @package    Disco747_CRM
  * @subpackage Handlers
  * @since      11.4.2
- * @version    11.9.0 - IMPLEMENTAZIONE REALE
+ * @version    11.9.1 - FIX 503 + SINGLETON PATTERN
+ * @updated    2025-11-02 13:51:00
  */
 
 namespace Disco747_CRM\Handlers;
@@ -23,6 +24,11 @@ if (!defined('ABSPATH')) {
 class Disco747_Excel_Scan_Handler {
     
     /**
+     * ✅ SINGLETON: Istanza unica
+     */
+    private static $instance = null;
+    
+    /**
      * Nome della tabella unificata per i preventivi
      */
     private $table_name;
@@ -33,15 +39,30 @@ class Disco747_Excel_Scan_Handler {
     private $googledrive = null;
     
     /**
-     * Costruttore
+     * Cache file Excel (per evitare scansioni multiple)
      */
-    public function __construct() {
+    private $cached_excel_files = null;
+    
+    /**
+     * ✅ SINGLETON: Get instance
+     */
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Costruttore privato (SINGLETON)
+     * ✅ NON registra hook AJAX (evita conflitti, verranno gestiti da ajax-handlers.php)
+     */
+    private function __construct() {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'disco747_preventivi'; // ✅ TABELLA UNIFICATA
         
-        // Registra hooks AJAX
-        add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
-        add_action('wp_ajax_disco747_single_scan_excel', array($this, 'handle_single_scan_ajax'));
+        // ✅ NON registriamo hook qui, sono già gestiti da ajax-handlers.php
+        // Questo evita hook duplicati e conflitti
         
         // Inizializza Google Drive
         $this->init_googledrive();
@@ -71,11 +92,23 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
-     * Handler AJAX per scansione batch
+     * Handler AJAX per scansione batch PROGRESSIVA
+     * ✅ FIX 503: Supporta batch_size e offset per processamento incrementale
      */
     public function handle_batch_scan_ajax() {
-        // Verifica nonce
-        if (!check_ajax_referer('disco747_excel_scan', 'nonce', false)) {
+        // ✅ Verifica nonce (accetta sia disco747_excel_scan che disco747_batch_scan per compatibilità)
+        $nonce_valid = false;
+        
+        if (isset($_POST['nonce']) || isset($_POST['_wpnonce'])) {
+            $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : $_POST['_wpnonce'];
+            
+            // Prova entrambi i nonce names per compatibilità
+            $nonce_valid = wp_verify_nonce($nonce, 'disco747_excel_scan') || 
+                          wp_verify_nonce($nonce, 'disco747_batch_scan');
+        }
+        
+        if (!$nonce_valid) {
+            error_log('[Excel-Scan] Nonce non valido o mancante');
             wp_send_json_error(array('message' => 'Nonce non valido'));
             return;
         }
@@ -86,95 +119,125 @@ class Disco747_Excel_Scan_Handler {
             return;
         }
         
+        // ✅ Aumenta timeout PHP per batch
+        @set_time_limit(120); // 2 minuti max per batch
+        @ini_set('memory_limit', '256M'); // Aumenta memoria disponibile
+        
         try {
+            // ✅ Parametri batch progressivo
+            $batch_size = isset($_POST['batch_size']) ? intval($_POST['batch_size']) : 10; // Default 10 file
+            $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
             $dry_run = isset($_POST['dry_run']) ? intval($_POST['dry_run']) === 1 : false;
-            $file_id = isset($_POST['file_id']) ? sanitize_text_field($_POST['file_id']) : '';
             
-            error_log("Disco747 Excel Scan - Avvio scansione REALE - dry_run: {$dry_run}, file_id: {$file_id}");
+            error_log("[Excel-Scan] Batch progressivo - Batch size: {$batch_size}, Offset: {$offset}");
             
             // Inizializza contatori
             $counters = array(
-                'listed' => 0,
-                'downloaded' => 0,
-                'parsed_ok' => 0,
-                'saved_ok' => 0,
-                'errors' => 0
+                'found' => 0,      // Totale file trovati
+                'processed' => 0,  // File processati in questo batch
+                'new' => 0,        // Nuovi inserimenti
+                'updated' => 0,    // Aggiornamenti
+                'errors' => 0,     // Errori
+                'has_more' => false // Ci sono altri file da processare?
             );
             
-            $errors = array();
-            $results = array();
+            $messages = array();
+            $errors_detail = array();
             
-            // ✅ REALE: Trova file Excel da Google Drive
-            $excel_files = $this->get_excel_files_from_googledrive();
-            $counters['listed'] = count($excel_files);
+            // ✅ STEP 1: Trova TUTTI i file Excel da Google Drive (solo la prima volta)
+            if ($offset === 0) {
+                $this->cached_excel_files = null; // Reset cache
+            }
             
-            error_log("Disco747 Excel Scan - Trovati {$counters['listed']} file Excel REALI da Google Drive");
+            $all_files = $this->get_excel_files_from_googledrive_cached();
+            $counters['found'] = count($all_files);
             
-            if (empty($excel_files)) {
+            if (empty($all_files)) {
                 wp_send_json_error(array('message' => 'Nessun file Excel trovato su Google Drive'));
                 return;
             }
             
-            // ✅ REALE: Processa ogni file Excel
-            foreach ($excel_files as $i => $file) {
+            // ✅ STEP 2: Processa solo un subset (batch_size file a partire da offset)
+            $files_to_process = array_slice($all_files, $offset, $batch_size);
+            $counters['has_more'] = (($offset + $batch_size) < $counters['found']);
+            
+            error_log("[Excel-Scan] Processando " . count($files_to_process) . " file (offset {$offset} di {$counters['found']} totali)");
+            $messages[] = "📂 Processando " . count($files_to_process) . " file (totale: {$counters['found']})...";
+            
+            // ✅ STEP 3: Processa ogni file del batch corrente
+            foreach ($files_to_process as $file) {
                 try {
-                    error_log("Disco747 Excel Scan - Processando file REALE: {$file['name']}");
+                    error_log("[Excel-Scan] Processando: {$file['name']}");
                     
-                    // ✅ REALE: Download e parsing
+                    // Download e parsing
                     $parsed_data = $this->download_and_parse_excel($file);
-                    $counters['downloaded']++;
                     
                     if (!$parsed_data) {
-                        $errors[] = "Impossibile parsare file: {$file['name']}";
+                        $errors_detail[] = "Impossibile parsare: {$file['name']}";
                         $counters['errors']++;
+                        $messages[] = "❌ Errore parsing: {$file['name']}";
                         continue;
                     }
                     
-                    $counters['parsed_ok']++;
-                    
-                    // ✅ REALE: Salva nella tabella unificata se non è dry run
+                    // Salva nel database se non è dry run
                     if (!$dry_run) {
-                        $preventivo_id = $this->save_to_preventivi_table($parsed_data);
-                        if ($preventivo_id) {
-                            $counters['saved_ok']++;
-                            $results[] = array(
-                                'preventivo_id' => $preventivo_id,
-                                'filename' => $file['name'],
-                                'data' => $parsed_data
-                            );
+                        $result = $this->save_to_preventivi_table($parsed_data);
+                        
+                        if ($result['success']) {
+                            $counters['processed']++;
+                            
+                            if ($result['action'] === 'inserted') {
+                                $counters['new']++;
+                                $messages[] = "✅ Nuovo: {$file['name']}";
+                            } else {
+                                $counters['updated']++;
+                                $messages[] = "🔄 Aggiornato: {$file['name']}";
+                            }
                         } else {
-                            $errors[] = "Impossibile salvare preventivo per: {$file['name']}";
                             $counters['errors']++;
+                            $errors_detail[] = "Errore salvataggio: {$file['name']}";
+                            $messages[] = "❌ Errore DB: {$file['name']}";
                         }
                     } else {
-                        $counters['saved_ok']++;
+                        $counters['processed']++;
                     }
                     
-                    // Rate limiting per non sovraccaricare Google Drive
-                    if ($i < count($excel_files) - 1) {
-                        usleep(200000); // 200ms
-                    }
+                    // Rate limiting
+                    usleep(100000); // 100ms tra file
                     
                 } catch (Exception $e) {
-                    $error_msg = "Errore processando {$file['name']}: " . $e->getMessage();
-                    $errors[] = $error_msg;
-                    error_log("Disco747 Excel Scan - {$error_msg}");
+                    $error_msg = "Errore {$file['name']}: " . $e->getMessage();
+                    $errors_detail[] = $error_msg;
                     $counters['errors']++;
+                    $messages[] = "❌ " . $error_msg;
+                    error_log("[Excel-Scan] {$error_msg}");
                 }
             }
             
-            error_log("Disco747 Excel Scan - Completata REALE - Parsed: {$counters['parsed_ok']}, Saved: {$counters['saved_ok']}, Errors: {$counters['errors']}");
+            // ✅ Messaggio riepilogo batch
+            $summary = "Batch completato: {$counters['processed']} file processati";
+            if ($counters['new'] > 0) $summary .= ", {$counters['new']} nuovi";
+            if ($counters['updated'] > 0) $summary .= ", {$counters['updated']} aggiornati";
+            if ($counters['errors'] > 0) $summary .= ", {$counters['errors']} errori";
+            
+            error_log("[Excel-Scan] {$summary}");
+            $messages[] = "📊 " . $summary;
             
             wp_send_json_success(array(
-                'counters' => $counters,
-                'results' => $results,
-                'errors' => array_slice($errors, 0, 3),
-                'message' => "Scansione REALE completata: {$counters['saved_ok']} preventivi salvati, {$counters['errors']} errori"
+                'found' => $counters['found'],
+                'processed' => $counters['processed'],
+                'new' => $counters['new'],
+                'updated' => $counters['updated'],
+                'errors' => $counters['errors'],
+                'has_more' => $counters['has_more'],
+                'next_offset' => $offset + $batch_size,
+                'messages' => $messages,
+                'errors_detail' => array_slice($errors_detail, 0, 5)
             ));
             
         } catch (Exception $e) {
-            error_log('Disco747 Excel Scan - Errore scansione batch REALE: ' . $e->getMessage());
-            wp_send_json_error(array('message' => 'Errore interno: ' . $e->getMessage()));
+            error_log('[Excel-Scan] Errore batch: ' . $e->getMessage());
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
         }
     }
     
@@ -187,57 +250,76 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
-     * ✅ REALE: Trova file Excel da Google Drive
-     * Sostituisce find_excel_files_simulation()
+     * ✅ Versione cached per evitare scansioni multiple nella stessa sessione
      */
-    private function get_excel_files_from_googledrive() {
-        if (!$this->googledrive) {
-            error_log('Disco747 Excel Scan - Google Drive non inizializzato');
-            return array();
+    private function get_excel_files_from_googledrive_cached() {
+        // Usa cache se disponibile (dura per la sessione corrente)
+        if ($this->cached_excel_files !== null) {
+            error_log("[Excel-Scan] Uso cache file (count: " . count($this->cached_excel_files) . ")");
+            return $this->cached_excel_files;
         }
         
+        // Prima scansione: carica e cача
+        $this->cached_excel_files = $this->get_excel_files_from_googledrive();
+        return $this->cached_excel_files;
+    }
+    
+    /**
+     * ✅ REALE: Trova file Excel da Google Drive usando GoogleDrive_Sync
+     * Usa la scansione ricorsiva già funzionante
+     */
+    private function get_excel_files_from_googledrive() {
         try {
-            $excel_files = array();
-            $base_folder = '747-Preventivi';
+            error_log('[Excel-Scan] Inizializzazione GoogleDrive_Sync per scansione ricorsiva...');
             
-            // Cerca ricorsivamente nelle cartelle anno/mese
-            $current_year = date('Y');
-            $years_to_scan = array($current_year, $current_year - 1); // Ultimo anno + anno corrente
-            
-            foreach ($years_to_scan as $year) {
-                for ($month = 1; $month <= 12; $month++) {
-                    $month_str = str_pad($month, 2, '0', STR_PAD_LEFT);
-                    $folder_path = "{$base_folder}/{$year}/{$month_str}";
-                    
-                    error_log("Disco747 Excel Scan - Ricerca in: {$folder_path}");
-                    
-                    // Lista file Excel in questa cartella
-                    $files = $this->googledrive->list_files(null, 'name contains ".xlsx"');
-                    
-                    foreach ($files as $file) {
-                        // Filtra solo file .xlsx (non .pdf o altro)
-                        if (stripos($file['name'], '.xlsx') !== false) {
-                            $excel_files[] = array(
-                                'id' => $file['id'],
-                                'name' => $file['name'],
-                                'modifiedTime' => $file['modifiedTime'] ?? '',
-                                'size' => $file['size'] ?? 0,
-                                'folder_path' => $folder_path
-                            );
-                        }
-                    }
-                    
-                    // Rate limiting tra cartelle
-                    usleep(100000); // 100ms
-                }
+            // ✅ Usa la classe GoogleDrive_Sync che già funziona perfettamente
+            $sync_file = DISCO747_CRM_PLUGIN_DIR . 'includes/storage/class-disco747-googledrive-sync.php';
+            if (!file_exists($sync_file)) {
+                error_log('[Excel-Scan] ERRORE: class-disco747-googledrive-sync.php non trovato');
+                return array();
             }
             
-            error_log("Disco747 Excel Scan - Trovati " . count($excel_files) . " file Excel totali");
+            require_once $sync_file;
+            
+            // Istanzia GoogleDrive_Sync
+            $sync = new \Disco747_CRM\Storage\Disco747_GoogleDrive_Sync();
+            
+            if (!$sync || !method_exists($sync, 'scan_excel_files_batch')) {
+                error_log('[Excel-Scan] ERRORE: metodo scan_excel_files_batch non disponibile');
+                return array();
+            }
+            
+            // ✅ Usa scan_excel_files_batch in modalità test per ottenere solo la lista
+            error_log('[Excel-Scan] Avvio scan_excel_files_batch...');
+            $result = $sync->scan_excel_files_batch(
+                true,  // test_mode = true (non salva, solo scansiona)
+                999    // limit alto per prendere tutti i file
+            );
+            
+            if (!$result['success'] || empty($result['files'])) {
+                error_log('[Excel-Scan] Nessun file trovato da GoogleDrive_Sync');
+                return array();
+            }
+            
+            $files = $result['files'];
+            error_log('[Excel-Scan] ✅ Trovati ' . count($files) . ' file Excel da GoogleDrive_Sync');
+            
+            // Converti formato per compatibilità
+            $excel_files = array();
+            foreach ($files as $file) {
+                $excel_files[] = array(
+                    'id' => $file['id'],
+                    'name' => $file['name'],
+                    'modifiedTime' => $file['modifiedTime'] ?? date('Y-m-d H:i:s'),
+                    'size' => $file['size'] ?? 0,
+                    'folder_path' => $file['folder_path'] ?? ''
+                );
+            }
             
             return $excel_files;
             
-        } catch (Exception $e) {
-            error_log('Disco747 Excel Scan - Errore ricerca file: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            error_log('[Excel-Scan] ERRORE get_excel_files_from_googledrive: ' . $e->getMessage());
             return array();
         }
     }
@@ -387,7 +469,7 @@ class Disco747_Excel_Scan_Handler {
     
     /**
      * ✅ REALE: Salva nella tabella preventivi unificata
-     * Sostituisce save_excel_analysis()
+     * Ritorna array con 'success' e 'action' per tracking
      */
     private function save_to_preventivi_table($data) {
         global $wpdb;
@@ -446,10 +528,10 @@ class Disco747_Excel_Scan_Handler {
                     
                     if ($result !== false) {
                         error_log("Disco747 Excel Scan - Preventivo aggiornato ID: {$existing}");
-                        return $existing;
+                        return array('success' => true, 'action' => 'updated', 'id' => $existing);
                     } else {
                         error_log("Disco747 Excel Scan - Errore UPDATE: " . $wpdb->last_error);
-                        return false;
+                        return array('success' => false, 'error' => $wpdb->last_error);
                     }
                 }
             }
@@ -463,7 +545,7 @@ class Disco747_Excel_Scan_Handler {
             
             if ($result === false) {
                 error_log("Disco747 Excel Scan - Errore INSERT: " . $wpdb->last_error);
-                return false;
+                return array('success' => false, 'error' => $wpdb->last_error);
             }
             
             $insert_id = $wpdb->insert_id;
@@ -482,11 +564,11 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("Disco747 Excel Scan - Preventivo salvato con ID: {$insert_id}");
             
-            return $insert_id;
+            return array('success' => true, 'action' => 'inserted', 'id' => $insert_id);
             
         } catch (Exception $e) {
             error_log('Disco747 Excel Scan - Errore salvataggio preventivo: ' . $e->getMessage());
-            return false;
+            return array('success' => false, 'error' => $e->getMessage());
         }
     }
     
@@ -626,5 +708,7 @@ class Disco747_Excel_Scan_Handler {
     }
 }
 
-// Inizializza l'handler
-new Disco747_Excel_Scan_Handler();
+// ✅ SINGLETON: Inizializza l'handler unico
+// NON istanziamo automaticamente, sarà fatto solo quando necessario via get_instance()
+// Questo evita hook AJAX duplicati
+// Disco747_Excel_Scan_Handler::get_instance();

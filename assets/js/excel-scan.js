@@ -195,10 +195,11 @@
         },
 
         /**
-         * FUNZIONE PRINCIPALE: Batch Scan
+         * FUNZIONE PRINCIPALE: Batch Scan PROGRESSIVO con retry automatico
+         * ✅ FIX 503: Processa 10 file alla volta invece di tutti insieme
          */
         startBatchScan: function() {
-            DebugPanel.logStep('BATCH-1', 'Avvio batch scan...');
+            DebugPanel.logStep('BATCH-1', 'Avvio batch scan progressivo...');
             
             if (this.isBatchScanning) {
                 DebugPanel.logError('BATCH', 'Batch scan già in corso');
@@ -212,47 +213,82 @@
                 return;
             }
             
-            DebugPanel.logStep('BATCH-2', 'Stato verificato - preparazione dati AJAX...');
+            DebugPanel.logStep('BATCH-2', 'Inizializzazione batch progressivo...');
             
             // Stato UI
             this.isBatchScanning = true;
             $('#disco747-start-batch-scan').prop('disabled', true).text('🔄 Scansione in corso...');
             
-            DebugPanel.logStep('BATCH-3', 'UI aggiornata - pulsante disabilitato');
-            
             // Mostra progress se presente
             const $progress = $('#batch-scan-progress');
             if ($progress.length) {
-                $progress.show().find('.progress-bar').css('width', '0%');
-                DebugPanel.log('BATCH', 'Progress bar mostrata', 'info');
+                $progress.show().find('.progress-bar').css('width', '0%').text('Inizializzazione...');
             }
             
-            // ✅ FIX CRITICO: Cambiato action da 'disco747_scan_drive_batch' a 'batch_scan_excel'
+            // Reset statistiche
+            this.batchStats = {
+                totalFiles: 0,
+                processedFiles: 0,
+                successCount: 0,
+                errorCount: 0,
+                batchesCompleted: 0,
+                retries: 0
+            };
+            
+            // Avvia processamento batch progressivo
+            this.processBatchChunk(1);
+        },
+        
+        /**
+         * Processa un chunk di file (10 alla volta)
+         * @param {number} attempt - Numero tentativo (per retry automatico)
+         */
+        processBatchChunk: function(attempt = 1) {
+            const batchSize = 10; // 10 file alla volta invece di 35!
+            const maxRetries = 3;
+            
+            DebugPanel.log('CHUNK', `Batch chunk - Tentativo ${attempt}/${maxRetries}`, 'info');
+            
             const ajaxData = {
                 action: 'batch_scan_excel',
                 nonce: window.disco747ExcelScanData?.nonce || '',
-                _wpnonce: window.disco747ExcelScanData?.nonce || ''
+                _wpnonce: window.disco747ExcelScanData?.nonce || '',
+                batch_size: batchSize,  // ✅ Limitiamo a 10 file
+                offset: this.batchStats.processedFiles // Offset per continuare da dove eravamo
             };
-            
-            DebugPanel.logStep('BATCH-4', 'Dati AJAX preparati');
-            DebugPanel.log('AJAX-DATA', `action: ${ajaxData.action}`, 'ajax');
-            DebugPanel.log('AJAX-DATA', `nonce: ${ajaxData.nonce ? 'presente' : 'MANCANTE'}`, ajaxData.nonce ? 'success' : 'error');
             
             $.ajax({
                 url: window.disco747ExcelScanData?.ajaxurl || ajaxurl,
                 type: 'POST',
                 data: ajaxData,
                 dataType: 'json',
-                beforeSend: function(xhr) {
-                    DebugPanel.logAjax('batch_scan_excel', 'INVIO...');
+                timeout: 90000, // ✅ Timeout aumentato a 90 secondi
+                beforeSend: function() {
+                    DebugPanel.logAjax('batch_scan_excel', `CHUNK ${attempt} - Invio richiesta...`);
                 },
                 success: (response) => {
-                    DebugPanel.log('BATCH-RESPONSE', 'Risposta ricevuta', 'success');
-                    console.log('Batch scan response:', response);
+                    DebugPanel.log('CHUNK-SUCCESS', 'Risposta ricevuta', 'success');
                     
                     if (response.success && response.data) {
                         const result = response.data;
-                        DebugPanel.log('BATCH-RESULT', `Trovati: ${result.found}, Processati: ${result.processed}, Errori: ${result.errors}`, 'success');
+                        
+                        // Aggiorna statistiche
+                        if (this.batchStats.totalFiles === 0) {
+                            this.batchStats.totalFiles = result.found || 0;
+                        }
+                        
+                        this.batchStats.processedFiles += (result.processed || 0);
+                        this.batchStats.successCount += (result.new || 0) + (result.updated || 0);
+                        this.batchStats.errorCount += (result.errors || 0);
+                        this.batchStats.batchesCompleted++;
+                        
+                        // Aggiorna progress bar
+                        if (this.batchStats.totalFiles > 0) {
+                            const percentage = Math.round((this.batchStats.processedFiles / this.batchStats.totalFiles) * 100);
+                            $('#batch-scan-progress .progress-bar')
+                                .css('width', percentage + '%')
+                                .text(`${this.batchStats.processedFiles}/${this.batchStats.totalFiles} file (${percentage}%)`);
+                        }
                         
                         // Log messaggi
                         if (result.messages && result.messages.length > 0) {
@@ -261,39 +297,98 @@
                             });
                         }
                         
-                        // Notifica successo
-                        if (result.processed > 0) {
-                            this.showNotification('success', `✅ Scansione completata: ${result.processed} file processati`);
+                        // ✅ Continua con il prossimo batch se ci sono ancora file
+                        if (result.has_more || (this.batchStats.processedFiles < this.batchStats.totalFiles)) {
+                            DebugPanel.log('CHUNK', `Continuo con prossimo batch (${this.batchStats.processedFiles}/${this.batchStats.totalFiles})`, 'info');
+                            
+                            // Piccolo delay tra i batch per non sovraccaricare il server
+                            setTimeout(() => {
+                                this.processBatchChunk(1); // Reset tentativi per nuovo chunk
+                            }, 1000);
+                            
                         } else {
-                            this.showNotification('warning', '⚠️ Scansione completata ma nessun file processato');
+                            // ✅ Completato!
+                            this.completeBatchScan();
                         }
-                        
-                        // Ricarica la tabella con i nuovi dati
-                        this.loadExcelTable();
                         
                     } else {
                         const errorMsg = response.data?.message || response.data || 'Errore sconosciuto';
-                        DebugPanel.logError('BATCH', errorMsg);
-                        this.showNotification('error', `❌ Errore: ${errorMsg}`);
+                        DebugPanel.logError('CHUNK', errorMsg);
+                        
+                        // ✅ RETRY automatico per errori non fatali
+                        if (attempt < maxRetries) {
+                            this.retryBatchChunk(attempt + 1);
+                        } else {
+                            this.showNotification('error', `❌ Errore dopo ${maxRetries} tentativi: ${errorMsg}`);
+                            this.completeBatchScan();
+                        }
                     }
                 },
                 error: (xhr, status, error) => {
-                    DebugPanel.logError('AJAX', `${status}: ${error}`);
-                    console.error('AJAX Error:', xhr.responseText);
-                    this.showNotification('error', `❌ Errore di connessione: ${error}`);
-                },
-                complete: () => {
-                    DebugPanel.log('BATCH', 'Operazione completata', 'info');
+                    DebugPanel.logError('AJAX', `Errore AJAX: ${status} - ${error}`);
+                    console.error('XHR:', xhr);
                     
-                    // Reset stato
-                    this.isBatchScanning = false;
-                    $('#disco747-start-batch-scan').prop('disabled', false).text('✅ Analizza Ora');
-                    
-                    if ($progress.length) {
-                        setTimeout(() => $progress.fadeOut(), 3000);
+                    // ✅ RETRY automatico per errori 503 o timeout
+                    if ((xhr.status === 503 || status === 'timeout' || status === 'error') && attempt < maxRetries) {
+                        DebugPanel.log('RETRY', `Errore ${xhr.status}, retry ${attempt + 1}/${maxRetries}`, 'warning');
+                        this.retryBatchChunk(attempt + 1);
+                    } else {
+                        this.showNotification('error', `❌ Errore di connessione: ${error}`);
+                        this.completeBatchScan();
                     }
                 }
             });
+        },
+        
+        /**
+         * Retry con backoff esponenziale
+         */
+        retryBatchChunk: function(attempt) {
+            const retryDelay = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // Max 10 secondi
+            
+            this.batchStats.retries++;
+            
+            DebugPanel.log('RETRY', `Attendo ${retryDelay}ms prima del retry #${attempt}`, 'warning');
+            this.addActivityLog(`⚠️ Retry automatico in corso (tentativo ${attempt})...`, 'warning');
+            
+            setTimeout(() => {
+                this.processBatchChunk(attempt);
+            }, retryDelay);
+        },
+        
+        /**
+         * Completa la scansione batch
+         */
+        completeBatchScan: function() {
+            DebugPanel.log('BATCH-COMPLETE', 'Batch scan completato!', 'success');
+            
+            const stats = this.batchStats;
+            
+            // Messaggio finale
+            let finalMessage = `✅ Scansione completata!\n\n`;
+            finalMessage += `📊 File totali trovati: ${stats.totalFiles}\n`;
+            finalMessage += `✅ File processati: ${stats.processedFiles}\n`;
+            finalMessage += `💾 Salvati con successo: ${stats.successCount}\n`;
+            finalMessage += `❌ Errori: ${stats.errorCount}\n`;
+            finalMessage += `🔄 Batch completati: ${stats.batchesCompleted}\n`;
+            if (stats.retries > 0) {
+                finalMessage += `⚠️ Retry automatici: ${stats.retries}\n`;
+            }
+            
+            this.showNotification('success', finalMessage);
+            this.addActivityLog(finalMessage, 'success');
+            
+            // Reset stato
+            this.isBatchScanning = false;
+            $('#disco747-start-batch-scan').prop('disabled', false).text('✅ Analizza Ora');
+            
+            // Ricarica tabella
+            this.loadExcelTable();
+            
+            // Nascondi progress dopo 3 secondi
+            setTimeout(() => {
+                $('#batch-scan-progress').fadeOut();
+            }, 3000);
         },
 
         /**
