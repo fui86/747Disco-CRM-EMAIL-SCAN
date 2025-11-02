@@ -36,6 +36,19 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
         </div>
     <?php else: ?>
 
+        <!-- ✅ FIX: Inizializza variabili JavaScript per excel-scan.js -->
+        <script>
+        window.disco747ExcelScanData = window.disco747ExcelScanData || {};
+        window.disco747ExcelScanData.gdriveAvailable = true;
+        window.disco747ExcelScanData.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+        window.disco747ExcelScanData.nonce = '<?php echo wp_create_nonce('disco747_batch_scan'); ?>';
+        console.log('[Excel-Scan-Fix] ✅ Variabili JavaScript inizializzate:', window.disco747ExcelScanData);
+        
+        // ✅ FLAG: Disabilita completamente excel-scan.js
+        window.disco747_USE_INLINE_CHUNKED = true;
+        console.log('[Excel-Scan-Fix] ⚠️ Metodo inline chunked attivato - excel-scan.js verrà ignorato');
+        </script>
+
         <!-- Box Scansione -->
         <div class="disco747-box">
             <div class="box-header">
@@ -310,69 +323,10 @@ function disco747ToggleDebug() {
 }
 
 jQuery(document).ready(function($) {
-    $('#start-scan-btn').on('click', function() {
-        const year = $('#scan-year').val();
-        const month = $('#scan-month').val();
-        const btn = $(this);
-        const resetBtn = $('#reset-scan-btn');
-
-        $('#progress-section').show();
-        $('#progress-bar-fill').css('width', '0%');
-        $('#progress-percent').text('0%');
-        $('#progress-status').text('Connessione a Google Drive...');
-        $('#results-section').hide();
-        $('#new-files-box').hide();
-        $('#debug-log').text('Avvio scansione...\n');
-
-        btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
-        resetBtn.prop('disabled', true);
-
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: { action: 'batch_scan_excel', nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>', year: year, month: month },
-            success: function(response) {
-                if (response.success) {
-                    const d = response.data;
-                    $('#progress-bar-fill').css('width', '100%');
-                    $('#progress-percent').text('100%');
-                    $('#progress-status').text('✅ Completato!');
-                    $('#stat-total').text(d.total_files || 0);
-                    $('#stat-processed').text(d.processed || 0);
-                    $('#stat-new').text(d.new_records || 0);
-                    $('#stat-updated').text(d.updated_records || 0);
-                    $('#stat-errors').text(d.errors || 0);
-                    $('#summary-total').text(d.total_files || 0);
-                    $('#summary-new').text(d.new_records || 0);
-                    $('#summary-updated').text(d.updated_records || 0);
-                    $('#summary-errors').text(d.errors || 0);
-                    if (d.errors > 0) $('#error-card').show();
-                    $('#results-section').fadeIn();
-                    let log = `✅ SCANSIONE COMPLETATA\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${d.total_files}\n   Processati:      ${d.processed}\n   Nuovi:           ${d.new_records}\n   Aggiornati:      ${d.updated_records}\n   Errori:          ${d.errors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
-                    $('#debug-log').text(log);
-                    if (d.new_files_list && d.new_files_list.length > 0) {
-                        showNewFiles(d.new_files_list);
-                    } else {
-                        $('#new-files-box').fadeIn();
-                        $('#new-files-table-body').html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nessun file processato</td></tr>');
-                    }
-                } else {
-                    $('#progress-status').text('❌ Errore');
-                    $('#debug-log').text('❌ ERRORE:\n' + (response.data.message || 'Sconosciuto'));
-                    alert('❌ Errore: ' + (response.data.message || 'Errore sconosciuto'));
-                }
-            },
-            error: function(xhr, status, error) {
-                $('#progress-status').text('❌ Errore connessione');
-                $('#debug-log').text('❌ ERRORE AJAX:\nStatus: ' + status + '\nError: ' + error);
-                alert('❌ Errore di connessione: ' + error);
-            },
-            complete: function() {
-                btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
-                resetBtn.prop('disabled', false);
-            }
-        });
-    });
+    // ========================================================================
+    // 🚀 CHUNKED SCAN - caricato da excel-scan-chunked.js
+    // ========================================================================
+    console.log('[Excel-Scan-Page] ✅ Pagina pronta - gestione CHUNKED caricata da excel-scan-chunked.js');
 
     $('#reset-scan-btn').on('click', function() {
         if (!confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\n\nSei sicuro di voler procedere?')) return;

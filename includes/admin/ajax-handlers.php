@@ -27,10 +27,13 @@ class Disco747_AJAX_Handlers {
         // Reset e Scan
         add_action('wp_ajax_reset_and_scan_excel', array(__CLASS__, 'handle_reset_and_scan'));
         
+        // ✅ NUOVO: Batch scan chunked (fix 503)
+        add_action('wp_ajax_batch_scan_excel_chunked', array(__CLASS__, 'handle_batch_scan_chunked'));
+        
         // Altri handler
         add_action('wp_ajax_analyze_excel_file', array(__CLASS__, 'handle_analyze_file'));
         
-        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, analyze_excel_file');
+        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, batch_scan_excel_chunked, analyze_excel_file');
     }
 
     /**
@@ -458,6 +461,109 @@ class Disco747_AJAX_Handlers {
         } catch (\Exception $e) {
             wp_send_json_error(array(
                 'message' => 'Errore analisi file: ' . $e->getMessage()
+            ));
+        }
+    }
+
+    /**
+     * ✅ NUOVO HANDLER: Batch scan chunked per evitare errore 503
+     * Processa un chunk di file alla volta, poi il frontend chiama di nuovo per il chunk successivo
+     */
+    public static function handle_batch_scan_chunked() {
+        error_log('[Batch-Scan-CHUNKED] ========== INIZIO BATCH SCAN CHUNKED ==========');
+        
+        // Verifica nonce
+        if (!isset($_POST['nonce']) && !isset($_POST['_wpnonce'])) {
+            error_log('[Batch-Scan-CHUNKED] ERRORE: Nonce mancante');
+            wp_send_json_error(array('message' => 'Nonce mancante'));
+            return;
+        }
+
+        $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : $_POST['_wpnonce'];
+        
+        if (!wp_verify_nonce($nonce, 'disco747_batch_scan')) {
+            error_log('[Batch-Scan-CHUNKED] ERRORE: Nonce non valido');
+            wp_send_json_error(array('message' => 'Verifica nonce fallita'));
+            return;
+        }
+
+        error_log('[Batch-Scan-CHUNKED] ✅ Nonce verificato');
+
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            error_log('[Batch-Scan-CHUNKED] ERRORE: Permessi insufficienti');
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+
+        error_log('[Batch-Scan-CHUNKED] ✅ Permessi verificati');
+
+        // Parametri
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+        $year = isset($_POST['year']) ? sanitize_text_field($_POST['year']) : '';
+        $month = isset($_POST['month']) ? sanitize_text_field($_POST['month']) : '';
+
+        error_log("[Batch-Scan-CHUNKED] Parametri: offset={$offset}, limit={$limit}, anno={$year}, mese={$month}");
+
+        try {
+            // Carica le classi necessarie
+            $plugin = disco747_crm();
+            
+            if (!$plugin || !$plugin->is_initialized()) {
+                error_log('[Batch-Scan-CHUNKED] ERRORE: Plugin non inizializzato');
+                wp_send_json_error(array('message' => 'Plugin non inizializzato'));
+                return;
+            }
+
+            $storage_manager = $plugin->get_storage_manager();
+
+            if (!$storage_manager) {
+                error_log('[Batch-Scan-CHUNKED] ERRORE: Storage manager mancante');
+                wp_send_json_error(array('message' => 'Storage manager non disponibile'));
+                return;
+            }
+
+            error_log('[Batch-Scan-CHUNKED] ✅ Componenti caricati');
+
+            // Ottieni handler Google Drive
+            $handler = $storage_manager->get_active_handler();
+            
+            if (!$handler) {
+                error_log('[Batch-Scan-CHUNKED] ERRORE: Handler storage non disponibile');
+                wp_send_json_error(array('message' => 'Storage non configurato'));
+                return;
+            }
+
+            // Inizializza GoogleDrive Sync
+            if (!class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive_Sync')) {
+                error_log('[Batch-Scan-CHUNKED] ERRORE: Classe GoogleDrive_Sync non trovata');
+                wp_send_json_error(array('message' => 'GoogleDrive_Sync non disponibile'));
+                return;
+            }
+
+            $gdrive_sync = new \Disco747_CRM\Storage\Disco747_GoogleDrive_Sync($handler);
+            
+            if (!$gdrive_sync->is_available()) {
+                error_log('[Batch-Scan-CHUNKED] ERRORE: GoogleDrive Sync non disponibile');
+                wp_send_json_error(array('message' => 'GoogleDrive Sync non disponibile'));
+                return;
+            }
+
+            error_log('[Batch-Scan-CHUNKED] ✅ GoogleDrive Sync inizializzato');
+
+            // ✅ Esegui scan chunked
+            $result = $gdrive_sync->scan_excel_files_chunked($offset, $limit, $year, $month);
+
+            error_log('[Batch-Scan-CHUNKED] ✅ Scan completato - Processed: ' . $result['processed'] . ', Saved: ' . $result['saved'] . ', Errors: ' . $result['errors']);
+
+            // Risposta JSON
+            wp_send_json_success($result);
+
+        } catch (\Exception $e) {
+            error_log('[Batch-Scan-CHUNKED] ❌ ERRORE: ' . $e->getMessage());
+            wp_send_json_error(array(
+                'message' => 'Errore durante la scansione: ' . $e->getMessage()
             ));
         }
     }

@@ -306,8 +306,22 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
+            // ✅ PROTEGGI DA FATAL ERROR: Disabilita warning PHP per hyperlink corrotti
+            set_error_handler(function($errno, $errstr, $errfile, $errline) {
+                // Ignora warning da PhpSpreadsheet per hyperlink/immagini corrotte
+                if (strpos($errstr, 'Premature end of file') !== false || 
+                    strpos($errstr, 'could not make seekable') !== false ||
+                    strpos($errstr, 'getimagesize') !== false) {
+                    return true; // Sopprime il warning
+                }
+                return false; // Lascia gestire altri errori normalmente
+            }, E_WARNING);
+            
             // Carica il file Excel
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            
+            // Ripristina error handler
+            restore_error_handler();
             $worksheet = $spreadsheet->getActiveSheet();
             
             // ✅ Mapping secondo il template specificato
@@ -484,8 +498,15 @@ class Disco747_Excel_Scan_Handler {
             
             return $insert_id;
             
-        } catch (Exception $e) {
-            error_log('Disco747 Excel Scan - Errore salvataggio preventivo: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // ✅ Cattura sia Exception che Error/TypeError (file Excel corrotti)
+            error_log('[747Disco-Scan] ❌ Errore parsing Excel: ' . $e->getMessage());
+            error_log('[747Disco-Scan] File: ' . $file_path);
+            error_log('[747Disco-Scan] Traccia: ' . $e->getTraceAsString());
+            
+            // Ripristina error handler se non già fatto
+            restore_error_handler();
+            
             return false;
         }
     }
