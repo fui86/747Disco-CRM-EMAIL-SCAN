@@ -311,6 +311,10 @@ function disco747ToggleDebug() {
 
 jQuery(document).ready(function($) {
     
+    console.log('[Excel-Scan-Page] 🎬 Script inline caricato e pronto');
+    console.log('[Excel-Scan-Page] Pulsante #start-scan-btn:', $('#start-scan-btn').length);
+    console.log('[Excel-Scan-Page] jQuery disponibile:', typeof $ !== 'undefined');
+    
     // ========================================================================
     // ✅ BATCH SCAN CHUNKED - Metodo ottimizzato per evitare 503
     // ========================================================================
@@ -319,6 +323,7 @@ jQuery(document).ready(function($) {
     
     $('#start-scan-btn').on('click', async function() {
         console.log('[Excel-Scan] 🚀 AVVIO SCAN CHUNKED (ottimizzato anti-503)');
+        console.log('[Excel-Scan] isScanning prima del check:', isScanning);
         
         if (isScanning) {
             alert('⚠️ Scansione già in corso');
