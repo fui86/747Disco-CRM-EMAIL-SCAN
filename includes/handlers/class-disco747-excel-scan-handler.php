@@ -6,7 +6,8 @@
  * @package    Disco747_CRM
  * @subpackage Handlers
  * @since      11.4.2
- * @version    11.9.0 - IMPLEMENTAZIONE REALE
+ * @version    11.9.1 - FIX 503 + SINGLETON PATTERN
+ * @updated    2025-11-02 13:51:00
  */
 
 namespace Disco747_CRM\Handlers;
@@ -20,8 +21,6 @@ if (!defined('ABSPATH')) {
  * Classe per gestire la scansione automatica dei file Excel da Google Drive
  * VERSIONE AGGIORNATA: Implementa scansione reale e salvataggio unificato
  */
-if (!class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
-    
 class Disco747_Excel_Scan_Handler {
     
     /**
@@ -56,14 +55,14 @@ class Disco747_Excel_Scan_Handler {
     
     /**
      * Costruttore privato (SINGLETON)
+     * ✅ NON registra hook AJAX (evita conflitti, verranno gestiti da ajax-handlers.php)
      */
     private function __construct() {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'disco747_preventivi'; // ✅ TABELLA UNIFICATA
         
-        // Registra hooks AJAX
-        add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
-        add_action('wp_ajax_disco747_single_scan_excel', array($this, 'handle_single_scan_ajax'));
+        // ✅ NON registriamo hook qui, sono già gestiti da ajax-handlers.php
+        // Questo evita hook duplicati e conflitti
         
         // Inizializza Google Drive
         $this->init_googledrive();
@@ -707,11 +706,9 @@ class Disco747_Excel_Scan_Handler {
             error_log("Disco747 Excel Scan [{$level}]: {$message}");
         }
     }
-} // Fine classe Disco747_Excel_Scan_Handler
-
-} // Fine if (!class_exists)
-
-// ✅ SINGLETON: Inizializza l'handler unico (solo se non già istanziato)
-if (class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
-    \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler::get_instance();
 }
+
+// ✅ SINGLETON: Inizializza l'handler unico
+// NON istanziamo automaticamente, sarà fatto solo quando necessario via get_instance()
+// Questo evita hook AJAX duplicati
+// Disco747_Excel_Scan_Handler::get_instance();

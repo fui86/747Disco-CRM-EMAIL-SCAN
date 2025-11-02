@@ -38,28 +38,48 @@ class Disco747_AJAX_Handlers {
      * ✅ REINDIRIZZA al nuovo handler progressivo in class-disco747-excel-scan-handler.php
      */
     public static function handle_batch_scan() {
-        error_log('[Batch-Scan-AJAX] ========== REDIRECT AL NUOVO HANDLER PROGRESSIVO ==========');
+        error_log('[Batch-Scan-AJAX-v1.4] ========== INIZIO HANDLER ==========');
+        error_log('[Batch-Scan-AJAX-v1.4] POST data: ' . print_r(array_keys($_POST), true));
+        error_log('[Batch-Scan-AJAX-v1.4] action ricevuta: ' . ($_POST['action'] ?? 'N/D'));
         
         // ✅ Reindirizza al nuovo handler ottimizzato (usa singleton per evitare istanziazioni multiple)
         if (class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
-            error_log('[Batch-Scan-AJAX] ✅ Classe Disco747_Excel_Scan_Handler trovata, uso singleton...');
+            error_log('[Batch-Scan-AJAX-v1.4] ✅ Classe Disco747_Excel_Scan_Handler TROVATA!');
             
-            // ✅ Usa get_instance() per ottenere istanza singleton (evita hook duplicati)
-            $handler = \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler::get_instance();
-            
-            // Assicura compatibilità nonce
-            if (!isset($_POST['nonce']) && isset($_POST['_wpnonce'])) {
-                $_POST['nonce'] = $_POST['_wpnonce'];
+            try {
+                // ✅ Usa get_instance() per ottenere istanza singleton (evita hook duplicati)
+                error_log('[Batch-Scan-AJAX-v1.4] Chiamata get_instance()...');
+                $handler = \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler::get_instance();
+                
+                if (!$handler) {
+                    error_log('[Batch-Scan-AJAX-v1.4] ERRORE: get_instance() ha ritornato null!');
+                    wp_send_json_error(array('message' => 'Handler non disponibile'));
+                    return;
+                }
+                
+                error_log('[Batch-Scan-AJAX-v1.4] ✅ Handler istanziato: ' . get_class($handler));
+                
+                // Assicura compatibilità nonce
+                if (!isset($_POST['nonce']) && isset($_POST['_wpnonce'])) {
+                    $_POST['nonce'] = $_POST['_wpnonce'];
+                }
+                
+                // Chiama il nuovo handler
+                error_log('[Batch-Scan-AJAX-v1.4] ✅ Invoco handle_batch_scan_ajax...');
+                $handler->handle_batch_scan_ajax();
+                
+                error_log('[Batch-Scan-AJAX-v1.4] ✅ Handler completato, return');
+                return; // Importante: stoppa esecuzione
+                
+            } catch (\Exception $e) {
+                error_log('[Batch-Scan-AJAX-v1.4] EXCEPTION: ' . $e->getMessage());
+                wp_send_json_error(array('message' => 'Errore handler: ' . $e->getMessage()));
+                return;
             }
-            
-            // Chiama il nuovo handler
-            error_log('[Batch-Scan-AJAX] ✅ Invoco handle_batch_scan_ajax del nuovo handler...');
-            $handler->handle_batch_scan_ajax();
-            return; // Importante: stoppa esecuzione
         }
         
         // ⚠️ FALLBACK: vecchio handler (se il nuovo non è disponibile)
-        error_log('[Batch-Scan-AJAX] FALLBACK: Uso vecchio handler');
+        error_log('[Batch-Scan-AJAX-v1.4] ⚠️ FALLBACK: Classe non trovata, uso vecchio handler');
         
         // Verifica nonce
         if (!isset($_POST['nonce']) && !isset($_POST['_wpnonce'])) {
