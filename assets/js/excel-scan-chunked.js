@@ -21,6 +21,10 @@
             
             console.log('[Excel-Scan-CHUNKED] ? Sovrascrivo handler di #start-scan-btn...');
             
+            // ?? RIABILITA IL PULSANTE (excel-scan.js potrebbe averlo disabilitato)
+            $('#start-scan-btn').prop('disabled', false).removeClass('disabled');
+            console.log('[Excel-Scan-CHUNKED] ?? Pulsante riabilitato forzatamente');
+            
             // Rimuovi TUTTI gli handler esistenti
             $('#start-scan-btn').off('click');
             
