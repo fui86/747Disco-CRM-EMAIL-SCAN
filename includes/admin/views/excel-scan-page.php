@@ -43,6 +43,10 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
         window.disco747ExcelScanData.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
         window.disco747ExcelScanData.nonce = '<?php echo wp_create_nonce('disco747_batch_scan'); ?>';
         console.log('[Excel-Scan-Fix] ✅ Variabili JavaScript inizializzate:', window.disco747ExcelScanData);
+        
+        // ✅ FLAG: Disabilita completamente excel-scan.js
+        window.disco747_USE_INLINE_CHUNKED = true;
+        console.log('[Excel-Scan-Fix] ⚠️ Metodo inline chunked attivato - excel-scan.js verrà ignorato');
         </script>
 
         <!-- Box Scansione -->
@@ -324,13 +328,28 @@ jQuery(document).ready(function($) {
     // ✅ SCAN CHUNKED - Ottimizzato per evitare 503
     // ========================================================================
     
-    let isScanningChunked = false;
+    console.log('[Excel-Scan-Page-Inline] 🎬 Inizializzazione codice inline...');
     
-    $('#start-scan-btn').on('click', async function(e) {
+    // ⏱️ DELAY per sovrascrivere excel-scan.js
+    setTimeout(function() {
+        
+        console.log('[Excel-Scan-Page-Inline] ⚡ Sovrascrivo handler di excel-scan.js...');
+        
+        let isScanningChunked = false;
+        
+        // RIMUOVI TUTTI GLI ALTRI HANDLER PRIMA
+        $('#start-scan-btn').off('click');
+        console.log('[Excel-Scan-Page-Inline] ✅ Handler precedenti rimossi');
+        
+        // POI AGGIUNGI IL NOSTRO
+        $('#start-scan-btn').on('click', async function(e) {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('[Excel-Scan] 🚀 Click rilevato - AVVIO SCAN CHUNKED');
+        console.log('='.repeat(60));
+        console.log('[Excel-Scan] 🚀🚀🚀 CLICK RILEVATO - METODO CHUNKED INLINE');
+        console.log('[Excel-Scan] Timestamp:', new Date().toLocaleTimeString());
+        console.log('='.repeat(60));
         
         if (isScanningChunked) {
             console.log('[Excel-Scan] ⚠️ Scansione già in corso - ignoro click');
@@ -469,6 +488,12 @@ jQuery(document).ready(function($) {
         
         return false;
     });
+    
+    console.log('[Excel-Scan-Page-Inline] ✅ Handler chunked registrato su #start-scan-btn');
+    
+    }, 1000); // Delay 1 secondo per sovrascrivere excel-scan.js
+    
+    console.log('[Excel-Scan-Page-Inline] ⏱️ setTimeout avviato (1000ms) - Handler verrà registrato tra 1 secondo');
 
     function startBatchScanStandard() {
         const year = $('#scan-year').val();
