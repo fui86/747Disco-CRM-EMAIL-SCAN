@@ -546,8 +546,8 @@ class Disco747_GoogleDrive_Sync {
                 'tipo_menu' => trim($sheet->getCell('B1')->getValue() ?? ''),  // B1 = Tipo Menu
                 
                 // 💰 Importi
-                'importo_totale' => floatval($sheet->getCell('C21')->getValue() ?? 0),  // C21 = Importo Totale
-                'acconto' => floatval($sheet->getCell('C23')->getValue() ?? 0),  // C23 = Acconto
+                'importo_totale' => $this->parse_currency_value($sheet->getCell('C21')->getValue()),  // C21 = Importo Totale
+                'acconto' => $this->parse_currency_value($sheet->getCell('C23')->getValue()),  // C23 = Acconto
                 
                 // 🎁 Omaggi
                 'omaggio1' => trim($sheet->getCell('C17')->getValue() ?? ''),  // C17 = Omaggio 1
@@ -556,11 +556,11 @@ class Disco747_GoogleDrive_Sync {
                 
                 // 💰 Extra a Pagamento
                 'extra1' => trim($sheet->getCell('C33')->getValue() ?? ''),  // C33 = Extra 1 Nome
-                'extra1_importo' => floatval($sheet->getCell('F33')->getValue() ?? 0),  // F33 = Extra 1 Importo
+                'extra1_importo' => $this->parse_currency_value($sheet->getCell('F33')->getValue()),  // F33 = Extra 1 Importo
                 'extra2' => trim($sheet->getCell('C34')->getValue() ?? ''),  // C34 = Extra 2 Nome
-                'extra2_importo' => floatval($sheet->getCell('F34')->getValue() ?? 0),  // F34 = Extra 2 Importo
+                'extra2_importo' => $this->parse_currency_value($sheet->getCell('F34')->getValue()),  // F34 = Extra 2 Importo
                 'extra3' => trim($sheet->getCell('C35')->getValue() ?? ''),  // C35 = Extra 3 Nome
-                'extra3_importo' => floatval($sheet->getCell('F35')->getValue() ?? 0),  // F35 = Extra 3 Importo
+                'extra3_importo' => $this->parse_currency_value($sheet->getCell('F35')->getValue()),  // F35 = Extra 3 Importo
                 
                 'stato' => 'attivo'
             );
@@ -573,6 +573,35 @@ class Disco747_GoogleDrive_Sync {
             $this->log('[EXCEL] Errore: ' . $e->getMessage(), 'ERROR');
             return null;
         }
+    }
+
+    /**
+     * Parse currency value - rimuove simboli valuta e converte
+     */
+    private function parse_currency_value($value) {
+        if (empty($value)) {
+            return 0.00;
+        }
+        
+        // Converti in stringa
+        $str_value = strval($value);
+        
+        // Rimuovi simboli valuta comuni: € $ £ ¥
+        $str_value = str_replace(['€', '$', '£', '¥', ' '], '', $str_value);
+        
+        // Gestisci formato italiano (1.590,00 → 1590.00)
+        if (strpos($str_value, ',') !== false && strpos($str_value, '.') !== false) {
+            // Entrambi presenti: rimuovi punti (migliaia) e sostituisci virgola con punto
+            $str_value = str_replace('.', '', $str_value);
+            $str_value = str_replace(',', '.', $str_value);
+        } elseif (strpos($str_value, ',') !== false) {
+            // Solo virgola: sostituisci con punto
+            $str_value = str_replace(',', '.', $str_value);
+        }
+        // Se solo punto, lascia così (formato US)
+        
+        // Converti in float
+        return floatval($str_value);
     }
 
     /**
