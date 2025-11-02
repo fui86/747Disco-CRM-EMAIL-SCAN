@@ -36,6 +36,15 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
         </div>
     <?php else: ?>
 
+        <!-- ✅ FIX: Inizializza variabili JavaScript per excel-scan.js -->
+        <script>
+        window.disco747ExcelScanData = window.disco747ExcelScanData || {};
+        window.disco747ExcelScanData.gdriveAvailable = true;
+        window.disco747ExcelScanData.ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+        window.disco747ExcelScanData.nonce = '<?php echo wp_create_nonce('disco747_batch_scan'); ?>';
+        console.log('[Excel-Scan-Fix] ✅ Variabili JavaScript inizializzate:', window.disco747ExcelScanData);
+        </script>
+
         <!-- Box Scansione -->
         <div class="disco747-box">
             <div class="box-header">
