@@ -34,16 +34,19 @@ class Disco747_Excel_Scan_Handler {
     
     /**
      * Costruttore
+     * ⚠️ HANDLER DISABILITATO - Usa ajax-handlers.php per batch scan ottimizzato
      */
     public function __construct() {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'disco747_preventivi'; // ✅ TABELLA UNIFICATA
         
-        // Registra hooks AJAX
-        add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
-        add_action('wp_ajax_disco747_single_scan_excel', array($this, 'handle_single_scan_ajax'));
+        // ❌ DISABILITATO: Hooks AJAX ora gestiti da ajax-handlers.php con batch ottimizzato
+        // add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
+        // add_action('wp_ajax_disco747_single_scan_excel', array($this, 'handle_single_scan_ajax'));
         
-        // Inizializza Google Drive
+        error_log('[Excel-Scan-Handler] ⚠️ Handler legacy disabilitato - usa ajax-handlers.php');
+        
+        // Inizializza Google Drive (solo per compatibilità)
         $this->init_googledrive();
     }
     
@@ -271,7 +274,22 @@ class Disco747_Excel_Scan_Handler {
                 return false;
             }
             
-            error_log("Disco747 Excel Scan - File scaricato: {$temp_file}");
+            // ✅ VALIDAZIONE CRITICA: Verifica file non vuoto
+            if (!file_exists($temp_file)) {
+                error_log("Disco747 Excel Scan - ERRORE: File non scaricato: {$temp_file}");
+                return false;
+            }
+            
+            $file_size = filesize($temp_file);
+            if ($file_size === 0 || $file_size < 1024) { // Minimo 1KB
+                error_log("Disco747 Excel Scan - ERRORE: File vuoto o troppo piccolo ({$file_size} bytes): {$temp_file}");
+                if (file_exists($temp_file)) {
+                    unlink($temp_file);
+                }
+                return false;
+            }
+            
+            error_log("Disco747 Excel Scan - File scaricato: {$temp_file} (" . number_format($file_size) . " bytes)");
             
             // ✅ Parsing reale con PhpSpreadsheet
             $parsed_data = $this->parse_excel_with_phpspreadsheet($temp_file, $file_info);
@@ -290,10 +308,22 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
-     * ✅ REALE: Parsing Excel con PhpSpreadsheet
+     * ✅ REALE: Parsing Excel con PhpSpreadsheet + VALIDAZIONE ROBUSTA
      */
     private function parse_excel_with_phpspreadsheet($file_path, $file_info) {
         try {
+            // ✅ VALIDAZIONE PRE-PARSING
+            if (!file_exists($file_path)) {
+                error_log('Disco747 Excel Scan - File non trovato: ' . $file_path);
+                return false;
+            }
+            
+            $file_size = filesize($file_path);
+            if ($file_size === 0) {
+                error_log('Disco747 Excel Scan - File vuoto: ' . $file_path);
+                return false;
+            }
+            
             // Carica PhpSpreadsheet se disponibile
             if (!class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
                 // Prova a caricare da Composer autoload se presente
@@ -306,8 +336,21 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
-            // Carica il file Excel
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            // ✅ CARICAMENTO CON TRY-CATCH SPECIFICO
+            try {
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+                error_log('Disco747 Excel Scan - ERRORE PhpSpreadsheet load: ' . $e->getMessage());
+                error_log('Disco747 Excel Scan - File path: ' . $file_path . ', size: ' . $file_size);
+                return false;
+            }
+            
+            // ✅ VALIDAZIONE FOGLIO
+            if ($spreadsheet->getSheetCount() === 0) {
+                error_log('Disco747 Excel Scan - File Excel senza fogli: ' . $file_path);
+                return false;
+            }
+            
             $worksheet = $spreadsheet->getActiveSheet();
             
             // ✅ Mapping secondo il template specificato
@@ -626,5 +669,6 @@ class Disco747_Excel_Scan_Handler {
     }
 }
 
-// Inizializza l'handler
-new Disco747_Excel_Scan_Handler();
+// ❌ DISABILITATO: Handler legacy non più utilizzato
+// L'elaborazione batch è ora gestita da ajax-handlers.php con sistema ottimizzato
+// new Disco747_Excel_Scan_Handler();

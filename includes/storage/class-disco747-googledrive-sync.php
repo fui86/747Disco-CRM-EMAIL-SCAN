@@ -75,15 +75,27 @@ class Disco747_GoogleDrive_Sync {
     }
 
     /**
-     * METODO BATCH SCAN con TEST LIMITATO a 5 file
+     * ✅ METODO BATCH SCAN OTTIMIZZATO - Elaborazione a lotti per evitare timeout
+     * 
+     * @param int $offset Offset di partenza (per paginazione)
+     * @param int $batch_size Numero di file per batch (default: 10)
+     * @return array Risultati elaborazione con informazioni next_offset
      */
-    public function scan_excel_files_batch($test_mode = true, $limit = 5) {
-        $this->log('[BATCH-SCAN] ========== INIZIO BATCH SCAN CON ANALISI ==========');
+    public function scan_excel_files_batch($offset = 0, $batch_size = 10) {
+        // ✅ TIMEOUT ESTESO per batch processing
+        set_time_limit(120); // 2 minuti per batch
+        ini_set('max_execution_time', '120');
+        
+        $this->log('[BATCH-SCAN] ========== INIZIO BATCH SCAN OTTIMIZZATO ==========');
+        $this->log('[BATCH-SCAN] Offset: ' . $offset . ', Batch size: ' . $batch_size);
         
         $messages = array();
         $new_count = 0;
         $updated_count = 0;
         $error_count = 0;
+        $total_files = 0;
+        $has_more = false;
+        $next_offset = 0;
         
         try {
             // Step 1: Verifica token
@@ -92,7 +104,6 @@ class Disco747_GoogleDrive_Sync {
                 throw new \Exception('Token Google Drive non valido');
             }
             $this->log('[Token] Token ottenuto con successo');
-            $messages[] = '✅ Token Google Drive ottenuto';
             
             // Step 2: Trova cartella principale
             $main_folder_id = $this->find_main_folder_safe($token);
@@ -100,66 +111,100 @@ class Disco747_GoogleDrive_Sync {
                 throw new \Exception('Cartella /747-Preventivi/ non trovata');
             }
             $this->log("Cartella 747-Preventivi trovata: {$main_folder_id}");
-            $messages[] = '✅ Cartella /747-Preventivi/ trovata';
             
-            // Step 3: Trova TUTTI i file Excel
-            $all_files = $this->scan_all_excel_files_recursive($main_folder_id, $token);
-            $total_files = count($all_files);
-            $this->log("[BATCH] Trovati {$total_files} file Excel totali");
-            $messages[] = "📊 Trovati {$total_files} file Excel totali";
-            
-            // TEST MODE: Limita a 5 file
-            if ($test_mode && $total_files > $limit) {
-                $all_files = array_slice($all_files, 0, $limit);
-                $messages[] = "🔧 TEST MODE: Analisi limitata a {$limit} file";
-                $this->log("[BATCH] TEST MODE: Limitato a {$limit} file");
+            // Step 3: Trova TUTTI i file Excel (solo al primo batch)
+            if ($offset === 0) {
+                // Cache lista file per i batch successivi
+                $all_files = $this->scan_all_excel_files_recursive($main_folder_id, $token);
+                set_transient('disco747_scan_files_cache', $all_files, 300); // 5 minuti cache
+            } else {
+                // Recupera da cache
+                $all_files = get_transient('disco747_scan_files_cache');
+                if (!$all_files) {
+                    throw new \Exception('Cache file scaduta. Riavvia scansione.');
+                }
             }
             
-            // Step 4: Processa ogni file
-            foreach ($all_files as $index => $file) {
-                $file_number = $index + 1;
+            $total_files = count($all_files);
+            $this->log("[BATCH] Totale file Excel: {$total_files}, Offset: {$offset}");
+            
+            // ✅ Estrai solo il batch corrente
+            $batch_files = array_slice($all_files, $offset, $batch_size);
+            $batch_count = count($batch_files);
+            
+            $this->log("[BATCH] Processando batch di {$batch_count} file (da {$offset} a " . ($offset + $batch_count) . ")");
+            
+            // Step 4: Processa batch corrente con gestione errori robusta
+            foreach ($batch_files as $index => $file) {
+                $file_number = $offset + $index + 1;
                 $file_name = $file['filename'] ?? 'Unknown';
                 
-                $this->log("[BATCH] Processamento file: {$file_name}");
+                $this->log("[BATCH] [{$file_number}/{$total_files}] Processamento: {$file_name}");
                 
                 try {
+                    // ✅ TRY-CATCH ROBUSTO per evitare che un file corrotto blocchi tutto
                     $result = $this->process_single_excel_file($file, $token);
                     
-                    if ($result['success']) {
-                        if ($result['action'] === 'inserted') {
+                    if ($result && isset($result['success']) && $result['success']) {
+                        if (isset($result['action']) && $result['action'] === 'inserted') {
                             $new_count++;
                         } else {
                             $updated_count++;
                         }
+                        $this->log("[BATCH] ✅ Processato: {$file_name}");
                     } else {
                         $error_count++;
-                        $messages[] = "❌ Errore: {$file_name} - " . ($result['error'] ?? 'Errore sconosciuto');
+                        $error_msg = isset($result['error']) ? $result['error'] : 'Errore sconosciuto';
+                        $this->log("[BATCH] ❌ Errore: {$file_name} - {$error_msg}", 'ERROR');
                     }
                     
-                } catch (\Exception $e) {
+                } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+                    // Errore specifico PhpSpreadsheet (file corrotto/vuoto)
                     $error_count++;
-                    $messages[] = "❌ Errore: {$file_name} - " . $e->getMessage();
-                    $this->log("[BATCH] Errore processamento: " . $e->getMessage(), 'ERROR');
+                    $this->log("[BATCH] ❌ File Excel corrotto/vuoto: {$file_name} - " . $e->getMessage(), 'ERROR');
+                } catch (\Exception $e) {
+                    // Qualsiasi altro errore
+                    $error_count++;
+                    $this->log("[BATCH] ❌ Errore generico: {$file_name} - " . $e->getMessage(), 'ERROR');
+                } catch (\Throwable $e) {
+                    // Catch anche errori fatali PHP 7+
+                    $error_count++;
+                    $this->log("[BATCH] ❌ Errore fatale: {$file_name} - " . $e->getMessage(), 'ERROR');
                 }
             }
             
-            $messages[] = '✅ Batch scan completato';
-            $messages[] = "📊 Risultati: {$new_count} nuovi, {$updated_count} aggiornati, {$error_count} errori";
+            // ✅ Calcola se ci sono altri file
+            $next_offset = $offset + $batch_size;
+            $has_more = $next_offset < $total_files;
+            
+            if (!$has_more) {
+                // Pulizia cache alla fine
+                delete_transient('disco747_scan_files_cache');
+                $messages[] = '✅ Scansione completata!';
+            } else {
+                $messages[] = "⏳ Elaborati {$next_offset}/{$total_files} file...";
+            }
+            
             
         } catch (\Exception $e) {
             $messages[] = '❌ Errore batch scan: ' . $e->getMessage();
             $this->log('[BATCH-SCAN] Errore: ' . $e->getMessage(), 'ERROR');
         }
         
-        $this->log('[BATCH-SCAN] ========== FINE BATCH SCAN ==========');
+        $this->log('[BATCH-SCAN] ========== FINE BATCH (Offset: ' . $offset . ') ==========');
         
         return array(
-            'success' => $error_count === 0,
-            'found' => $total_files ?? 0,
-            'processed' => $new_count + $updated_count,
+            'success' => true,
+            'total_files' => $total_files,
+            'offset' => $offset,
+            'batch_size' => $batch_size,
+            'processed_in_batch' => $new_count + $updated_count,
             'new' => $new_count,
             'updated' => $updated_count,
             'errors' => $error_count,
+            'has_more' => $has_more,
+            'next_offset' => $next_offset,
+            'progress_percent' => $total_files > 0 ? round(($offset + $batch_count) / $total_files * 100) : 100,
             'messages' => $messages
         );
     }
@@ -253,6 +298,8 @@ class Disco747_GoogleDrive_Sync {
                     'numero_invitati' => intval($data['numero_invitati'] ?? $existing->numero_invitati),
                     'orario_evento' => $data['orario_evento'] ?? $existing->orario_evento,
                     'nome_cliente' => $data['nome_cliente'] ?? $existing->nome_cliente,
+                    'nome_referente' => $data['nome_referente'] ?? $existing->nome_referente ?? '',
+                    'cognome_referente' => $data['cognome_referente'] ?? $existing->cognome_referente ?? '',
                     'telefono' => $data['telefono'] ?? $existing->telefono,
                     'email' => $data['email'] ?? $existing->email,
                     'importo_totale' => floatval($data['importo_totale'] ?? $existing->importo_totale),
@@ -314,6 +361,8 @@ class Disco747_GoogleDrive_Sync {
                     'numero_invitati' => intval($data['numero_invitati'] ?? 0),
                     'orario_evento' => $data['orario_evento'] ?? '',
                     'nome_cliente' => $data['nome_cliente'] ?? '',
+                    'nome_referente' => $data['nome_referente'] ?? '',
+                    'cognome_referente' => $data['cognome_referente'] ?? '',
                     'telefono' => $data['telefono'] ?? '',
                     'email' => $data['email'] ?? '',
                     'importo_totale' => floatval($data['importo_totale'] ?? 0),
@@ -392,15 +441,41 @@ class Disco747_GoogleDrive_Sync {
             
             $body = wp_remote_retrieve_body($response);
             
+            // ✅ VALIDAZIONE CRITICA: Verifica contenuto non vuoto
             if (empty($body)) {
-                return array('success' => false, 'error' => 'File vuoto');
+                $this->log('[DOWNLOAD] ERRORE: Contenuto vuoto per file_id: ' . $file_id, 'ERROR');
+                return array('success' => false, 'error' => 'File vuoto scaricato da Google Drive');
             }
             
-            file_put_contents($temp_path, $body);
+            $content_size = strlen($body);
+            if ($content_size < 1024) { // File Excel deve essere minimo 1KB
+                $this->log('[DOWNLOAD] WARNING: File molto piccolo (' . $content_size . ' bytes) per file_id: ' . $file_id, 'WARNING');
+            }
             
-            $this->log('[DOWNLOAD] File salvato: ' . $temp_path . ' (' . strlen($body) . ' bytes)');
+            // Salva file
+            $bytes_written = file_put_contents($temp_path, $body);
             
-            return array('success' => true, 'path' => $temp_path);
+            if ($bytes_written === false || $bytes_written === 0) {
+                $this->log('[DOWNLOAD] ERRORE: Impossibile scrivere file: ' . $temp_path, 'ERROR');
+                return array('success' => false, 'error' => 'Impossibile salvare file su disco');
+            }
+            
+            // ✅ VERIFICA FINALE: File salvato correttamente
+            if (!file_exists($temp_path) || filesize($temp_path) === 0) {
+                $this->log('[DOWNLOAD] ERRORE: File salvato ma vuoto o inesistente: ' . $temp_path, 'ERROR');
+                if (file_exists($temp_path)) {
+                    unlink($temp_path);
+                }
+                return array('success' => false, 'error' => 'File salvato ma risulta vuoto');
+            }
+            
+            $this->log('[DOWNLOAD] ✅ File salvato: ' . $temp_path . ' (' . number_format($bytes_written) . ' bytes)');
+            
+            return array(
+                'success' => true, 
+                'path' => $temp_path,
+                'size' => $bytes_written
+            );
             
         } catch (\Exception $e) {
             return array('success' => false, 'error' => $e->getMessage());
@@ -408,38 +483,85 @@ class Disco747_GoogleDrive_Sync {
     }
 
     /**
-     * Estrai dati da file Excel
+     * Estrai dati da file Excel con validazione robusta
      */
     private function extract_data_from_excel($file_path) {
         try {
             $this->log('[EXCEL] Apertura file: ' . $file_path);
             
+            // ✅ VALIDAZIONE PRE-LOAD
+            if (!file_exists($file_path)) {
+                $this->log('[EXCEL] ERRORE: File non esiste: ' . $file_path, 'ERROR');
+                return null;
+            }
+            
+            $file_size = filesize($file_path);
+            if ($file_size === 0 || $file_size === false) {
+                $this->log('[EXCEL] ERRORE: File vuoto o illeggibile (size: ' . $file_size . ')', 'ERROR');
+                return null;
+            }
+            
+            $this->log('[EXCEL] Dimensione file: ' . number_format($file_size) . ' bytes');
+            
             require_once DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php';
             
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            // ✅ LOAD CON TRY-CATCH SPECIFICO
+            try {
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+            } catch (\PhpOffice\PhpSpreadsheet\Reader\Exception $e) {
+                $this->log('[EXCEL] ERRORE PhpSpreadsheet load: ' . $e->getMessage(), 'ERROR');
+                return null;
+            } catch (\Exception $e) {
+                $this->log('[EXCEL] ERRORE generico load: ' . $e->getMessage(), 'ERROR');
+                return null;
+            }
+            
+            // ✅ VALIDAZIONE FOGLIO
+            if ($spreadsheet->getSheetCount() === 0) {
+                $this->log('[EXCEL] ERRORE: Nessun foglio trovato nel file', 'ERROR');
+                return null;
+            }
+            
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Leggi celle specifiche (Template Nuovo)
+            // ✅ MAPPATURA CELLE CORRETTA (Template 747 Disco)
+            $nome = trim($sheet->getCell('C11')->getValue() ?? '');  // C11 = Nome
+            $cognome = trim($sheet->getCell('C12')->getValue() ?? '');  // C12 = Cognome
+            
             $data = array(
-                'nome_cliente' => trim($sheet->getCell('C5')->getValue() ?? ''),
-                'telefono' => trim($sheet->getCell('C6')->getValue() ?? ''),
-                'email' => trim($sheet->getCell('C7')->getValue() ?? ''),
-                'tipo_evento' => trim($sheet->getCell('C8')->getValue() ?? ''),
-                'data_evento' => $this->normalize_date($sheet->getCell('C9')->getValue()),
-                'orario_evento' => trim($sheet->getCell('C10')->getValue() ?? ''),
-                'numero_invitati' => intval($sheet->getCell('C11')->getValue() ?? 0),
-                'tipo_menu' => trim($sheet->getCell('A18')->getValue() ?? ''),
-                'importo_totale' => floatval($sheet->getCell('D23')->getValue() ?? 0),
-                'acconto' => 0, // Da implementare se necessario
-                'omaggio1' => trim($sheet->getCell('A27')->getValue() ?? ''),
-                'omaggio2' => trim($sheet->getCell('A28')->getValue() ?? ''),
-                'omaggio3' => trim($sheet->getCell('A29')->getValue() ?? ''),
-                'extra1' => trim($sheet->getCell('A31')->getValue() ?? ''),
-                'extra1_importo' => floatval($sheet->getCell('D31')->getValue() ?? 0),
-                'extra2' => trim($sheet->getCell('A32')->getValue() ?? ''),
-                'extra2_importo' => floatval($sheet->getCell('D32')->getValue() ?? 0),
-                'extra3' => '',
-                'extra3_importo' => 0,
+                // 👤 Dati Referente
+                'nome_cliente' => trim($nome . ' ' . $cognome),  // Nome completo
+                'nome_referente' => $nome,  // Nome separato
+                'cognome_referente' => $cognome,  // Cognome separato
+                'telefono' => trim($sheet->getCell('C14')->getValue() ?? ''),  // C14 = Telefono
+                'email' => trim($sheet->getCell('C15')->getValue() ?? ''),  // C15 = Email
+                
+                // 🎉 Dati Evento
+                'data_evento' => $this->normalize_date($sheet->getCell('C6')->getValue()),  // C6 = Data Evento
+                'tipo_evento' => trim($sheet->getCell('C7')->getValue() ?? ''),  // C7 = Tipo Evento
+                'orario_evento' => trim($sheet->getCell('C8')->getValue() ?? ''),  // C8 = Orario
+                'numero_invitati' => intval($sheet->getCell('C9')->getValue() ?? 0),  // C9 = N. Invitati
+                
+                // 🍽️ Menu
+                'tipo_menu' => trim($sheet->getCell('B1')->getValue() ?? ''),  // B1 = Tipo Menu
+                
+                // 💰 Importi
+                'importo_totale' => $this->parse_currency_value($sheet->getCell('C21')->getValue()),  // C21 = Importo Totale
+                'acconto' => $this->parse_currency_value($sheet->getCell('C23')->getValue()),  // C23 = Acconto
+                
+                // 🎁 Omaggi
+                'omaggio1' => trim($sheet->getCell('C17')->getValue() ?? ''),  // C17 = Omaggio 1
+                'omaggio2' => trim($sheet->getCell('C18')->getValue() ?? ''),  // C18 = Omaggio 2
+                'omaggio3' => trim($sheet->getCell('C19')->getValue() ?? ''),  // C19 = Omaggio 3
+                
+                // 💰 Extra a Pagamento
+                'extra1' => trim($sheet->getCell('C33')->getValue() ?? ''),  // C33 = Extra 1 Nome
+                'extra1_importo' => $this->parse_currency_value($sheet->getCell('F33')->getValue()),  // F33 = Extra 1 Importo
+                'extra2' => trim($sheet->getCell('C34')->getValue() ?? ''),  // C34 = Extra 2 Nome
+                'extra2_importo' => $this->parse_currency_value($sheet->getCell('F34')->getValue()),  // F34 = Extra 2 Importo
+                'extra3' => trim($sheet->getCell('C35')->getValue() ?? ''),  // C35 = Extra 3 Nome
+                'extra3_importo' => $this->parse_currency_value($sheet->getCell('F35')->getValue()),  // F35 = Extra 3 Importo
+                
                 'stato' => 'attivo'
             );
             
@@ -451,6 +573,35 @@ class Disco747_GoogleDrive_Sync {
             $this->log('[EXCEL] Errore: ' . $e->getMessage(), 'ERROR');
             return null;
         }
+    }
+
+    /**
+     * Parse currency value - rimuove simboli valuta e converte
+     */
+    private function parse_currency_value($value) {
+        if (empty($value)) {
+            return 0.00;
+        }
+        
+        // Converti in stringa
+        $str_value = strval($value);
+        
+        // Rimuovi simboli valuta comuni: € $ £ ¥
+        $str_value = str_replace(['€', '$', '£', '¥', ' '], '', $str_value);
+        
+        // Gestisci formato italiano (1.590,00 → 1590.00)
+        if (strpos($str_value, ',') !== false && strpos($str_value, '.') !== false) {
+            // Entrambi presenti: rimuovi punti (migliaia) e sostituisci virgola con punto
+            $str_value = str_replace('.', '', $str_value);
+            $str_value = str_replace(',', '.', $str_value);
+        } elseif (strpos($str_value, ',') !== false) {
+            // Solo virgola: sostituisci con punto
+            $str_value = str_replace(',', '.', $str_value);
+        }
+        // Se solo punto, lascia così (formato US)
+        
+        // Converti in float
+        return floatval($str_value);
     }
 
     /**

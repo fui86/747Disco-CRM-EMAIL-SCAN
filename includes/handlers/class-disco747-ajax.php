@@ -101,8 +101,8 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_test_storage', array($this, 'handle_storage_test'));
         add_action('wp_ajax_disco747_update_setting', array($this, 'handle_update_setting'));
         
-        // Batch scan Excel da Google Drive
-        add_action('wp_ajax_disco747_scan_drive_batch', array($this, 'handle_batch_scan'));
+        // ❌ DISABILITATO: Batch scan Excel ora gestito da ajax-handlers.php con sistema ottimizzato
+        // add_action('wp_ajax_disco747_scan_drive_batch', array($this, 'handle_batch_scan'));
         
         // Template messaggi
         add_action('wp_ajax_disco747_get_templates', array($this, 'handle_get_templates'));
@@ -110,69 +110,22 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_send_email_template', array($this, 'handle_send_email_template'));
         add_action('wp_ajax_disco747_send_whatsapp_template', array($this, 'handle_send_whatsapp_template'));
         
-        $this->log('Hook AJAX registrati (incluso batch scan + templates + send email + whatsapp)');
+        $this->log('Hook AJAX registrati (templates + send email + whatsapp) - batch scan disabilitato, usa ajax-handlers.php');
     }
 
     /**
      * Ã¢Å“â€¦ NUOVO: Handler per batch scan di file Excel su Google Drive
      */
+    /**
+     * Handler batch scan deprecato - usa ajax-handlers.php
+     */
     public function handle_batch_scan() {
-        error_log('[747Disco-AJAX] handle_batch_scan chiamato');
-        
-        try {
-            // Verifica nonce
-            if (!check_ajax_referer('disco747_admin_nonce', 'nonce', false)) {
-                error_log('[747Disco-AJAX] Nonce non valido');
-                wp_send_json_error('Nonce non valido');
-                return;
-            }
-            
-            error_log('[747Disco-AJAX] Nonce OK');
-            
-            // Verifica permessi
-            if (!current_user_can('manage_options')) {
-                error_log('[747Disco-AJAX] Permessi insufficienti');
-                wp_send_json_error('Permessi insufficienti');
-                return;
-            }
-            
-            error_log('[747Disco-AJAX] Permessi OK');
-            
-            // Verifica che GoogleDrive Sync sia disponibile
-            if (!$this->googledrive_sync) {
-                error_log('[747Disco-AJAX] GoogleDrive Sync non disponibile');
-                wp_send_json_error('Servizio GoogleDrive Sync non disponibile');
-                return;
-            }
-            
-            error_log('[747Disco-AJAX] GoogleDrive Sync disponibile, avvio scansione...');
-            
-            // Ã¢Å“â€¦ TEMPORANEO: Risposta di test (Step 2)
-            // Nello Step 3 sostituiremo con: $result = $this->googledrive_sync->scan_excel_files_batch();
-            
-            $result = array(
-                'found' => 15,
-                'processed' => 15,
-                'inserted' => 5,
-                'updated' => 10,
-                'errors' => 0,
-                'messages' => array(
-                    'Ã¢Å“â€¦ TEST STEP 2: Endpoint AJAX funzionante',
-                    'Ã°Å¸â€œÂ¡ Comunicazione server OK',
-                    'Ã°Å¸â€â€˜ Nonce e permessi verificati',
-                    'Ã¢ÂÂ­Ã¯Â¸Â Prossimo step: implementare logica scan vera'
-                )
-            );
-            
-            error_log('[747Disco-AJAX] Risposta test generata: ' . json_encode($result));
-            
-            wp_send_json_success($result);
-            
-        } catch (\Exception $e) {
-            error_log('[747Disco-AJAX] Errore batch scan: ' . $e->getMessage());
-            wp_send_json_error('Errore: ' . $e->getMessage());
-        }
+        error_log('[747Disco-AJAX] Handler batch_scan LEGACY chiamato - usa ajax-handlers.php invece');
+        wp_send_json_error(array(
+            'message' => 'Handler deprecato. Usa action: batch_scan_excel'
+        ));
     }
+
 
     /**
      * Test storage connection
