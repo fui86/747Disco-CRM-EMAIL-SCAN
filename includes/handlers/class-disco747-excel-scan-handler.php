@@ -20,6 +20,8 @@ if (!defined('ABSPATH')) {
  * Classe per gestire la scansione automatica dei file Excel da Google Drive
  * VERSIONE AGGIORNATA: Implementa scansione reale e salvataggio unificato
  */
+if (!class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
+    
 class Disco747_Excel_Scan_Handler {
     
     /**
@@ -705,7 +707,11 @@ class Disco747_Excel_Scan_Handler {
             error_log("Disco747 Excel Scan [{$level}]: {$message}");
         }
     }
-}
+} // Fine classe Disco747_Excel_Scan_Handler
 
-// ✅ SINGLETON: Inizializza l'handler unico
-Disco747_Excel_Scan_Handler::get_instance();
+} // Fine if (!class_exists)
+
+// ✅ SINGLETON: Inizializza l'handler unico (solo se non già istanziato)
+if (class_exists('Disco747_CRM\\Handlers\\Disco747_Excel_Scan_Handler')) {
+    \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler::get_instance();
+}
