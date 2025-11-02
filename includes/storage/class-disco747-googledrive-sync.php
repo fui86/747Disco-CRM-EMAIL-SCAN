@@ -298,6 +298,8 @@ class Disco747_GoogleDrive_Sync {
                     'numero_invitati' => intval($data['numero_invitati'] ?? $existing->numero_invitati),
                     'orario_evento' => $data['orario_evento'] ?? $existing->orario_evento,
                     'nome_cliente' => $data['nome_cliente'] ?? $existing->nome_cliente,
+                    'nome_referente' => $data['nome_referente'] ?? $existing->nome_referente ?? '',
+                    'cognome_referente' => $data['cognome_referente'] ?? $existing->cognome_referente ?? '',
                     'telefono' => $data['telefono'] ?? $existing->telefono,
                     'email' => $data['email'] ?? $existing->email,
                     'importo_totale' => floatval($data['importo_totale'] ?? $existing->importo_totale),
@@ -359,6 +361,8 @@ class Disco747_GoogleDrive_Sync {
                     'numero_invitati' => intval($data['numero_invitati'] ?? 0),
                     'orario_evento' => $data['orario_evento'] ?? '',
                     'nome_cliente' => $data['nome_cliente'] ?? '',
+                    'nome_referente' => $data['nome_referente'] ?? '',
+                    'cognome_referente' => $data['cognome_referente'] ?? '',
                     'telefono' => $data['telefono'] ?? '',
                     'email' => $data['email'] ?? '',
                     'importo_totale' => floatval($data['importo_totale'] ?? 0),
@@ -520,27 +524,44 @@ class Disco747_GoogleDrive_Sync {
             
             $sheet = $spreadsheet->getActiveSheet();
             
-            // Leggi celle specifiche (Template Nuovo)
+            // ✅ MAPPATURA CELLE CORRETTA (Template 747 Disco)
+            $nome = trim($sheet->getCell('C11')->getValue() ?? '');  // C11 = Nome
+            $cognome = trim($sheet->getCell('C12')->getValue() ?? '');  // C12 = Cognome
+            
             $data = array(
-                'nome_cliente' => trim($sheet->getCell('C5')->getValue() ?? ''),
-                'telefono' => trim($sheet->getCell('C6')->getValue() ?? ''),
-                'email' => trim($sheet->getCell('C7')->getValue() ?? ''),
-                'tipo_evento' => trim($sheet->getCell('C8')->getValue() ?? ''),
-                'data_evento' => $this->normalize_date($sheet->getCell('C9')->getValue()),
-                'orario_evento' => trim($sheet->getCell('C10')->getValue() ?? ''),
-                'numero_invitati' => intval($sheet->getCell('C11')->getValue() ?? 0),
-                'tipo_menu' => trim($sheet->getCell('A18')->getValue() ?? ''),
-                'importo_totale' => floatval($sheet->getCell('D23')->getValue() ?? 0),
-                'acconto' => 0, // Da implementare se necessario
-                'omaggio1' => trim($sheet->getCell('A27')->getValue() ?? ''),
-                'omaggio2' => trim($sheet->getCell('A28')->getValue() ?? ''),
-                'omaggio3' => trim($sheet->getCell('A29')->getValue() ?? ''),
-                'extra1' => trim($sheet->getCell('A31')->getValue() ?? ''),
-                'extra1_importo' => floatval($sheet->getCell('D31')->getValue() ?? 0),
-                'extra2' => trim($sheet->getCell('A32')->getValue() ?? ''),
-                'extra2_importo' => floatval($sheet->getCell('D32')->getValue() ?? 0),
-                'extra3' => '',
-                'extra3_importo' => 0,
+                // 👤 Dati Referente
+                'nome_cliente' => trim($nome . ' ' . $cognome),  // Nome completo
+                'nome_referente' => $nome,  // Nome separato
+                'cognome_referente' => $cognome,  // Cognome separato
+                'telefono' => trim($sheet->getCell('C14')->getValue() ?? ''),  // C14 = Telefono
+                'email' => trim($sheet->getCell('C15')->getValue() ?? ''),  // C15 = Email
+                
+                // 🎉 Dati Evento
+                'data_evento' => $this->normalize_date($sheet->getCell('C6')->getValue()),  // C6 = Data Evento
+                'tipo_evento' => trim($sheet->getCell('C7')->getValue() ?? ''),  // C7 = Tipo Evento
+                'orario_evento' => trim($sheet->getCell('C8')->getValue() ?? ''),  // C8 = Orario
+                'numero_invitati' => intval($sheet->getCell('C9')->getValue() ?? 0),  // C9 = N. Invitati
+                
+                // 🍽️ Menu
+                'tipo_menu' => trim($sheet->getCell('B1')->getValue() ?? ''),  // B1 = Tipo Menu
+                
+                // 💰 Importi
+                'importo_totale' => floatval($sheet->getCell('C21')->getValue() ?? 0),  // C21 = Importo Totale
+                'acconto' => floatval($sheet->getCell('C23')->getValue() ?? 0),  // C23 = Acconto
+                
+                // 🎁 Omaggi
+                'omaggio1' => trim($sheet->getCell('C17')->getValue() ?? ''),  // C17 = Omaggio 1
+                'omaggio2' => trim($sheet->getCell('C18')->getValue() ?? ''),  // C18 = Omaggio 2
+                'omaggio3' => trim($sheet->getCell('C19')->getValue() ?? ''),  // C19 = Omaggio 3
+                
+                // 💰 Extra a Pagamento
+                'extra1' => trim($sheet->getCell('C33')->getValue() ?? ''),  // C33 = Extra 1 Nome
+                'extra1_importo' => floatval($sheet->getCell('F33')->getValue() ?? 0),  // F33 = Extra 1 Importo
+                'extra2' => trim($sheet->getCell('C34')->getValue() ?? ''),  // C34 = Extra 2 Nome
+                'extra2_importo' => floatval($sheet->getCell('F34')->getValue() ?? 0),  // F34 = Extra 2 Importo
+                'extra3' => trim($sheet->getCell('C35')->getValue() ?? ''),  // C35 = Extra 3 Nome
+                'extra3_importo' => floatval($sheet->getCell('F35')->getValue() ?? 0),  // F35 = Extra 3 Importo
+                
                 'stato' => 'attivo'
             );
             
