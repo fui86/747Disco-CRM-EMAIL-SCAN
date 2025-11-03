@@ -202,7 +202,7 @@ class Disco747_Admin {
                 
             default:
                 $this->log('Rendering dashboard principale');
-                require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/main-page.php';
+                $this->render_main_dashboard_page();
                 break;
         }
     }
@@ -518,6 +518,91 @@ class Disco747_Admin {
         return $links;
     }
 
+    /**
+     * Render dashboard principale con dati
+     */
+    private function render_main_dashboard_page() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'disco747_preventivi';
+        
+        // Statistiche
+        $stats = array(
+            'total' => intval($wpdb->get_var("SELECT COUNT(*) FROM {$table}")),
+            'attivi' => intval($wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE stato = 'attivo'")),
+            'confermati' => intval($wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE acconto > 0 OR stato = 'confermato'")),
+            'annullati' => intval($wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE stato = 'annullato'")),
+            'this_month' => intval($wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE MONTH(created_at) = %d AND YEAR(created_at) = %d",
+                date('m'),
+                date('Y')
+            )))
+        );
+        
+        // Preventivi futuri (da oggi in poi)
+        $preventivi_futuri = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table} WHERE data_evento >= %s ORDER BY data_evento ASC LIMIT 50",
+            date('Y-m-d')
+        ), ARRAY_A);
+        
+        // Preventivi recenti (ultimi 10)
+        $preventivi_recenti = $wpdb->get_results(
+            "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT 10",
+            ARRAY_A
+        );
+        
+        // Dati per grafici
+        $chart_data = $this->get_chart_data();
+        
+        // System status
+        $system_status = array(
+            'plugin_version' => DISCO747_CRM_VERSION,
+            'storage_type' => get_option('disco747_storage_type', 'googledrive'),
+            'storage_connected' => false
+        );
+        
+        // Passa variabili alla vista
+        require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/main-page.php';
+    }
+    
+    /**
+     * Ottieni dati per grafici
+     */
+    private function get_chart_data() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'disco747_preventivi';
+        
+        // Preventivi per mese (ultimi 6 mesi)
+        $preventivi_per_mese = array();
+        for ($i = 5; $i >= 0; $i--) {
+            $month = date('Y-m', strtotime("-{$i} months"));
+            $count = intval($wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table} WHERE DATE_FORMAT(data_evento, '%%Y-%%m') = %s",
+                $month
+            )));
+            $preventivi_per_mese[] = array(
+                'month' => date('M Y', strtotime($month . '-01')),
+                'count' => $count
+            );
+        }
+        
+        // Conferme vs non confermati (ultimi 30 giorni)
+        $confermati_count = intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s AND (acconto > 0 OR stato = 'confermato')",
+            date('Y-m-d', strtotime('-30 days'))
+        )));
+        
+        $non_confermati_count = intval($wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s AND acconto = 0 AND stato != 'confermato' AND stato != 'annullato'",
+            date('Y-m-d', strtotime('-30 days'))
+        )));
+        
+        return array(
+            'preventivi_per_mese' => $preventivi_per_mese,
+            'confermati' => $confermati_count,
+            'non_confermati' => $non_confermati_count
+        );
+    }
+    
     private function log($message, $level = 'INFO') {
         if (!$this->debug_mode) return;
         $prefix = '[747Disco-Admin]';
