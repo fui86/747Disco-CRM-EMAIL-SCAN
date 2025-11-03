@@ -4,9 +4,13 @@
  * Versione 11.8.5 - Con link modifica corretto
  */
 
+// Forza encoding UTF-8
+header('Content-Type: text/html; charset=UTF-8');
+
 if (!defined('ABSPATH')) exit;
 
 global $wpdb;
+$wpdb->query("SET NAMES 'utf8mb4'");
 $table = $wpdb->prefix . 'disco747_preventivi';
 
 $per_page = 20;
@@ -51,6 +55,7 @@ $ann = $wpdb->get_var("SELECT COUNT(*) FROM {$table} WHERE stato = 'annullato'")
 $pages = ceil($total / $per_page);
 ?>
 
+<meta charset="UTF-8">
 <div class="wrap" style="max-width:1400px;margin:20px auto">
 
 <!-- Header con pulsante Nuovo Preventivo -->
