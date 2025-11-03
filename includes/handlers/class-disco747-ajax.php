@@ -206,7 +206,308 @@ class Disco747_Ajax {
         }
     }
 
-    // ... resto dei metodi esistenti per compatibilità ...
+    /**
+     * 📧 Handler per invio email con template
+     */
+    public function handle_send_email_template() {
+        try {
+            $this->log('[Email] Richiesta invio email template');
+            
+            // Verifica nonce
+            if (!check_ajax_referer('disco747_send_email', 'nonce', false)) {
+                throw new \Exception('Nonce non valido');
+            }
+            
+            // Verifica permessi
+            if (!current_user_can('manage_options')) {
+                throw new \Exception('Permessi insufficienti');
+            }
+            
+            // Ottieni parametri
+            $preventivo_id = isset($_POST['preventivo_id']) ? intval($_POST['preventivo_id']) : 0;
+            $template_id = isset($_POST['template_id']) ? sanitize_text_field($_POST['template_id']) : '1';
+            $attach_pdf = isset($_POST['attach_pdf']) && $_POST['attach_pdf'] === '1';
+            
+            if ($preventivo_id <= 0) {
+                throw new \Exception('ID preventivo non valido');
+            }
+            
+            $this->log("[Email] Preventivo ID: {$preventivo_id}, Template: {$template_id}, Allega PDF: " . ($attach_pdf ? 'SI' : 'NO'));
+            
+            // Carica preventivo dal database
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'disco747_preventivi';
+            
+            $preventivo = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $preventivo_id
+            ), ARRAY_A);
+            
+            if (!$preventivo) {
+                throw new \Exception('Preventivo non trovato nel database');
+            }
+            
+            $this->log('[Email] Preventivo caricato: ' . $preventivo['nome_cliente']);
+            
+            // Verifica che ci sia un email valida
+            if (empty($preventivo['email'])) {
+                throw new \Exception('Email destinatario mancante');
+            }
+            
+            // Carica Email Manager
+            $disco747_crm = disco747_crm();
+            $email_manager = $disco747_crm->get_email();
+            
+            if (!$email_manager) {
+                throw new \Exception('Email Manager non disponibile');
+            }
+            
+            // Prepara dati per email
+            $email_data = array(
+                'nome_referente' => $preventivo['nome_referente'] ?? '',
+                'cognome_referente' => $preventivo['cognome_referente'] ?? '',
+                'mail' => $preventivo['email'],
+                'data_evento' => $preventivo['data_evento'] ?? '',
+                'tipo_evento' => $preventivo['tipo_evento'] ?? '',
+                'numero_invitati' => $preventivo['numero_invitati'] ?? 0,
+                'tipo_menu' => $preventivo['tipo_menu'] ?? '',
+                'orario_inizio' => $preventivo['orario_inizio'] ?? '20:30',
+                'orario_fine' => $preventivo['orario_fine'] ?? '01:30',
+                'importo_preventivo' => $preventivo['importo_totale'] ?? 0,
+                'acconto' => $preventivo['acconto'] ?? 0
+            );
+            
+            // Path PDF se richiesto
+            $pdf_path = null;
+            if ($attach_pdf && !empty($preventivo['pdf_url'])) {
+                $pdf_path = $preventivo['pdf_url'];
+                
+                // Se il PDF non esiste, generalo ora
+                if (!file_exists($pdf_path)) {
+                    $this->log('[Email] PDF non trovato, genero nuovo PDF...');
+                    
+                    $pdf_generator = $disco747_crm->get_pdf();
+                    if ($pdf_generator) {
+                        $pdf_path = $pdf_generator->generate_pdf($email_data);
+                        
+                        if ($pdf_path) {
+                            // Aggiorna database con path PDF
+                            $wpdb->update(
+                                $table_name,
+                                array('pdf_url' => $pdf_path),
+                                array('id' => $preventivo_id),
+                                array('%s'),
+                                array('%d')
+                            );
+                        }
+                    }
+                }
+            }
+            
+            // Invia email
+            $this->log('[Email] Invio email a: ' . $email_data['mail']);
+            $result = $email_manager->send_preventivo_email($email_data, $pdf_path);
+            
+            if ($result) {
+                // Log invio email nel database
+                $this->log_email_sent($preventivo_id, $email_data['mail'], $template_id, true);
+                
+                wp_send_json_success(array(
+                    'message' => 'Email inviata con successo!',
+                    'email_to' => $email_data['mail'],
+                    'pdf_attached' => $attach_pdf && $pdf_path ? true : false
+                ));
+            } else {
+                throw new \Exception('Errore durante invio email');
+            }
+            
+        } catch (\Exception $e) {
+            $this->log('[Email] ERRORE: ' . $e->getMessage(), 'ERROR');
+            
+            // Log errore
+            if (isset($preventivo_id) && $preventivo_id > 0) {
+                $this->log_email_sent($preventivo_id, $_POST['email'] ?? '', $template_id ?? '1', false, $e->getMessage());
+            }
+            
+            wp_send_json_error($e->getMessage());
+        }
+    }
+    
+    /**
+     * 💬 Handler per invio WhatsApp con template
+     */
+    public function handle_send_whatsapp_template() {
+        try {
+            $this->log('[WhatsApp] Richiesta link WhatsApp');
+            
+            // Verifica nonce
+            if (!check_ajax_referer('disco747_send_whatsapp', 'nonce', false)) {
+                throw new \Exception('Nonce non valido');
+            }
+            
+            // Verifica permessi
+            if (!current_user_can('manage_options')) {
+                throw new \Exception('Permessi insufficienti');
+            }
+            
+            // Ottieni parametri
+            $preventivo_id = isset($_POST['preventivo_id']) ? intval($_POST['preventivo_id']) : 0;
+            $template_id = isset($_POST['template_id']) ? sanitize_text_field($_POST['template_id']) : '1';
+            
+            if ($preventivo_id <= 0) {
+                throw new \Exception('ID preventivo non valido');
+            }
+            
+            $this->log("[WhatsApp] Preventivo ID: {$preventivo_id}, Template: {$template_id}");
+            
+            // Carica preventivo dal database
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'disco747_preventivi';
+            
+            $preventivo = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $preventivo_id
+            ), ARRAY_A);
+            
+            if (!$preventivo) {
+                throw new \Exception('Preventivo non trovato');
+            }
+            
+            // Verifica telefono
+            $telefono = $preventivo['telefono'] ?? '';
+            if (empty($telefono)) {
+                throw new \Exception('Numero telefono non disponibile');
+            }
+            
+            // Template WhatsApp
+            $templates = array(
+                '1' => "Ciao {{nome}}! 🎉\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} è pronto!\n\n💰 Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! 🎊",
+                '2' => "Ciao {{nome}}! 🎈\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! 📞",
+                '3' => "Ciao {{nome}}! ✅\n\nGrazie per aver confermato!\n\n📅 {{data_evento}}\n💰 Acconto: {{acconto}}\n\nCi vediamo presto! 🎉"
+            );
+            
+            $whatsapp_message = $templates[$template_id] ?? $templates['1'];
+            
+            // Sostituisci placeholder
+            $replacements = array(
+                '{{nome}}' => $preventivo['nome_referente'] ?? '',
+                '{{cognome}}' => $preventivo['cognome_referente'] ?? '',
+                '{{nome_completo}}' => trim(($preventivo['nome_referente'] ?? '') . ' ' . ($preventivo['cognome_referente'] ?? '')),
+                '{{email}}' => $preventivo['email'] ?? '',
+                '{{telefono}}' => $telefono,
+                '{{data_evento}}' => date('d/m/Y', strtotime($preventivo['data_evento'] ?? '')),
+                '{{tipo_evento}}' => $preventivo['tipo_evento'] ?? '',
+                '{{menu}}' => $preventivo['tipo_menu'] ?? '',
+                '{{numero_invitati}}' => $preventivo['numero_invitati'] ?? '',
+                '{{importo}}' => '€ ' . number_format($preventivo['importo_totale'] ?? 0, 2, ',', '.'),
+                '{{acconto}}' => '€ ' . number_format($preventivo['acconto'] ?? 0, 2, ',', '.'),
+                '{{preventivo_id}}' => $preventivo['preventivo_id'] ?? ''
+            );
+            
+            $whatsapp_message = str_replace(array_keys($replacements), array_values($replacements), $whatsapp_message);
+            
+            // Formatta numero telefono
+            $phone = preg_replace('/[^0-9+]/', '', $telefono);
+            
+            if (substr($phone, 0, 1) !== '+') {
+                if (substr($phone, 0, 2) === '39') {
+                    $phone = '+' . $phone;
+                } else {
+                    $phone = '+39' . $phone;
+                }
+            }
+            
+            // Genera link WhatsApp
+            $whatsapp_url = 'https://wa.me/' . $phone . '?text=' . urlencode($whatsapp_message);
+            
+            $this->log('[WhatsApp] Link generato per: ' . $phone);
+            
+            wp_send_json_success(array(
+                'message' => 'Link WhatsApp generato!',
+                'whatsapp_url' => $whatsapp_url,
+                'phone' => $phone,
+                'template_used' => $template_id
+            ));
+            
+        } catch (\Exception $e) {
+            $this->log('[WhatsApp] ERRORE: ' . $e->getMessage(), 'ERROR');
+            wp_send_json_error($e->getMessage());
+        }
+    }
+    
+    /**
+     * 📋 Handler per ottenere template disponibili
+     */
+    public function handle_get_templates() {
+        try {
+            if (!check_ajax_referer('disco747_admin_nonce', 'nonce', false)) {
+                throw new \Exception('Nonce non valido');
+            }
+            
+            // Template email predefiniti
+            $email_templates = array(
+                array('id' => '1', 'name' => 'Template 1 - Standard'),
+                array('id' => '2', 'name' => 'Template 2 - Promozionale'),
+                array('id' => '3', 'name' => 'Template 3 - Formale')
+            );
+            
+            // Template WhatsApp predefiniti
+            $whatsapp_templates = array(
+                array('id' => '1', 'name' => 'Template 1 - Cordiale'),
+                array('id' => '2', 'name' => 'Template 2 - Promozionale'),
+                array('id' => '3', 'name' => 'Template 3 - Breve')
+            );
+            
+            wp_send_json_success(array(
+                'email' => $email_templates,
+                'whatsapp' => $whatsapp_templates
+            ));
+            
+        } catch (\Exception $e) {
+            wp_send_json_error($e->getMessage());
+        }
+    }
+    
+    /**
+     * 📝 Handler per compilare template
+     */
+    public function handle_compile_template() {
+        try {
+            if (!check_ajax_referer('disco747_admin_nonce', 'nonce', false)) {
+                throw new \Exception('Nonce non valido');
+            }
+            
+            $template_id = $_POST['template_id'] ?? '';
+            $preventivo_id = isset($_POST['preventivo_id']) ? intval($_POST['preventivo_id']) : 0;
+            
+            // TODO: Implementare compilazione template dinamica
+            
+            wp_send_json_success(array(
+                'compiled_template' => 'Template compilato...'
+            ));
+            
+        } catch (\Exception $e) {
+            wp_send_json_error($e->getMessage());
+        }
+    }
+    
+    /**
+     * 📊 Salva log invio email nel database
+     */
+    private function log_email_sent($preventivo_id, $email_to, $template_id, $success, $error_message = null) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'disco747_email_log';
+        
+        $wpdb->insert($table_name, array(
+            'preventivo_id' => $preventivo_id,
+            'email_to' => $email_to,
+            'subject' => 'Preventivo 747 Disco',
+            'template_id' => $template_id,
+            'sent_at' => current_time('mysql'),
+            'status' => $success ? 'sent' : 'failed',
+            'error_message' => $error_message
+        ));
+    }
     
     /**
      * Log interno
