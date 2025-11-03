@@ -196,7 +196,7 @@ class Disco747_Admin {
                 
             case 'edit_preventivo':
                 $this->log('Rendering form modifica preventivo');
-                $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+                $id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
                 $this->render_form_preventivo($id);
                 break;
                 
