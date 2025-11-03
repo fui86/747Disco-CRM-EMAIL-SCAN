@@ -117,7 +117,7 @@ class Disco747_Admin {
             add_submenu_page(
                 'disco747-crm',
                 __('View Database', 'disco747'),
-                __('📊 View Database', 'disco747'),
+                __('📋 View Database', 'disco747'),
                 $this->min_capability,
                 'disco747-view-preventivi',
                 array($this, 'render_view_preventivi_page')
