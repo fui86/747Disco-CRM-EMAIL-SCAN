@@ -134,45 +134,6 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
             </div>
         </div>
 
-        <!-- Tabella File Processati -->
-        <div id="new-files-box" class="disco747-box" style="display: none;">
-            <div class="box-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border-bottom-color: #28a745;">
-                <h2 style="color: white;">🆕 File Processati in Questa Scansione</h2>
-            </div>
-            <div class="box-body">
-                <div class="scan-summary" style="background: #e8f8f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;">
-                    <strong style="color: #155724;">📊 Riepilogo Scansione:</strong>
-                    <div style="margin-top: 10px; display: flex; gap: 30px; flex-wrap: wrap;">
-                        <span>📁 Totale: <strong id="summary-total">0</strong></span>
-                        <span style="color: #28a745;">🆕 Nuovi: <strong id="summary-new">0</strong></span>
-                        <span style="color: #17a2b8;">🔄 Aggiornati: <strong id="summary-updated">0</strong></span>
-                        <span style="color: #dc3545;">❌ Errori: <strong id="summary-errors">0</strong></span>
-                    </div>
-                </div>
-
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 15%;">Data Evento</th>
-                                <th style="width: 30%;">Tipo Evento</th>
-                                <th style="width: 15%;">Menu</th>
-                                <th style="width: 15%;">Stato</th>
-                                <th class="mobile-hide" style="width: 25%;">Nome File</th>
-                            </tr>
-                        </thead>
-                        <tbody id="new-files-table-body">
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 30px; color: #999;">
-                                    Nessun file processato. I risultati appariranno qui dopo la scansione.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
         <!-- Debug Panel -->
         <div class="debug-panel">
             <div class="debug-header" onclick="disco747ToggleDebug()">
@@ -211,6 +172,7 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
 </div>
 
 <style>
+/* CSS completo per l'interfaccia */
 .disco747-excel-scan { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
 .disco747-page-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
 .disco747-page-header h1 { margin: 0; font-size: 28px; display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -246,20 +208,6 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
 .stat-icon { font-size: 36px; margin-bottom: 8px; }
 .stat-number { font-size: 32px; font-weight: bold; color: #2c3e50; margin-bottom: 5px; }
 .stat-label { font-size: 13px; color: #7f8c8d; font-weight: 600; text-transform: uppercase; }
-.scan-summary { animation: slideIn 0.5s ease; }
-@keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-.table-wrapper { overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-.data-table th { padding: 12px; text-align: left; font-weight: 600; font-size: 13px; }
-.data-table tbody tr { border-bottom: 1px solid #e0e6ed; transition: background 0.2s; }
-.data-table tbody tr:hover { background: #f8f9fa; }
-.data-table td { padding: 12px; font-size: 14px; }
-.badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.badge-success { background: #d4edda; color: #155724; }
-.badge-warning { background: #fff3cd; color: #856404; }
-.badge-danger { background: #f8d7da; color: #721c24; }
-.badge-info { background: #d1ecf1; color: #0c5460; }
 .debug-panel { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 10px; overflow: hidden; }
 .debug-header { padding: 15px 20px; background: #e9ecef; cursor: pointer; user-select: none; }
 .debug-header:hover { background: #dee2e6; }
@@ -272,21 +220,16 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
 .info-table { width: 100%; }
 .info-table td { padding: 8px 0; font-size: 14px; }
 .info-table td:first-child { width: 150px; }
-.disco747-notice { display: flex; gap: 15px; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-.disco747-notice-warning { background: #fff3cd; border: 2px solid #ffc107; }
-.notice-icon { font-size: 40px; }
-.notice-content strong { display: block; margin-bottom: 8px; color: #856404; }
-.notice-content p { margin: 0 0 10px; color: #856404; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.badge-success { background: #d4edda; color: #155724; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .spin { animation: spin 1s linear infinite; }
 @media (max-width: 768px) {
     .disco747-page-header h1 { font-size: 22px; }
     .form-row { grid-template-columns: 1fr; gap: 15px; }
     .results-cards { grid-template-columns: repeat(2, 1fr); }
-    .mobile-hide { display: none; }
     .stat-icon { font-size: 28px; }
     .stat-number { font-size: 24px; }
-    .scan-summary > div { flex-direction: column; gap: 10px !important; }
     .btn-reset { flex: 1 !important; }
 }
 @media (max-width: 480px) {
@@ -310,36 +253,21 @@ function disco747ToggleDebug() {
 }
 
 jQuery(document).ready(function($) {
-    let totalProcessed = 0;
-    let totalNew = 0;
-    let totalUpdated = 0;
-    let totalErrors = 0;
-    let retryCount = 0;
-    const MAX_RETRIES = 2;
-
-    function startBatchScan(year, month, offset = 0) {
-        const btn = $('#start-scan-btn');
+    $('#start-scan-btn').on('click', function() {
+        const year = $('#scan-year').val();
+        const month = $('#scan-month').val();
+        const btn = $(this);
         const resetBtn = $('#reset-scan-btn');
 
-        if (offset === 0) {
-            // Reset contatori al primo batch
-            totalProcessed = 0;
-            totalNew = 0;
-            totalUpdated = 0;
-            totalErrors = 0;
-            retryCount = 0;
+        $('#progress-section').show();
+        $('#progress-bar-fill').css('width', '0%');
+        $('#progress-percent').text('0%');
+        $('#progress-status').text('Connessione a Google Drive...');
+        $('#results-section').hide();
+        $('#debug-log').text('Avvio scansione...\\n');
 
-            $('#progress-section').show();
-            $('#progress-bar-fill').css('width', '0%');
-            $('#progress-percent').text('0%');
-            $('#progress-status').text('🔄 Connessione a Google Drive...');
-            $('#results-section').hide();
-            $('#new-files-box').hide();
-            $('#debug-log').text('Avvio scansione batch ottimizzata...\n');
-            
-            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
-            resetBtn.prop('disabled', true);
-        }
+        btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
+        resetBtn.prop('disabled', true);
 
         $.ajax({
             url: ajaxurl,
@@ -348,113 +276,54 @@ jQuery(document).ready(function($) {
                 action: 'batch_scan_excel', 
                 nonce: '<?php echo wp_create_nonce('disco747_batch_scan'); ?>', 
                 year: year, 
-                month: month,
-                offset: offset,
-                batch_size: 10
+                month: month 
             },
-            timeout: 90000, // 90 secondi timeout per batch
             success: function(response) {
-                console.log('Batch response:', response);
-                
                 if (response.success) {
                     const d = response.data;
-                    retryCount = 0; // Reset retry su successo
+                    $('#progress-bar-fill').css('width', '100%');
+                    $('#progress-percent').text('100%');
+                    $('#progress-status').text('✅ Completato!');
+                    $('#stat-total').text(d.total_files || 0);
+                    $('#stat-processed').text(d.processed || 0);
+                    $('#stat-new').text(d.new_records || 0);
+                    $('#stat-updated').text(d.updated_records || 0);
+                    $('#stat-errors').text(d.errors || 0);
+                    if (d.errors > 0) $('#error-card').show();
+                    $('#results-section').fadeIn();
                     
-                    // Accumula statistiche
-                    totalProcessed += d.processed_in_batch || 0;
-                    totalNew += d.new_records || 0;
-                    totalUpdated += d.updated_records || 0;
-                    totalErrors += d.errors || 0;
+                    // Log dettagliato con messaggi
+                    let log = `✅ SCANSIONE COMPLETATA\\n${'='.repeat(50)}\\n\\n📊 RISULTATI:\\n   File trovati:    ${d.total_files}\\n   Processati:      ${d.processed}\\n   Nuovi:           ${d.new_records}\\n   Aggiornati:      ${d.updated_records}\\n   Errori:          ${d.errors}\\n\\n`;
                     
-                    // Aggiorna progress bar
-                    const progress = d.progress_percent || 0;
-                    $('#progress-bar-fill').css('width', progress + '%');
-                    $('#progress-percent').text(progress + '%');
-                    $('#progress-status').text(`📊 Elaborati ${totalProcessed} file...`);
-                    
-                    // Aggiorna log
-                    $('#debug-log').append(`[${new Date().toLocaleTimeString()}] Batch offset ${offset}: ${d.processed_in_batch} file processati\n`);
-                    
-                    // ✅ CONTINUA CON IL PROSSIMO BATCH se necessario
-                    if (d.has_more && d.next_offset !== undefined) {
-                        console.log('Continuo con offset:', d.next_offset);
-                        setTimeout(function() {
-                            startBatchScan(year, month, d.next_offset);
-                        }, 500); // Pausa 500ms tra batch
-                    } else {
-                        // ✅ COMPLETATO - Mostra risultati finali
-                        completeScan(d.total_files);
+                    if (d.messages && d.messages.length > 0) {
+                        log += `📋 DETTAGLI:\\n`;
+                        d.messages.forEach(msg => {
+                            log += `   ${msg}\\n`;
+                        });
                     }
+                    
+                    log += `\\n${'='.repeat(50)}\\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
+                    $('#debug-log').text(log);
                 } else {
                     $('#progress-status').text('❌ Errore');
-                    $('#debug-log').append('❌ ERRORE:\n' + (response.data?.message || 'Sconosciuto') + '\n');
-                    handleScanError(year, month, offset);
+                    $('#debug-log').text('❌ ERRORE:\\n' + (response.data.message || 'Sconosciuto'));
+                    alert('❌ Errore: ' + (response.data.message || 'Errore sconosciuto'));
                 }
             },
             error: function(xhr, status, error) {
-                console.error('AJAX Error:', xhr.responseText);
-                $('#debug-log').append(`[${new Date().toLocaleTimeString()}] ❌ Errore AJAX: ${status} - ${error}\n`);
-                
-                // ✅ RETRY AUTOMATICO su timeout
-                if ((status === 'timeout' || xhr.status === 503) && retryCount < MAX_RETRIES) {
-                    retryCount++;
-                    $('#progress-status').text(`⚠️ Timeout rilevato... Retry ${retryCount}/${MAX_RETRIES}`);
-                    $('#debug-log').append(`[${new Date().toLocaleTimeString()}] ⏱️ Retry ${retryCount}/${MAX_RETRIES} dopo timeout...\n`);
-                    setTimeout(function() {
-                        startBatchScan(year, month, offset);
-                    }, 3000); // Retry dopo 3 secondi
-                } else {
-                    $('#progress-status').text('❌ Errore connessione');
-                    alert('❌ Errore di connessione: ' + error + '\nProva a ridurre l\'intervallo temporale (seleziona un mese specifico)');
-                    resetButtons();
-                }
+                $('#progress-status').text('❌ Errore connessione');
+                $('#debug-log').text('❌ ERRORE AJAX:\\nStatus: ' + status + '\\nError: ' + error);
+                alert('❌ Errore di connessione: ' + error);
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
+                resetBtn.prop('disabled', false);
             }
         });
-    }
-
-    function completeScan(totalFiles) {
-        $('#progress-bar-fill').css('width', '100%');
-        $('#progress-percent').text('100%');
-        $('#progress-status').text('✅ Completato!');
-        
-        // Mostra statistiche finali
-        $('#stat-total').text(totalFiles || totalProcessed);
-        $('#stat-processed').text(totalProcessed);
-        $('#stat-new').text(totalNew);
-        $('#stat-updated').text(totalUpdated);
-        $('#stat-errors').text(totalErrors);
-        $('#summary-total').text(totalFiles || totalProcessed);
-        $('#summary-new').text(totalNew);
-        $('#summary-updated').text(totalUpdated);
-        $('#summary-errors').text(totalErrors);
-        
-        if (totalErrors > 0) $('#error-card').show();
-        $('#results-section').fadeIn();
-        
-        let log = `✅ SCANSIONE COMPLETATA\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${totalFiles || totalProcessed}\n   Processati:      ${totalProcessed}\n   Nuovi:           ${totalNew}\n   Aggiornati:      ${totalUpdated}\n   Errori:          ${totalErrors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
-        $('#debug-log').text(log);
-        
-        resetButtons();
-    }
-
-    function handleScanError(year, month, offset) {
-        alert('❌ Errore durante la scansione. Controlla i log per dettagli.');
-        resetButtons();
-    }
-
-    function resetButtons() {
-        $('#start-scan-btn').prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
-        $('#reset-scan-btn').prop('disabled', false);
-    }
-
-    $('#start-scan-btn').on('click', function() {
-        const year = $('#scan-year').val();
-        const month = $('#scan-month').val();
-        startBatchScan(year, month, 0);
     });
 
     $('#reset-scan-btn').on('click', function() {
-        if (!confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\n\nSei sicuro di voler procedere?')) return;
+        if (!confirm('⚠️ ATTENZIONE!\\n\\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\\n\\nSei sicuro di voler procedere?')) return;
         
         const year = $('#scan-year').val();
         const month = $('#scan-month').val();
@@ -466,8 +335,7 @@ jQuery(document).ready(function($) {
         $('#progress-percent').text('0%');
         $('#progress-status').text('🗑️ Svuotamento database...');
         $('#results-section').hide();
-        $('#new-files-box').hide();
-        $('#debug-log').text('🗑️ Svuotamento database in corso...\n');
+        $('#debug-log').text('🗑️ Svuotamento database in corso...\\n');
 
         btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Elaborazione...');
         scanBtn.prop('disabled', true);
@@ -487,29 +355,30 @@ jQuery(document).ready(function($) {
                     $('#stat-new').text(d.new_records || 0);
                     $('#stat-updated').text(d.updated_records || 0);
                     $('#stat-errors').text(d.errors || 0);
-                    $('#summary-total').text(d.total_files || 0);
-                    $('#summary-new').text(d.new_records || 0);
-                    $('#summary-updated').text(d.updated_records || 0);
-                    $('#summary-errors').text(d.errors || 0);
                     if (d.errors > 0) $('#error-card').show();
                     $('#results-section').fadeIn();
-                    let log = `✅ DATABASE SVUOTATO E RIANALIZZATO\n${'='.repeat(50)}\n\n📊 RISULTATI:\n   File trovati:    ${d.total_files}\n   Processati:      ${d.processed}\n   Nuovi:           ${d.new_records}\n   Errori:          ${d.errors}\n\n${'='.repeat(50)}\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
-                    $('#debug-log').text(log);
-                    if (d.new_files_list && d.new_files_list.length > 0) {
-                        showNewFiles(d.new_files_list);
-                    } else {
-                        $('#new-files-box').fadeIn();
-                        $('#new-files-table-body').html('<tr><td colspan="5" style="text-align: center; padding: 30px;">Nessun file trovato</td></tr>');
+                    
+                    // Log dettagliato con messaggi
+                    let log = `✅ DATABASE SVUOTATO E RIANALIZZATO\\n${'='.repeat(50)}\\n\\n📊 RISULTATI:\\n   File trovati:    ${d.total_files}\\n   Processati:      ${d.processed}\\n   Nuovi:           ${d.new_records}\\n   Errori:          ${d.errors}\\n\\n`;
+                    
+                    if (d.messages && d.messages.length > 0) {
+                        log += `📋 DETTAGLI:\\n`;
+                        d.messages.forEach(msg => {
+                            log += `   ${msg}\\n`;
+                        });
                     }
+                    
+                    log += `\\n${'='.repeat(50)}\\n⏱️  Completato: ${new Date().toLocaleString('it-IT')}`;
+                    $('#debug-log').text(log);
                 } else {
                     $('#progress-status').text('❌ Errore');
-                    $('#debug-log').text('❌ ERRORE:\n' + (response.data.message || 'Sconosciuto'));
+                    $('#debug-log').text('❌ ERRORE:\\n' + (response.data.message || 'Sconosciuto'));
                     alert('❌ Errore: ' + (response.data.message || 'Errore sconosciuto'));
                 }
             },
             error: function(xhr, status, error) {
                 $('#progress-status').text('❌ Errore connessione');
-                $('#debug-log').text('❌ ERRORE AJAX:\nStatus: ' + status + '\nError: ' + error);
+                $('#debug-log').text('❌ ERRORE AJAX:\\nStatus: ' + status + '\\nError: ' + error);
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
@@ -518,25 +387,5 @@ jQuery(document).ready(function($) {
             }
         });
     });
-
-    function showNewFiles(files) {
-        const tbody = $('#new-files-table-body');
-        tbody.empty();
-        if (!files || files.length === 0) {
-            tbody.html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nessun file da mostrare</td></tr>');
-            return;
-        }
-        files.forEach(function(f) {
-            let badge = 'badge-info';
-            let icon = '📅';
-            let stato = f.stato || 'Attivo';
-            if (stato.toLowerCase() === 'confermato') { badge = 'badge-success'; icon = '✅'; }
-            else if (stato.toLowerCase() === 'annullato') { badge = 'badge-danger'; icon = '❌'; }
-            const row = `<tr><td style="font-weight: bold; color: #667eea;">${f.data_evento || '-'}</td><td>${f.tipo_evento || '-'}</td><td><span class="badge ${badge}">${f.tipo_menu || '-'}</span></td><td>${icon} ${stato}</td><td class="mobile-hide" style="font-size: 12px; color: #666;">${f.filename || '-'}</td></tr>`;
-            tbody.append(row);
-        });
-        $('#new-files-box').fadeIn();
-        setTimeout(function() { $('#new-files-box')[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 300);
-    }
 });
 </script>

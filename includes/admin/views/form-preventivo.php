@@ -11,9 +11,6 @@
  * - Grafica migliorata ma rispettando lo stile esistente
  */
 
-// Forza encoding UTF-8
-header('Content-Type: text/html; charset=UTF-8');
-
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================

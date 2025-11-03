@@ -9,16 +9,10 @@
  * @since      11.4.2
  */
 
-// Forza encoding UTF-8
-header('Content-Type: text/html; charset=UTF-8');
-
 // Sicurezza: impedisce l'accesso diretto
 if (!defined('ABSPATH')) {
     exit;
 }
-
-global $wpdb;
-$wpdb->query("SET NAMES 'utf8mb4'");
 
 // Ottieni statistiche (passate dal controller o calcola qui)
 $detailed_stats = $detailed_stats ?? array();

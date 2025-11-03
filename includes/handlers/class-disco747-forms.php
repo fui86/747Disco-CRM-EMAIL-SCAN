@@ -3,10 +3,10 @@
  * Forms Handler per 747 Disco CRM - VERSIONE FINALE v12.3.0
  * 
  * FIX APPLICATI:
- * 1. ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Cartella basata su data_evento
- * 2. ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ PDF NON generato automaticamente
- * 3. ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ PDF on-demand SENZA upload Google Drive
- * 4. ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Salvataggio database COMPLETO con tutti i campi
+ * 1. âœ… Cartella basata su data_evento
+ * 2. âœ… PDF NON generato automaticamente
+ * 3. âœ… PDF on-demand SENZA upload Google Drive
+ * 4. âœ… Salvataggio database COMPLETO con tutti i campi
  * 
  * PERCORSO: wp-content/plugins/747disco-crm/includes/handlers/class-disco747-forms.php
  * 
@@ -76,9 +76,9 @@ class Disco747_Forms {
                 return;
             }
             
-            $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Dati validati correttamente');
+            $this->log('[Forms] âœ… Dati validati correttamente');
             
-            // Controlla se ÃƒÆ’Ã‚Â¨ modalitÃƒÆ’Ã‚Â  modifica
+            // Controlla se Ã¨ modalitÃ  modifica
             $is_edit_mode = !empty($_POST['is_edit_mode']);
             $edit_id = $is_edit_mode ? intval($_POST['edit_id']) : 0;
             
@@ -91,7 +91,7 @@ class Disco747_Forms {
             $this->create_new_preventivo($data);
             
         } catch (\Exception $e) {
-            $this->log('[Forms] ÃƒÂ¢Ã‚ÂÃ…â€™ ERRORE FATALE: ' . $e->getMessage(), 'ERROR');
+            $this->log('[Forms] âŒ ERRORE FATALE: ' . $e->getMessage(), 'ERROR');
             wp_send_json_error('Errore: ' . $e->getMessage());
         }
     }
@@ -102,32 +102,32 @@ class Disco747_Forms {
      * ========================================================================
      */
     private function create_new_preventivo($data) {
-        $this->log('[Forms] MODALITÃƒÆ’Ã¢â€šÂ¬ CREAZIONE NUOVO PREVENTIVO');
+        $this->log('[Forms] MODALITÃ€ CREAZIONE NUOVO PREVENTIVO');
         
         // Genera ID preventivo progressivo
         $data['preventivo_id'] = $this->generate_preventivo_id();
         $this->log('[Forms] ID Preventivo generato: ' . $data['preventivo_id']);
         
-        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ GENERA SOLO EXCEL (NO PDF)
-        $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Å¾ Generazione Excel...');
+        // âœ… GENERA SOLO EXCEL (NO PDF)
+        $this->log('[Forms] ðŸ“„ Generazione Excel...');
         $excel_path = $this->create_excel_safe($data);
         
         if (!$excel_path) {
             throw new \Exception('Errore generazione Excel');
         }
         
-        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel generato: ' . basename($excel_path));
+        $this->log('[Forms] âœ… Excel generato: ' . basename($excel_path));
         
-        // ÃƒÂ¢Ã¢â‚¬ÂºÃ¢â‚¬Â PDF NON generato automaticamente
+        // â›” PDF NON generato automaticamente
         $pdf_path = null;
         
-        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ UPLOAD SU GOOGLE DRIVE nella cartella corretta (basata su data_evento)
+        // âœ… UPLOAD SU GOOGLE DRIVE nella cartella corretta (basata su data_evento)
         $cloud_url = '';
         if ($this->storage) {
-            $this->log('[Forms] ÃƒÂ¢Ã‹Å“Ã‚ÂÃƒÂ¯Ã‚Â¸Ã‚Â Upload su Google Drive...');
+            $this->log('[Forms] â˜ï¸ Upload su Google Drive...');
             
             try {
-                // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ FIX: Usa data_evento per determinare il percorso corretto
+                // âœ… FIX: Usa data_evento per determinare il percorso corretto
                 $date_parts = explode('-', $data['data_evento']);
                 $year = $date_parts[0];
                 $month_num = $date_parts[1];
@@ -144,8 +144,8 @@ class Disco747_Forms {
                 // Percorso corretto: /747-Preventivi/2025/Novembre/
                 $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
                 
-                $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Percorso Google Drive: ' . $drive_folder);
-                $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ Data evento usata: ' . $data['data_evento']);
+                $this->log('[Forms] ðŸ“ Percorso Google Drive: ' . $drive_folder);
+                $this->log('[Forms] ðŸ“… Data evento usata: ' . $data['data_evento']);
                 
                 // Upload Excel
                 if ($excel_path && file_exists($excel_path)) {
@@ -153,25 +153,25 @@ class Disco747_Forms {
                     if ($excel_url) {
                         $cloud_url = $excel_url;
                         $data['googledrive_url'] = $excel_url;
-                        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel caricato su Drive: ' . basename($excel_path));
+                        $this->log('[Forms] âœ… Excel caricato su Drive: ' . basename($excel_path));
                     }
                 }
                 
             } catch (\Exception $e) {
-                $this->log('[Forms] ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Errore upload Drive: ' . $e->getMessage(), 'WARNING');
+                $this->log('[Forms] âš ï¸ Errore upload Drive: ' . $e->getMessage(), 'WARNING');
             }
         }
         
         // Salva database
-        $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¾ Salvataggio database...');
+        $this->log('[Forms] ðŸ’¾ Salvataggio database...');
         $db_id = $this->save_preventivo($data);
         
         if (!$db_id) {
             throw new \Exception('Errore salvataggio database');
         }
         
-        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Preventivo salvato con ID database: ' . $db_id);
-        $this->log('[Forms] ========== ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ PREVENTIVO COMPLETATO ==========');
+        $this->log('[Forms] âœ… Preventivo salvato con ID database: ' . $db_id);
+        $this->log('[Forms] ========== âœ…âœ…âœ… PREVENTIVO COMPLETATO ==========');
         
         wp_send_json_success(array(
             'message' => 'Preventivo creato con successo!',
@@ -208,29 +208,14 @@ class Disco747_Forms {
     }
     
     /**
-    /**
      * ========================================================================
-     * AGGIORNAMENTO PREVENTIVO ESISTENTE - VERSIONE COMPLETA CON EXCEL+DRIVE
+     * AGGIORNAMENTO PREVENTIVO ESISTENTE
      * ========================================================================
      */
     private function update_preventivo($edit_id, $data) {
         $this->log('[Forms] MODALITA AGGIORNAMENTO PREVENTIVO ID: ' . $edit_id);
         
         global $wpdb;
-        
-        // Carica il preventivo esistente per avere preventivo_id e vecchio URL
-        $existing = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table_name} WHERE id = %d",
-            $edit_id
-        ), ARRAY_A);
-        
-        if (!$existing) {
-            wp_send_json_error('Preventivo non trovato');
-            return;
-        }
-        
-        // Mantieni il preventivo_id originale
-        $data['preventivo_id'] = $existing['preventivo_id'];
         
         // Calcola extra totale
         $extra_totale = floatval($data['extra1_importo']) + floatval($data['extra2_importo']) + floatval($data['extra3_importo']);
@@ -239,58 +224,7 @@ class Disco747_Forms {
         $importo_preventivo = floatval($data['importo_totale']) + $extra_totale;
         $saldo = $importo_preventivo - floatval($data['acconto']);
         
-        // RIGENERA EXCEL CON DATI AGGIORNATI
-        $this->log('[Forms] Rigenerazione Excel...');
-        $excel_path = $this->create_excel_safe($data);
-        
-        if (!$excel_path) {
-            $this->log('[Forms] Errore rigenerazione Excel', 'WARNING');
-        } else {
-            $this->log('[Forms] Excel rigenerato: ' . basename($excel_path));
-        }
-        
-        // RICARICA SU GOOGLE DRIVE
-        $cloud_url = $existing['googledrive_url']; // Mantieni vecchio URL come default
-        
-        if ($this->storage && $excel_path && file_exists($excel_path)) {
-            $this->log('[Forms] Upload Excel aggiornato su Google Drive...');
-            
-            try {
-                // Determina cartella Google Drive basata su data_evento
-                $date_parts = explode('-', $data['data_evento']);
-                $year = $date_parts[0];
-                $month_num = $date_parts[1];
-                
-                // Converti numero mese in nome mese italiano
-                $mesi = array(
-                    '01' => 'Gennaio', '02' => 'Febbraio', '03' => 'Marzo',
-                    '04' => 'Aprile', '05' => 'Maggio', '06' => 'Giugno',
-                    '07' => 'Luglio', '08' => 'Agosto', '09' => 'Settembre',
-                    '10' => 'Ottobre', '11' => 'Novembre', '12' => 'Dicembre'
-                );
-                $month_name = $mesi[$month_num] ?? $month_num;
-                
-                // Percorso corretto
-                $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
-                
-                $this->log('[Forms] Percorso Google Drive: ' . $drive_folder);
-                
-                // Upload nuovo file (sostituisce quello vecchio se esiste)
-                $new_url = $this->storage->upload_file($excel_path, $drive_folder);
-                
-                if ($new_url) {
-                    $cloud_url = $new_url;
-                    $this->log('[Forms] Excel caricato su Drive: ' . basename($excel_path));
-                } else {
-                    $this->log('[Forms] Errore upload Drive', 'WARNING');
-                }
-                
-            } catch (\Exception $e) {
-                $this->log('[Forms] Errore upload Drive: ' . $e->getMessage(), 'WARNING');
-            }
-        }
-        
-        // Aggiorna database CON NUOVO URL GOOGLE DRIVE
+        // Aggiorna database
         $updated = $wpdb->update(
             $this->table_name,
             array(
@@ -321,42 +255,38 @@ class Disco747_Forms {
                 'note_aggiuntive' => $data['note_aggiuntive'],
                 'note_interne' => $data['note_interne'],
                 'stato' => $data['stato'],
-                'googledrive_url' => $cloud_url,
-                'excel_url' => $cloud_url,
                 'updated_at' => current_time('mysql')
             ),
             array('id' => $edit_id),
             array(
                 '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d',
                 '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f',
-                '%s', '%f', '%f', '%f', '%f', '%f', '%s', '%s', '%s', 
-                '%s', '%s', '%s'
+                '%s', '%f', '%f', '%f', '%f', '%f', '%s', '%s', '%s', '%s'
             ),
             array('%d')
         );
         
         if ($updated === false) {
-            $this->log('[Forms] Errore aggiornamento: ' . $wpdb->last_error, 'ERROR');
+            $this->log('[Forms] âŒ Errore aggiornamento: ' . $wpdb->last_error, 'ERROR');
             wp_send_json_error('Errore aggiornamento database');
             return;
         }
         
-        $this->log('[Forms] Preventivo aggiornato con successo (DB + Excel + Drive)');
+        $this->log('[Forms] âœ… Preventivo aggiornato con successo');
         
-        // Rileggi preventivo aggiornato dal database
+        
+        // Rileggi preventivo aggiornato dal database per avere tutti i dati
         $preventivo = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ), ARRAY_A);
         
         wp_send_json_success(array(
-            'message' => 'Preventivo aggiornato con successo! Excel ricaricato su Google Drive.',
+            'message' => 'Preventivo aggiornato con successo!',
             'preventivo_id' => $preventivo['preventivo_id'] ?? $data['preventivo_id'],
             'id' => $edit_id,
             'db_id' => $edit_id,
             'is_edit_mode' => true,
-            'excel_url' => $cloud_url,
-            'googledrive_url' => $cloud_url,
             // Dati preventivo per JavaScript
             'nome_referente' => $preventivo['nome_referente'] ?? $data['nome_referente'] ?? '',
             'cognome_referente' => $preventivo['cognome_referente'] ?? $data['cognome_referente'] ?? '',
@@ -404,22 +334,19 @@ class Disco747_Forms {
                 return;
             }
             
-            // Ottieni ID - può essere numerico (id database) o stringa (preventivo_id tipo #001)
-            $preventivo_id = isset($_POST['preventivo_id']) ? $_POST['preventivo_id'] : '';
+            $preventivo_id = isset($_POST['preventivo_id']) ? sanitize_text_field($_POST['preventivo_id']) : '';
             
             if (empty($preventivo_id)) {
                 wp_send_json_error('ID preventivo mancante');
                 return;
             }
             
-            $this->log('[PDF] ID ricevuto: ' . $preventivo_id . ' (tipo: ' . gettype($preventivo_id) . ')');
-            
-            // Carica preventivo dal database - cerca sia per ID numerico che per preventivo_id
+            // Carica preventivo dal database
             global $wpdb;
             $preventivo = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE id = %d OR preventivo_id = %s",
-                intval($preventivo_id),
-                sanitize_text_field($preventivo_id)
+                "SELECT * FROM {$this->table_name} WHERE preventivo_id = %s OR id = %d",
+                $preventivo_id,
+                intval($preventivo_id)
             ), ARRAY_A);
             
             if (!$preventivo) {
@@ -450,9 +377,9 @@ class Disco747_Forms {
                 return;
             }
             
-            $this->log('[PDF] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ PDF generato: ' . basename($pdf_path));
+            $this->log('[PDF] âœ… PDF generato: ' . basename($pdf_path));
             
-            // ÃƒÂ¢Ã¢â‚¬ÂºÃ¢â‚¬Â RIMOSSO: Upload su Google Drive
+            // â›” RIMOSSO: Upload su Google Drive
             // Il PDF viene generato SOLO localmente per il download
             
             // Genera URL download
@@ -468,7 +395,7 @@ class Disco747_Forms {
                 array('%s')
             );
             
-            $this->log('[PDF] ========== ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ COMPLETATO (NO UPLOAD DRIVE) ==========');
+            $this->log('[PDF] ========== âœ… COMPLETATO (NO UPLOAD DRIVE) ==========');
             
             wp_send_json_success(array(
                 'message' => 'PDF generato con successo!',
@@ -480,7 +407,7 @@ class Disco747_Forms {
             ));
             
         } catch (\Exception $e) {
-            $this->log('[PDF] ÃƒÂ¢Ã‚ÂÃ…â€™ ERRORE: ' . $e->getMessage(), 'ERROR');
+            $this->log('[PDF] âŒ ERRORE: ' . $e->getMessage(), 'ERROR');
             wp_send_json_error('Errore: ' . $e->getMessage());
         }
     }
@@ -524,7 +451,7 @@ class Disco747_Forms {
             ));
             
         } catch (\Exception $e) {
-            $this->log('[Email] ÃƒÂ¢Ã‚ÂÃ…â€™ ERRORE: ' . $e->getMessage(), 'ERROR');
+            $this->log('[Email] âŒ ERRORE: ' . $e->getMessage(), 'ERROR');
             wp_send_json_error('Errore: ' . $e->getMessage());
         }
     }
@@ -561,9 +488,9 @@ class Disco747_Forms {
             
             // Template WhatsApp
             $templates = array(
-                '1' => "Ciao {{nome}}! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â‚¬Â°\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} ÃƒÆ’Ã‚Â¨ pronto!\n\nÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â° Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! ÃƒÂ°Ã…Â¸Ã…Â½Ã…Â ",
-                '2' => "Ciao {{nome}}! ÃƒÂ°Ã…Â¸Ã…Â½Ã‹â€ \n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â¾",
-                '3' => "Ciao {{nome}}! ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦\n\nGrazie per aver confermato!\n\nÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ {{data_evento}}\nÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â° Acconto: {{acconto}}\n\nCi vediamo presto! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â‚¬Â°"
+                '1' => "Ciao {{nome}}! ðŸŽ‰\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} Ã¨ pronto!\n\nðŸ’° Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! ðŸŽŠ",
+                '2' => "Ciao {{nome}}! ðŸŽˆ\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! ðŸ“ž",
+                '3' => "Ciao {{nome}}! âœ…\n\nGrazie per aver confermato!\n\nðŸ“… {{data_evento}}\nðŸ’° Acconto: {{acconto}}\n\nCi vediamo presto! ðŸŽ‰"
             );
             
             $whatsapp_message = $templates[$template_id] ?? $templates['1'];
@@ -588,7 +515,7 @@ class Disco747_Forms {
             
             $whatsapp_url = 'https://wa.me/' . $phone . '?text=' . urlencode($whatsapp_message);
             
-            $this->log('[WhatsApp] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Link generato per: ' . $phone);
+            $this->log('[WhatsApp] âœ… Link generato per: ' . $phone);
             
             wp_send_json_success(array(
                 'message' => 'Link WhatsApp generato!',
@@ -598,7 +525,7 @@ class Disco747_Forms {
             ));
             
         } catch (\Exception $e) {
-            $this->log('[WhatsApp] ÃƒÂ¢Ã‚ÂÃ…â€™ ERRORE: ' . $e->getMessage(), 'ERROR');
+            $this->log('[WhatsApp] âŒ ERRORE: ' . $e->getMessage(), 'ERROR');
             wp_send_json_error('Errore: ' . $e->getMessage());
         }
     }
@@ -700,8 +627,8 @@ class Disco747_Forms {
             '{{tipo_evento}}' => $data['tipo_evento'] ?? '',
             '{{menu}}' => $data['tipo_menu'] ?? '',
             '{{numero_invitati}}' => $data['numero_invitati'] ?? '',
-            '{{importo}}' => number_format($data['importo_totale'] ?? 0, 2, ',', '.') . ' ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬',
-            '{{acconto}}' => number_format($data['acconto'] ?? 0, 2, ',', '.') . ' ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬',
+            '{{importo}}' => number_format($data['importo_totale'] ?? 0, 2, ',', '.') . ' â‚¬',
+            '{{acconto}}' => number_format($data['acconto'] ?? 0, 2, ',', '.') . ' â‚¬',
             '{{preventivo_id}}' => $data['preventivo_id'] ?? ''
         );
         
@@ -717,7 +644,7 @@ class Disco747_Forms {
         // Verifica il nonce principale del form preventivo
         if (isset($_POST['disco747_preventivo_nonce'])) {
             if (wp_verify_nonce($_POST['disco747_preventivo_nonce'], 'disco747_preventivo')) {
-                $this->log('[Forms] Ã¢Å“â€¦ Nonce verificato correttamente (disco747_preventivo)');
+                $this->log('[Forms] ✅ Nonce verificato correttamente (disco747_preventivo)');
                 return true;
             }
         }
@@ -725,20 +652,20 @@ class Disco747_Forms {
         // Fallback: altri possibili nonce
         if (isset($_POST['disco747_nonce'])) {
             if (wp_verify_nonce($_POST['disco747_nonce'], 'disco747_action')) {
-                $this->log('[Forms] Ã¢Å“â€¦ Nonce verificato correttamente (disco747_nonce)');
+                $this->log('[Forms] ✅ Nonce verificato correttamente (disco747_nonce)');
                 return true;
             }
         }
         
         if (isset($_POST['_wpnonce'])) {
             if (wp_verify_nonce($_POST['_wpnonce'], 'disco747_preventivo')) {
-                $this->log('[Forms] Ã¢Å“â€¦ Nonce verificato correttamente (_wpnonce)');
+                $this->log('[Forms] ✅ Nonce verificato correttamente (_wpnonce)');
                 return true;
             }
         }
         
         // Log per debug
-        $this->log('[Forms] Ã¢ÂÅ’ Nessun nonce valido trovato. Campi POST ricevuti: ' . implode(', ', array_keys($_POST)), 'WARNING');
+        $this->log('[Forms] ❌ Nessun nonce valido trovato. Campi POST ricevuti: ' . implode(', ', array_keys($_POST)), 'WARNING');
         
         return false;
     }
@@ -786,7 +713,7 @@ class Disco747_Forms {
         $data['nome_referente'] = $nome;
         $data['cognome_referente'] = $cognome;
         
-        // CONTATTI - Duplica per compatibilitÃƒÆ’Ã‚Â 
+        // CONTATTI - Duplica per compatibilitÃ 
         $data['telefono'] = sanitize_text_field($post_data['cellulare'] ?? '');
         $data['email'] = sanitize_email($post_data['mail'] ?? '');
         $data['cellulare'] = $data['telefono'];
@@ -817,9 +744,9 @@ class Disco747_Forms {
         
         // DEBUG LOG EXTRA
         $this->log('[Forms] Extra validati:');
-        $this->log('  - Extra1: "' . $data['extra1'] . '" = Ã¢â€šÂ¬' . $data['extra1_importo']);
-        $this->log('  - Extra2: "' . $data['extra2'] . '" = Ã¢â€šÂ¬' . $data['extra2_importo']);
-        $this->log('  - Extra3: "' . $data['extra3'] . '" = Ã¢â€šÂ¬' . $data['extra3_importo']);
+        $this->log('  - Extra1: "' . $data['extra1'] . '" = €' . $data['extra1_importo']);
+        $this->log('  - Extra2: "' . $data['extra2'] . '" = €' . $data['extra2_importo']);
+        $this->log('  - Extra3: "' . $data['extra3'] . '" = €' . $data['extra3_importo']);
         
         // IMPORTI
         $data['importo_preventivo'] = floatval($post_data['importo_preventivo'] ?? 0);
@@ -913,7 +840,7 @@ class Disco747_Forms {
         
         $this->log('[DB] Preparazione dati per salvataggio database');
         
-        // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ MAPPATURA CORRETTA: Mantieni TUTTI i campi necessari
+        // âœ… MAPPATURA CORRETTA: Mantieni TUTTI i campi necessari
         $insert_data = array(
             // ID e Metadata
             'preventivo_id' => $data['preventivo_id'] ?? '',
@@ -987,13 +914,13 @@ class Disco747_Forms {
         $inserted = $wpdb->insert($this->table_name, $insert_data);
         
         if ($inserted === false) {
-            $this->log('[DB] ÃƒÂ¢Ã‚ÂÃ…â€™ ERRORE INSERIMENTO: ' . $wpdb->last_error, 'ERROR');
+            $this->log('[DB] âŒ ERRORE INSERIMENTO: ' . $wpdb->last_error, 'ERROR');
             $this->log('[DB] Query: ' . $wpdb->last_query, 'ERROR');
             return false;
         }
         
         $insert_id = $wpdb->insert_id;
-        $this->log('[DB] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Preventivo inserito con ID: ' . $insert_id);
+        $this->log('[DB] âœ… Preventivo inserito con ID: ' . $insert_id);
         
         // Verifica immediata che i dati siano salvati
         $check = $wpdb->get_row($wpdb->prepare(
@@ -1002,13 +929,13 @@ class Disco747_Forms {
         ), ARRAY_A);
         
         if ($check) {
-            $this->log('[DB] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ VERIFICA: Dati salvati correttamente');
+            $this->log('[DB] âœ… VERIFICA: Dati salvati correttamente');
             $this->log('[DB]   - Nome: ' . ($check['nome_referente'] ?? 'VUOTO'));
             $this->log('[DB]   - Cognome: ' . ($check['cognome_referente'] ?? 'VUOTO'));
             $this->log('[DB]   - Telefono: ' . ($check['telefono'] ?? 'VUOTO'));
             $this->log('[DB]   - Email: ' . ($check['email'] ?? 'VUOTO'));
         } else {
-            $this->log('[DB] ÃƒÂ¢Ã‚ÂÃ…â€™ VERIFICA FALLITA: Record non trovato!', 'ERROR');
+            $this->log('[DB] âŒ VERIFICA FALLITA: Record non trovato!', 'ERROR');
         }
         
         return $insert_id;

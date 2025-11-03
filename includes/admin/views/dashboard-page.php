@@ -17,16 +17,10 @@
  * @version    11.6.1-COMPLETE-FIXED
  */
 
-// Forza encoding UTF-8
-header('Content-Type: text/html; charset=UTF-8');
-
 // Sicurezza: impedisce l'accesso diretto
 if (!defined('ABSPATH')) {
     exit;
 }
-
-global $wpdb;
-$wpdb->query("SET NAMES 'utf8mb4'");
 
 // ============================================================================
 // PREPARAZIONE DATI REALI - USA SISTEMA ESISTENTE DEL PLUGIN

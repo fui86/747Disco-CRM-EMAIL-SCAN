@@ -34,15 +34,10 @@ class Disco747_AJAX_Handlers {
     }
 
     /**
-     * âœ… Handler principale per batch scan - OTTIMIZZATO con offset/batch_size
+     * Handler principale per batch scan
      */
     public static function handle_batch_scan() {
-        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN OTTIMIZZATO ==========');
-        
-        // âœ… TIMEOUT ESTESO
-        set_time_limit(120); // 2 minuti
-        ini_set('max_execution_time', '120');
-        ini_set('memory_limit', '512M');
+        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN ==========');
         
         // Verifica nonce
         if (!isset($_POST['nonce']) && !isset($_POST['_wpnonce'])) {
@@ -59,7 +54,7 @@ class Disco747_AJAX_Handlers {
             return;
         }
 
-        error_log('[Batch-Scan-AJAX] âœ… Nonce verificato');
+        error_log('[Batch-Scan-AJAX] ✅ Nonce verificato');
 
         // Verifica permessi
         if (!current_user_can('manage_options')) {
@@ -68,71 +63,260 @@ class Disco747_AJAX_Handlers {
             return;
         }
 
-        error_log('[Batch-Scan-AJAX] âœ… Permessi verificati');
+        error_log('[Batch-Scan-AJAX] ✅ Permessi verificati');
 
-        // âœ… PARAMETRI con offset e batch_size
+        // Parametri
         $year = isset($_POST['year']) ? sanitize_text_field($_POST['year']) : date('Y');
         $month = isset($_POST['month']) ? sanitize_text_field($_POST['month']) : '';
-        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
-        $batch_size = isset($_POST['batch_size']) ? intval($_POST['batch_size']) : 10;
 
-        error_log("[Batch-Scan-AJAX] Parametri: anno={$year}, mese={$month}, offset={$offset}, batch_size={$batch_size}");
+        error_log("[Batch-Scan-AJAX] Parametri: anno={$year}, mese={$month}");
 
         try {
-            // âœ… Usa GoogleDrive_Sync per elaborazione ottimizzata
-            if (!class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive_Sync')) {
-                error_log('[Batch-Scan-AJAX] ERRORE: GoogleDrive_Sync non disponibile');
-                wp_send_json_error(array('message' => 'GoogleDrive_Sync non disponibile'));
+            // Carica le classi necessarie
+            $plugin = disco747_crm();
+            
+            if (!$plugin || !$plugin->is_initialized()) {
+                error_log('[Batch-Scan-AJAX] ERRORE: Plugin non inizializzato');
+                wp_send_json_error(array('message' => 'Plugin non inizializzato'));
                 return;
             }
 
-            if (!class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive')) {
-                error_log('[Batch-Scan-AJAX] ERRORE: GoogleDrive handler non disponibile');
-                wp_send_json_error(array('message' => 'GoogleDrive handler non disponibile'));
+            $storage_manager = $plugin->get_storage_manager();
+            $database = $plugin->get_database();
+
+            if (!$storage_manager || !$database) {
+                error_log('[Batch-Scan-AJAX] ERRORE: Componenti mancanti');
+                wp_send_json_error(array('message' => 'Componenti sistema mancanti'));
                 return;
             }
 
-            // Crea istanza GoogleDrive e GoogleDrive_Sync
-            $googledrive_handler = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
-            $gdrive_sync = new \Disco747_CRM\Storage\Disco747_GoogleDrive_Sync($googledrive_handler);
+            error_log('[Batch-Scan-AJAX] ✅ Componenti caricati');
 
-            if (!$gdrive_sync->is_available()) {
-                error_log('[Batch-Scan-AJAX] ERRORE: GoogleDrive Sync non disponibile');
-                wp_send_json_error(array('message' => 'GoogleDrive Sync non disponibile'));
+            // Ottieni handler storage attivo
+            $handler = $storage_manager->get_active_handler();
+            
+            if (!$handler) {
+                error_log('[Batch-Scan-AJAX] ERRORE: Handler storage non disponibile');
+                wp_send_json_error(array('message' => 'Storage non configurato'));
                 return;
             }
 
-            error_log('[Batch-Scan-AJAX] ✅ GoogleDrive_Sync inizializzato');
+            error_log('[Batch-Scan-AJAX] ✅ Handler storage attivo: ' . get_class($handler));
 
-            // ✅ CHIAMA il metodo ottimizzato con offset, batch_size, year e month
-            $result = $gdrive_sync->scan_excel_files_batch($offset, $batch_size, $year, $month);
+            // Determina i mesi da scansionare
+            $months_to_scan = array();
+            if (empty($month)) {
+                // Tutti i mesi
+                $months_to_scan = array(
+                    'GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 
+                    'MAGGIO', 'GIUGNO', 'LUGLIO', 'AGOSTO',
+                    'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'
+                );
+            } else {
+                $months_to_scan = array($month);
+            }
 
-            error_log('[Batch-Scan-AJAX] ========== RISULTATO BATCH ==========');
-            error_log('[Batch-Scan-AJAX] Total: ' . $result['total_files']);
-            error_log('[Batch-Scan-AJAX] Processed in batch: ' . $result['processed_in_batch']);
-            error_log('[Batch-Scan-AJAX] Has more: ' . ($result['has_more'] ? 'SI' : 'NO'));
-            error_log('[Batch-Scan-AJAX] Next offset: ' . $result['next_offset']);
+            error_log('[Batch-Scan-AJAX] Mesi da scansionare: ' . implode(', ', $months_to_scan));
 
-            // âœ… RISPOSTA OTTIMIZZATA con info batch
+            // Raccogli tutti i file
+            $all_files = array();
+            
+            foreach ($months_to_scan as $current_month) {
+                $folder_path = "747-Preventivi/{$year}/{$current_month}/";
+                error_log("[Batch-Scan-AJAX] Scansione cartella: {$folder_path}");
+                
+                try {
+                    $files = $handler->list_files($folder_path, '*.xlsx');
+                    
+                    if (!empty($files)) {
+                        error_log("[Batch-Scan-AJAX] Trovati " . count($files) . " file in {$current_month}");
+                        $all_files = array_merge($all_files, $files);
+                    } else {
+                        error_log("[Batch-Scan-AJAX] Nessun file in {$current_month}");
+                    }
+                } catch (\Exception $e) {
+                    error_log("[Batch-Scan-AJAX] Errore scansione {$current_month}: " . $e->getMessage());
+                }
+            }
+
+            $total_files = count($all_files);
+            error_log("[Batch-Scan-AJAX] ⭐ TOTALE FILE TROVATI: {$total_files}");
+
+            if ($total_files === 0) {
+                wp_send_json_success(array(
+                    'complete' => true,
+                    'total_files' => 0,
+                    'processed' => 0,
+                    'new_records' => 0,
+                    'updated_records' => 0,
+                    'errors' => 0,
+                    'new_files_list' => array(),
+                    'message' => 'Nessun file trovato nelle cartelle specificate'
+                ));
+                return;
+            }
+
+            // Processa tutti i file
+            $new_records = 0;
+            $updated_records = 0;
+            $errors = 0;
+            $error_details = array();
+
+            foreach ($all_files as $file) {
+                try {
+                    $file_name = $file['name'];
+                    error_log("[Batch-Scan-AJAX] Processamento file: {$file_name}");
+                    
+                    // Parse filename
+                    $parsed = self::parse_filename($file_name);
+                    
+                    if (!$parsed) {
+                        error_log("[Batch-Scan-AJAX] ⚠️ Impossibile parsare: {$file_name}");
+                        $errors++;
+                        $error_details[] = array(
+                            'file' => $file_name,
+                            'error' => 'Formato filename non valido'
+                        );
+                        continue;
+                    }
+
+                    // Verifica se esiste già
+                    global $wpdb;
+                    $table = $wpdb->prefix . 'disco747_preventivi';
+                    
+                    $existing = $wpdb->get_var($wpdb->prepare(
+                        "SELECT id FROM {$table} WHERE data_evento = %s AND tipo_evento = %s AND tipo_menu = %s",
+                        $parsed['data_evento'],
+                        $parsed['tipo_evento'],
+                        $parsed['tipo_menu']
+                    ));
+
+                    if ($existing) {
+                        // Aggiorna esistente
+                        $wpdb->update(
+                            $table,
+                            array(
+                                'stato' => $parsed['stato'],
+                                'file_path' => $file['path'],
+                                'updated_at' => current_time('mysql')
+                            ),
+                            array('id' => $existing),
+                            array('%s', '%s', '%s'),
+                            array('%d')
+                        );
+                        
+                        $updated_records++;
+                        error_log("[Batch-Scan-AJAX] ✅ Record aggiornato: ID {$existing}");
+                    } else {
+                        // Inserisci nuovo
+                        $inserted = $wpdb->insert(
+                            $table,
+                            array(
+                                'data_evento' => $parsed['data_evento'],
+                                'tipo_evento' => $parsed['tipo_evento'],
+                                'tipo_menu' => $parsed['tipo_menu'],
+                                'stato' => $parsed['stato'],
+                                'file_path' => $file['path'],
+                                'created_at' => current_time('mysql'),
+                                'updated_at' => current_time('mysql')
+                            ),
+                            array('%s', '%s', '%s', '%s', '%s', '%s', '%s')
+                        );
+
+                        if ($inserted) {
+                            $new_records++;
+                            error_log("[Batch-Scan-AJAX] ✅ Nuovo record inserito: ID {$wpdb->insert_id}");
+                        } else {
+                            $errors++;
+                            error_log("[Batch-Scan-AJAX] ❌ Errore inserimento: " . $wpdb->last_error);
+                        }
+                    }
+
+                } catch (\Exception $e) {
+                    $errors++;
+                    $error_details[] = array(
+                        'file' => $file['name'],
+                        'error' => $e->getMessage()
+                    );
+                    error_log("[Batch-Scan-AJAX] ❌ Errore file {$file['name']}: " . $e->getMessage());
+                }
+            }
+
+            error_log("[Batch-Scan-AJAX] ========== RIEPILOGO ==========");
+            error_log("[Batch-Scan-AJAX] Totale file: {$total_files}");
+            error_log("[Batch-Scan-AJAX] Nuovi: {$new_records}");
+            error_log("[Batch-Scan-AJAX] Aggiornati: {$updated_records}");
+            error_log("[Batch-Scan-AJAX] Errori: {$errors}");
+
+            // ⭐ PREPARA LISTA FILE PROCESSATI (nuovi + aggiornati)
+            $new_files_list = array();
+            $total_to_show = $new_records + $updated_records;
+
+            if ($total_to_show > 0) {
+                global $wpdb;
+                $table = $wpdb->prefix . 'disco747_preventivi';
+                
+                // Prendi gli ultimi N record modificati (updated_at DESC)
+                $new_files = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT data_evento, tipo_evento, tipo_menu, stato, file_path, updated_at 
+                         FROM {$table} 
+                         ORDER BY updated_at DESC 
+                         LIMIT %d",
+                        $total_to_show
+                    ),
+                    ARRAY_A
+                );
+                
+                error_log("[Batch-Scan-AJAX] Query file processati restituisce: " . count($new_files) . " record");
+                
+                if ($new_files) {
+                    foreach ($new_files as $file) {
+                        // Formatta data
+                        $data_formattata = '-';
+                        if (!empty($file['data_evento']) && $file['data_evento'] !== '0000-00-00') {
+                            try {
+                                $data_formattata = date('d/m/Y', strtotime($file['data_evento']));
+                            } catch (\Exception $e) {
+                                $data_formattata = $file['data_evento'];
+                            }
+                        }
+                        
+                        // Estrai nome file dal path
+                        $filename = '-';
+                        if (!empty($file['file_path'])) {
+                            $filename = basename($file['file_path']);
+                        }
+                        
+                        $new_files_list[] = array(
+                            'data_evento' => $data_formattata,
+                            'tipo_evento' => $file['tipo_evento'] ?: '-',
+                            'tipo_menu' => $file['tipo_menu'] ?: '-',
+                            'stato' => ucfirst($file['stato'] ?: 'attivo'),
+                            'filename' => $filename
+                        );
+                    }
+                    
+                    error_log("[Batch-Scan-AJAX] ✅ Preparati " . count($new_files_list) . " file per la tabella");
+                }
+            }
+
+            // Risposta JSON
             wp_send_json_success(array(
-                'complete' => !$result['has_more'], // true se Ã¨ l'ultimo batch
-                'total_files' => $result['total_files'],
-                'current_offset' => $offset,
-                'batch_size' => $batch_size,
-                'processed_in_batch' => $result['processed_in_batch'],
-                'new_records' => $result['new'],
-                'updated_records' => $result['updated'],
-                'errors' => $result['errors'],
-                'has_more' => $result['has_more'],
-                'next_offset' => $result['next_offset'],
-                'progress_percent' => $result['progress_percent'],
-                'message' => $result['has_more'] 
-                    ? "Batch {$offset}-" . ($offset + $batch_size) . " completato. Continuando..."
-                    : "Scansione completata: {$result['new']} nuovi, {$result['updated']} aggiornati"
+                'complete' => true,
+                'total_files' => $total_files,
+                'processed' => $total_files,
+                'new_records' => $new_records,
+                'updated_records' => $updated_records,
+                'errors' => $errors,
+                'error_details' => array_slice($error_details, 0, 10),
+                'new_files_list' => $new_files_list,
+                'progress_percent' => 100,
+                'message' => "Scansione completata: {$new_records} nuovi, {$updated_records} aggiornati, {$errors} errori"
             ));
 
         } catch (\Exception $e) {
-            error_log('[Batch-Scan-AJAX] âŒ ERRORE FATALE: ' . $e->getMessage());
+            error_log('[Batch-Scan-AJAX] ❌ ERRORE FATALE: ' . $e->getMessage());
             wp_send_json_error(array(
                 'message' => 'Errore durante la scansione: ' . $e->getMessage()
             ));
@@ -163,7 +347,7 @@ class Disco747_AJAX_Handlers {
             return;
         }
 
-        error_log('[Reset-Scan-AJAX] âœ… Nonce e permessi verificati');
+        error_log('[Reset-Scan-AJAX] ✅ Nonce e permessi verificati');
 
         try {
             // SVUOTA TABELLA
@@ -171,13 +355,13 @@ class Disco747_AJAX_Handlers {
             $table = $wpdb->prefix . 'disco747_preventivi';
             $deleted = $wpdb->query("TRUNCATE TABLE {$table}");
             
-            error_log('[Reset-Scan-AJAX] âœ… Tabella svuotata (record eliminati: ' . ($deleted !== false ? 'OK' : 'ERRORE') . ')');
+            error_log('[Reset-Scan-AJAX] ✅ Tabella svuotata (record eliminati: ' . ($deleted !== false ? 'OK' : 'ERRORE') . ')');
 
             // Ora esegui la scansione normale (riutilizza la logica esistente)
             self::handle_batch_scan();
 
         } catch (\Exception $e) {
-            error_log('[Reset-Scan-AJAX] âŒ ERRORE: ' . $e->getMessage());
+            error_log('[Reset-Scan-AJAX] ❌ ERRORE: ' . $e->getMessage());
             wp_send_json_error(array(
                 'message' => 'Errore durante reset: ' . $e->getMessage()
             ));
@@ -220,7 +404,7 @@ class Disco747_AJAX_Handlers {
             $anno_corrente = (int) date('Y');
             $mese_corrente = (int) date('m');
             
-            // Se il mese Ã¨ passato, usa anno prossimo
+            // Se il mese è passato, usa anno prossimo
             if ((int)$mese < $mese_corrente) {
                 $anno = $anno_corrente + 1;
             } else {
@@ -236,12 +420,12 @@ class Disco747_AJAX_Handlers {
                 'stato' => $stato
             );
             
-            error_log("[Parse-Filename] âœ… Parsed: " . json_encode($result));
+            error_log("[Parse-Filename] ✅ Parsed: " . json_encode($result));
             
             return $result;
         }
         
-        error_log("[Parse-Filename] âŒ Pattern non riconosciuto");
+        error_log("[Parse-Filename] ❌ Pattern non riconosciuto");
         return false;
     }
 

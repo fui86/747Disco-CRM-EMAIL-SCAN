@@ -256,7 +256,7 @@ class Disco747_GoogleDrive {
      * OAUTH 2.0: Gestione Access Token
      * ========================================================================
      */
-    public function get_valid_access_token() {
+    private function get_valid_access_token() {
         // Check cache
         if ($this->access_token_cache) {
             $expires = get_option('disco747_googledrive_token_expires', 0);
@@ -703,20 +703,6 @@ class Disco747_GoogleDrive {
             
             $content = wp_remote_retrieve_body($response);
             
-            // ✅ VALIDAZIONE CRITICA: Verifica contenuto non vuoto
-            if (empty($content)) {
-                error_log("[GoogleDrive] ERRORE: Contenuto scaricato vuoto per file_id: {$file_id}");
-                return array(
-                    'success' => false,
-                    'error' => 'Contenuto file vuoto (0 bytes scaricati da Google Drive)'
-                );
-            }
-            
-            $content_size = strlen($content);
-            if ($content_size < 1024) { // Minimo 1KB per file Excel valido
-                error_log("[GoogleDrive] WARNING: File molto piccolo ({$content_size} bytes) per file_id: {$file_id}");
-            }
-            
             // Crea directory se non esiste
             $dir = dirname($local_path);
             if (!is_dir($dir)) {
@@ -729,25 +715,14 @@ class Disco747_GoogleDrive {
             if ($result === false) {
                 return array(
                     'success' => false,
-                    'error' => 'Impossibile salvare file su disco'
+                    'error' => 'Impossibile salvare file'
                 );
             }
-            
-            // ✅ VERIFICA FINALE: File salvato correttamente
-            if (!file_exists($local_path) || filesize($local_path) === 0) {
-                error_log("[GoogleDrive] ERRORE: File salvato ma vuoto o inesistente: {$local_path}");
-                return array(
-                    'success' => false,
-                    'error' => 'File salvato ma risulta vuoto'
-                );
-            }
-            
-            error_log("[GoogleDrive] ✅ File scaricato con successo: {$local_path} (" . number_format(filesize($local_path)) . " bytes)");
             
             return array(
                 'success' => true,
                 'path' => $local_path,
-                'size' => filesize($local_path)
+                'size' => $result
             );
             
         } catch (\Exception $e) {

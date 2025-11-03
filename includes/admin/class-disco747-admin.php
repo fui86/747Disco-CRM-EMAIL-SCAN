@@ -107,7 +107,7 @@ class Disco747_Admin {
             add_submenu_page(
                 'disco747-crm',
                 __('View Database', 'disco747'),
-                __('ðŸ“Š View Database', 'disco747'),
+                __('📊 View Database', 'disco747'),
                 $this->min_capability,
                 'disco747-view-preventivi',
                 array($this, 'render_view_preventivi_page')
@@ -190,20 +190,13 @@ class Disco747_Admin {
         
         switch ($action) {
             case 'new_preventivo':
-                $this->log('Rendering form nuovo/modifica preventivo');
-                // Supporta sia edit_id che id per compatibilità
-                $id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 
-                      (isset($_GET['id']) ? intval($_GET['id']) : 0);
-                if ($id > 0) {
-                    $this->log('Modalità edit - ID: ' . $id);
-                }
-                $this->render_form_preventivo($id);
+                $this->log('Rendering form nuovo preventivo');
+                $this->render_form_preventivo();
                 break;
                 
             case 'edit_preventivo':
                 $this->log('Rendering form modifica preventivo');
-                $id = isset($_GET['id']) ? intval($_GET['id']) : 
-                      (isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0);
+                $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
                 $this->render_form_preventivo($id);
                 break;
                 
@@ -219,13 +212,6 @@ class Disco747_Admin {
             wp_die(__('Non hai i permessi.', 'disco747'));
         }
         
-        // Se è stato passato un ID, impostiamolo anche in $_GET['edit_id'] 
-        // per assicurare compatibilità con il form
-        if ($id > 0) {
-            $_GET['edit_id'] = $id;
-            $this->log('Edit mode attivo - ID impostato: ' . $id);
-        }
-        
         $preventivo = null;
         if ($id > 0) {
             global $wpdb;
@@ -234,12 +220,6 @@ class Disco747_Admin {
                 "SELECT * FROM {$table_name} WHERE id = %d",
                 $id
             ), ARRAY_A);
-            
-            if ($preventivo) {
-                $this->log('Preventivo caricato per edit: ' . $preventivo['nome_cliente']);
-            } else {
-                $this->log('ATTENZIONE: Preventivo ID ' . $id . ' non trovato!', 'error');
-            }
         }
         
         require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/form-preventivo.php';
@@ -280,7 +260,7 @@ class Disco747_Admin {
             
             if (!empty($access_token) && !empty($refresh_token) && $storage_type === 'googledrive') {
                 $is_googledrive_configured = true;
-                $this->log('âœ… CONFIGURATO via token (prioritÃ  1)');
+                $this->log('✅ CONFIGURATO via token (priorità 1)');
             } else {
                 if ($this->storage_manager) {
                     $gd_handler = $this->storage_manager->get_active_handler();
