@@ -255,8 +255,18 @@ $version = $system_status['plugin_version'];
                                style="flex: 1; background: #007bff; color: white; padding: 8px; border-radius: 6px; text-align: center; text-decoration: none; font-weight: 600; font-size: 0.8rem;">
                                 ✏️ Gestisci
                             </a>
-                            <a href="tel:<?php echo esc_attr($evento['telefono']); ?>" 
-                               style="background: #28a745; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem;">
+                            <?php 
+                            // Formatta numero per WhatsApp (rimuovi spazi, trattini, parentesi)
+                            $whatsapp_number = preg_replace('/[^0-9+]/', '', $evento['telefono']);
+                            // Se non inizia con +, aggiungi prefisso Italia
+                            if (substr($whatsapp_number, 0, 1) !== '+') {
+                                $whatsapp_number = '+39' . $whatsapp_number;
+                            }
+                            ?>
+                            <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
+                               target="_blank"
+                               title="Apri chat WhatsApp con <?php echo esc_attr($evento['nome_cliente']); ?>"
+                               style="background: #25D366; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; justify-content: center;">
                                 📱
                             </a>
                         </div>
