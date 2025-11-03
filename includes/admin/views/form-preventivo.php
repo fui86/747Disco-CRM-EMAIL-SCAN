@@ -828,8 +828,10 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-generate-pdf').on('click', function() {
         console.log('📄 Genera PDF cliccato');
+        console.log('📄 preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        // Verifica che esista almeno l'ID numerico
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
             return;
         }
@@ -837,12 +839,14 @@ jQuery(document).ready(function($) {
         const $btn = $(this);
         $btn.prop('disabled', true).html('â³ Generazione PDF...');
         
-        const prevId = window.preventivoData.id || window.preventivoData.db_id || window.preventivoData.preventivo_id;
+        const prevId = window.preventivoData.id || window.preventivoData.db_id;
         
         console.log('📄 Preventivo ID estratto:', prevId);
+        console.log('📄 preventivoData.id:', window.preventivoData.id);
+        console.log('📄 preventivoData.db_id:', window.preventivoData.db_id);
         
-        if (!prevId) {
-            alert('❌ Errore: ID preventivo non trovato');
+        if (!prevId || prevId <= 0) {
+            alert('❌ Errore: ID preventivo non trovato o non valido');
             return;
         }
         
@@ -882,11 +886,15 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-send-email').on('click', function() {
         console.log('📧 Invia Email cliccato');
+        console.log('📧 preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        // Verifica che esista almeno l'ID numerico
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
             return;
         }
+        
+        console.log('📧 ID trovato:', window.preventivoData.id || window.preventivoData.db_id);
         
         // Mostra modal selezione template
         $('#modal-email-template').css('display', 'flex').hide().fadeIn(300);
@@ -952,11 +960,15 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-send-whatsapp').on('click', function() {
         console.log('💬 Invia WhatsApp cliccato');
+        console.log('💬 preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
+        // Verifica che esista almeno l'ID numerico
+        if (!window.preventivoData || (!window.preventivoData.id && !window.preventivoData.db_id)) {
             alert('❌ Errore: Dati preventivo non disponibili');
             return;
         }
+        
+        console.log('💬 ID trovato:', window.preventivoData.id || window.preventivoData.db_id);
         
         // Mostra modal selezione template
         $('#modal-whatsapp-template').css('display', 'flex').hide().fadeIn(300);
@@ -971,14 +983,15 @@ jQuery(document).ready(function($) {
     $('#confirm-send-whatsapp').on('click', function() {
         const templateId = $('#whatsapp-template-select').val();
         
-        // Usa id numerico
-        const prevId = window.preventivoData.id || window.preventivoData.db_id || window.preventivoData.preventivo_id;
+        // Usa id numerico (priorità a id/db_id che sono sempre presenti)
+        const prevId = window.preventivoData.id || window.preventivoData.db_id;
         
         console.log('💬 Invio WhatsApp con template:', templateId);
         console.log('💬 Preventivo ID estratto:', prevId);
+        console.log('💬 preventivoData completo:', window.preventivoData);
         
-        if (!prevId) {
-            alert('❌ Errore: ID preventivo non trovato');
+        if (!prevId || prevId <= 0) {
+            alert('❌ Errore: ID preventivo non trovato o non valido');
             return;
         }
         
