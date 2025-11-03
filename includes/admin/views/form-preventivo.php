@@ -762,18 +762,22 @@ jQuery(document).ready(function($) {
                 console.log('✅ Risposta server:', response);
                 
                 if (response.success) {
-                    alert('✅ ' + (response.data.message || 'Preventivo creato con successo!'));
+                    alert('✅ ' + (response.data.message || 'Preventivo salvato con successo!'));
                     
-                    // ✅ MOSTRA I PULSANTI POST-CREAZIONE
-                    $('#post-creation-actions').slideDown(500);
-                    
-                    // Salva dati per i pulsanti
+                    // ✅ AGGIORNA/SALVA window.preventivoData per i pulsanti
                     window.preventivoData = response.data;
                     
-                    // Scroll verso i pulsanti
-                    $('html, body').animate({
-                        scrollTop: $('#post-creation-actions').offset().top - 100
-                    }, 800);
+                    console.log('📝 preventivoData aggiornato:', window.preventivoData);
+                    
+                    // ✅ MOSTRA I PULSANTI POST-CREAZIONE (se non già visibili)
+                    if (!$('#post-creation-actions').is(':visible')) {
+                        $('#post-creation-actions').slideDown(500);
+                        
+                        // Scroll verso i pulsanti solo se appena mostrati
+                        $('html, body').animate({
+                            scrollTop: $('#post-creation-actions').offset().top - 100
+                        }, 800);
+                    }
                     
                 } else {
                     const errorMsg = response.data || response.message || 'Errore sconosciuto';
