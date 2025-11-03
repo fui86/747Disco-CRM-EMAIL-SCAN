@@ -270,10 +270,9 @@ $stats = array(
                     <table class="wp-list-table widefat fixed striped" style="margin: 0;">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">ID</th>
-                                <th style="width: 80px;">Prev. ID</th>
                                 <th style="width: 100px;">Data Evento</th>
                                 <th>Cliente</th>
+                                <th style="width: 60px; text-align: center;">WhatsApp</th>
                                 <th>Tipo Evento</th>
                                 <th style="width: 100px;">Menu</th>
                                 <th style="width: 70px;">Invitati</th>
@@ -286,12 +285,6 @@ $stats = array(
                         <tbody>
                             <?php foreach ($preventivi as $prev): ?>
                                 <tr data-preventivo-id="<?php echo $prev->id; ?>">
-                                    <td><strong>#<?php echo $prev->id; ?></strong></td>
-                                    <td>
-                                        <span style="background: #FFD700; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">
-                                            <?php echo $prev->preventivo_id ?: 'N/A'; ?>
-                                        </span>
-                                    </td>
                                     <td><?php echo $prev->data_evento ? date('d/m/Y', strtotime($prev->data_evento)) : 'N/A'; ?></td>
                                     <td>
                                         <strong><?php echo esc_html($prev->nome_cliente ?: 'N/A'); ?></strong>
@@ -300,6 +293,27 @@ $stats = array(
                                         <?php endif; ?>
                                         <?php if ($prev->email): ?>
                                             <br><small style="color: #666;">✉️ <?php echo esc_html($prev->email); ?></small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <?php if ($prev->telefono): 
+                                            // Formatta numero per WhatsApp (rimuovi spazi, trattini, parentesi)
+                                            $whatsapp_number = preg_replace('/[^0-9+]/', '', $prev->telefono);
+                                            // Se non inizia con +, aggiungi prefisso Italia
+                                            if (substr($whatsapp_number, 0, 1) !== '+') {
+                                                $whatsapp_number = '+39' . $whatsapp_number;
+                                            }
+                                        ?>
+                                            <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
+                                               target="_blank"
+                                               title="Apri chat WhatsApp con <?php echo esc_attr($prev->nome_cliente); ?>"
+                                               style="display: inline-flex; align-items: center; justify-content: center; background: #25D366; color: white; width: 36px; height: 36px; border-radius: 50%; text-decoration: none; font-size: 18px; transition: all 0.3s;"
+                                               onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(37, 211, 102, 0.4)';"
+                                               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+                                                📱
+                                            </a>
+                                        <?php else: ?>
+                                            <span style="color: #ccc; font-size: 12px;">N/A</span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html($prev->tipo_evento ?: 'N/A'); ?></td>
@@ -748,7 +762,7 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.btn-delete-preventivo', function() {
         var preventivoId = $(this).data('id');
         var $row = $(this).closest('tr');
-        var cliente = $row.find('td:nth-child(4) strong').text();
+        var cliente = $row.find('td:nth-child(2) strong').text();
         
         if (!confirm('⚠️ Sei sicuro di voler eliminare il preventivo di ' + cliente + '?\n\nQuesta azione è irreversibile!')) {
             return;
