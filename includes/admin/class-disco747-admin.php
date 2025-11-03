@@ -93,7 +93,7 @@ class Disco747_Admin {
             add_submenu_page(
                 'disco747-crm',
                 __('Impostazioni', 'disco747'),
-                __('Impostazioni', 'disco747'),
+                __('⚙ Impostazioni', 'disco747'),
                 $this->min_capability,
                 'disco747-settings',
                 array($this, 'render_settings_page')
@@ -101,7 +101,7 @@ class Disco747_Admin {
             add_submenu_page(
                 'disco747-crm',
                 __('Messaggi Automatici', 'disco747'),
-                __('Messaggi Automatici', 'disco747'),
+                __('✉ Messaggi Automatici', 'disco747'),
                 $this->min_capability,
                 'disco747-messages',
                 array($this, 'render_messages_page')
@@ -109,7 +109,7 @@ class Disco747_Admin {
             add_submenu_page(
                 'disco747-crm',
                 __('Scansione Excel Auto', 'disco747'),
-                __('Scansione Excel Auto', 'disco747'),
+                __('↻ Scansione Excel Auto', 'disco747'),
                 $this->min_capability,
                 'disco747-scan-excel',
                 array($this, 'render_scan_excel_page')
@@ -117,7 +117,7 @@ class Disco747_Admin {
             add_submenu_page(
                 'disco747-crm',
                 __('View Database', 'disco747'),
-                __('📊 View Database', 'disco747'),
+                __('◉ View Database', 'disco747'),
                 $this->min_capability,
                 'disco747-view-preventivi',
                 array($this, 'render_view_preventivi_page')

@@ -584,7 +584,7 @@ class Disco747_Ajax {
             if (class_exists('WPMailSMTP\Options')) {
                 $smtp_active = true;
                 $mailer = \WPMailSMTP\Options::init()->get('mail', 'mailer');
-                $this->log("âœ… WP Mail SMTP attivo - Mailer: $mailer");
+                $this->log("✅ WP Mail SMTP attivo - Mailer: $mailer");
             } elseif (function_exists('wp_mail_smtp')) {
                 $smtp_active = true;
                 $this->log("âœ… WP Mail SMTP attivo (versione legacy)");
@@ -616,7 +616,7 @@ class Disco747_Ajax {
             $sent = wp_mail($to_email, $subject, $body, $headers, $attachments);
             
             if ($sent) {
-                $this->log("âœ… Email inviata con successo a $to_email");
+                $this->log("✅ Email inviata con successo a $to_email");
                 
                 // Salva log invio nel database (se la tabella esiste)
                 global $wpdb;
@@ -641,7 +641,7 @@ class Disco747_Ajax {
                 }
                 
                 wp_send_json_success(array(
-                    'message' => 'âœ… Email inviata con successo!',
+                    'message' => '✅ Email inviata con successo!',
                     'to' => $to_email,
                     'subject' => $subject
                 ));

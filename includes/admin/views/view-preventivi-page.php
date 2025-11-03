@@ -8,11 +8,15 @@
  * @version    11.8.3-FILTERS-EDIT
  */
 
+// Forza encoding UTF-8
+header('Content-Type: text/html; charset=UTF-8');
+
 if (!defined('ABSPATH')) {
     exit('Accesso diretto non consentito');
 }
 
 global $wpdb;
+$wpdb->query("SET NAMES 'utf8mb4'");
 $table_name = $wpdb->prefix . 'disco747_preventivi';
 
 // Parametri filtri
@@ -107,6 +111,7 @@ $stats = array(
 
 ?>
 
+<meta charset="UTF-8">
 <div class="wrap disco747-wrap">
     
     <!-- Header -->
