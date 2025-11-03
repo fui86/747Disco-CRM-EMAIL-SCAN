@@ -1,628 +1,283 @@
-/**
- * 747 Disco CRM - Excel Scanner Advanced
- * Sistema di scansione e analisi file Excel da Google Drive
- * 
- * @version 1.1.0
- * @since 11.8.0
- */
-
-(function($) {
+jQuery(document).ready(function($) {
     'use strict';
 
-    // ========================================================================
-    // DEBUG PANEL - Sistema di logging avanzato
-    // ========================================================================
-    
-    const DebugPanel = {
-        logs: [],
-        maxLogs: 500,
-        
-        log: function(category, message, type = 'info') {
-            const timestamp = new Date().toISOString().substr(11, 8);
-            const logEntry = {
-                time: timestamp,
-                category: category,
-                message: message,
-                type: type
-            };
-            
-            this.logs.push(logEntry);
-            if (this.logs.length > this.maxLogs) {
-                this.logs.shift();
-            }
-            
-            // Log anche in console normale
-            console.log(`[${timestamp}] [${category}] ${message}`);
-        },
-        
-        logStep: function(stepNumber, description) {
-            this.log(`STEP ${stepNumber}`, description, 'success');
-        },
-        
-        logError: function(context, error) {
-            this.log(context, `ERRORE: ${error}`, 'error');
-        },
-        
-        logClick: function(selector) {
-            this.log('CLICK', `Click rilevato su: ${selector}`, 'click');
-        },
-        
-        logAjax: function(action, status) {
-            this.log('AJAX', `${action} - ${status}`, 'ajax');
-        }
-    };
+    console.log('[Excel-Scan] Script caricato');
+    console.log('[Excel-Scan] jQuery version:', $.fn.jquery);
+    console.log('[Excel-Scan] ajaxurl:', typeof ajaxurl !== 'undefined' ? ajaxurl : 'NON DEFINITO');
+    console.log('[Excel-Scan] disco747ExcelScanData:', typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData : 'NON DEFINITO');
 
-    // ========================================================================
-    // OGGETTO EXCEL SCANNER CON DEBUG
-    // ========================================================================
-
-    const ExcelScanner = {
-        
-        currentPage: 1,
-        totalPages: 1,
-        currentSearch: '',
-        isLoading: false,
-        isBatchScanning: false,
-
+    const ExcelScan = {
         config: {
-            maxRetries: 3,
-            retryDelay: 1000,
-            maxLogLines: 1000,
-            autoRefreshInterval: 30000
+            ajaxurl: typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php',
+            nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : ''
         },
-
+        
         init: function() {
-            DebugPanel.logStep(1, 'Inizializzazione ExcelScanner...');
+            console.log('[Excel-Scan] Inizializzazione...');
+            console.log('[Excel-Scan] Config:', this.config);
             
-            if (!this.checkRequirements()) {
-                DebugPanel.logError('INIT', 'Requisiti mancanti');
+            const startBtn = $('#start-scan-btn');
+            const resetBtn = $('#reset-scan-btn');
+            
+            console.log('[Excel-Scan] Pulsante #start-scan-btn:', startBtn.length > 0 ? 'TROVATO' : 'NON TROVATO');
+            console.log('[Excel-Scan] Pulsante #reset-scan-btn:', resetBtn.length > 0 ? 'TROVATO' : 'NON TROVATO');
+            
+            if (startBtn.length === 0) {
+                console.error('[Excel-Scan] ERRORE: Pulsante #start-scan-btn non trovato nel DOM');
                 return;
             }
-
-            DebugPanel.logStep(2, 'Requisiti OK - Binding eventi...');
+            
             this.bindEvents();
-            
-            DebugPanel.logStep(3, 'Eventi bindati - Inizializzazione UI...');
-            this.initUI();
-            
-            // Carica tabella iniziale se Google Drive è configurato
-            if (window.disco747ExcelScanData?.gdriveAvailable) {
-                this.loadExcelTable();
-            }
-            
-            DebugPanel.logStep(4, 'ExcelScanner pronto!');
+            console.log('[Excel-Scan] Inizializzazione completata');
         },
-
-        checkRequirements: function() {
-            if (typeof window.disco747ExcelScanData === 'undefined') {
-                DebugPanel.logError('REQUISITI', 'window.disco747ExcelScanData non trovato');
-                return false;
-            }
-
-            if (typeof $ === 'undefined') {
-                DebugPanel.logError('REQUISITI', 'jQuery non trovato');
-                return false;
-            }
-
-            DebugPanel.log('REQUISITI', 'Tutti i requisiti soddisfatti', 'success');
-            DebugPanel.log('CONFIG', `ajaxurl: ${window.disco747ExcelScanData?.ajaxurl || 'N/D'}`, 'info');
-            DebugPanel.log('CONFIG', `nonce: ${window.disco747ExcelScanData?.nonce ? 'presente' : 'MANCANTE'}`, window.disco747ExcelScanData?.nonce ? 'success' : 'error');
-            DebugPanel.log('CONFIG', `gdriveAvailable: ${window.disco747ExcelScanData?.gdriveAvailable}`, 'info');
-            
-            return true;
-        },
-
-        initUI: function() {
-            this.updateUIState();
-            
-            if (typeof $.fn.tooltip === 'function') {
-                $('[data-toggle="tooltip"]').tooltip();
-            }
-
-            if (window.disco747ExcelScanData?.gdriveAvailable) {
-                $('#excel-search').focus();
-            }
-            
-            DebugPanel.log('UI', 'Interfaccia inizializzata', 'success');
-        },
-
-        updateUIState: function() {
-            const available = window.disco747ExcelScanData?.gdriveAvailable;
-            
-            if (!available) {
-                $('#excel-search, #manual-file-id').prop('disabled', true);
-                $('button[id*="btn"]:not(#refresh-all-btn)').prop('disabled', true);
-                $('#files-count').text('N/D - Google Drive non configurato');
-                DebugPanel.log('UI', 'Google Drive NON disponibile - UI disabilitata', 'warning');
-            } else {
-                DebugPanel.log('UI', 'Google Drive disponibile - UI attiva', 'success');
-            }
-        },
-
+        
         bindEvents: function() {
-            DebugPanel.log('BINDING', 'Inizio binding eventi...', 'info');
+            const self = this;
             
-            // ✅ Pulsante batch scan
-            const $batchBtn = $('#disco747-start-batch-scan');
-            if ($batchBtn.length === 0) {
-                DebugPanel.logError('BINDING', '#disco747-start-batch-scan NON TROVATO nel DOM!');
-            } else {
-                DebugPanel.log('BINDING', `#disco747-start-batch-scan TROVATO (${$batchBtn.length} elementi)`, 'success');
-                
-                $batchBtn.on('click', (e) => {
-                    DebugPanel.logClick('#disco747-start-batch-scan');
-                    DebugPanel.log('EVENT', 'Handler batch scan invocato', 'success');
-                    this.startBatchScan();
-                });
-                
-                DebugPanel.log('BINDING', 'Handler click collegato a #disco747-start-batch-scan', 'success');
-            }
-            
-            // Ricerca e filtri
-            $('#search-files-btn').on('click', () => this.loadExcelTable(1));
-            $('#refresh-files-btn').on('click', () => this.loadExcelTable(1));
-            $('#filter-menu').on('change', () => this.loadExcelTable(1));
-            $('#search-excel').on('keypress', (e) => {
-                if (e.which === 13) {
-                    e.preventDefault();
-                    this.loadExcelTable(1);
-                }
+            $('#start-scan-btn').on('click', function(e) {
+                console.log('[Excel-Scan] Click su start-scan-btn rilevato');
+                self.handleScan(e);
             });
             
-            // Altri pulsanti
-            $('#refresh-all-btn').on('click', () => this.refreshAll());
-            $('#analyze-manual-btn').on('click', () => this.analyzeManualId());
-            $('#clear-results-btn').on('click', () => this.clearResults());
-            
-            $('#toggle-log-btn').on('click', () => this.toggleLog());
-            $('#copy-log-btn').on('click', () => this.copyLogToClipboard());
-            $('#download-log-btn').on('click', () => this.downloadLog());
-            
-            $('#export-results-btn').on('click', () => this.exportResults());
-            
-            $('#prev-page-btn').on('click', () => this.prevPage());
-            $('#next-page-btn').on('click', () => this.nextPage());
-
-            $('#manual-file-id').on('keypress', (e) => {
-                if (e.which === 13) this.analyzeManualId();
+            $('#reset-scan-btn').on('click', function(e) {
+                console.log('[Excel-Scan] Click su reset-scan-btn rilevato');
+                self.handleResetScan(e);
             });
-
-            $('#manual-file-id').on('input', (e) => {
-                this.validateFileId($(e.target).val());
-            });
-
-            DebugPanel.log('BINDING', 'Tutti gli eventi collegati con successo', 'success');
+            
+            console.log('[Excel-Scan] Eventi collegati correttamente');
         },
+        
+        handleScan: function(e) {
+            e.preventDefault();
+            console.log('[Excel-Scan] === AVVIO SCANSIONE ===');
+            
+            const year = $('#scan-year').val();
+            const month = $('#scan-month').val();
+            const btn = $('#start-scan-btn');
+            const resetBtn = $('#reset-scan-btn');
 
-        /**
-         * FUNZIONE PRINCIPALE: Batch Scan
-         */
-        startBatchScan: function() {
-            DebugPanel.logStep('BATCH-1', 'Avvio batch scan...');
-            
-            if (this.isBatchScanning) {
-                DebugPanel.logError('BATCH', 'Batch scan già in corso');
-                alert('⚠️ Scansione batch già in corso');
-                return;
-            }
-            
-            if (!window.disco747ExcelScanData?.gdriveAvailable) {
-                DebugPanel.logError('BATCH', 'Google Drive non configurato');
-                alert('❌ Google Drive non configurato');
-                return;
-            }
-            
-            DebugPanel.logStep('BATCH-2', 'Stato verificato - preparazione dati AJAX...');
-            
-            // Stato UI
-            this.isBatchScanning = true;
-            $('#disco747-start-batch-scan').prop('disabled', true).text('🔄 Scansione in corso...');
-            
-            DebugPanel.logStep('BATCH-3', 'UI aggiornata - pulsante disabilitato');
-            
-            // Mostra progress se presente
-            const $progress = $('#batch-scan-progress');
-            if ($progress.length) {
-                $progress.show().find('.progress-bar').css('width', '0%');
-                DebugPanel.log('BATCH', 'Progress bar mostrata', 'info');
-            }
-            
-            // ✅ FIX CRITICO: Cambiato action da 'disco747_scan_drive_batch' a 'batch_scan_excel'
+            console.log('[Excel-Scan] Parametri:', {year: year, month: month});
+
+            $('#progress-section').show();
+            $('#progress-bar-fill').css('width', '0%');
+            $('#progress-percent').text('0%');
+            $('#progress-status').text('Connessione a Google Drive...');
+            $('#results-section').hide();
+            $('#new-files-box').hide();
+            $('#debug-log').text('Avvio scansione...\n');
+
+            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
+            resetBtn.prop('disabled', true);
+
             const ajaxData = {
                 action: 'batch_scan_excel',
-                nonce: window.disco747ExcelScanData?.nonce || '',
-                _wpnonce: window.disco747ExcelScanData?.nonce || ''
+                nonce: this.config.nonce,
+                year: year,
+                month: month
             };
-            
-            DebugPanel.logStep('BATCH-4', 'Dati AJAX preparati');
-            DebugPanel.log('AJAX-DATA', `action: ${ajaxData.action}`, 'ajax');
-            DebugPanel.log('AJAX-DATA', `nonce: ${ajaxData.nonce ? 'presente' : 'MANCANTE'}`, ajaxData.nonce ? 'success' : 'error');
-            
+
+            console.log('[Excel-Scan] Invio richiesta AJAX a:', this.config.ajaxurl);
+            console.log('[Excel-Scan] Dati AJAX:', ajaxData);
+
             $.ajax({
-                url: window.disco747ExcelScanData?.ajaxurl || ajaxurl,
+                url: this.config.ajaxurl,
                 type: 'POST',
                 data: ajaxData,
-                dataType: 'json',
-                beforeSend: function(xhr) {
-                    DebugPanel.logAjax('batch_scan_excel', 'INVIO...');
+                success: function(response) {
+                    console.log('[Excel-Scan] Risposta AJAX ricevuta:', response);
+                    ExcelScan.handleScanSuccess(response);
                 },
-                success: (response) => {
-                    DebugPanel.log('BATCH-RESPONSE', 'Risposta ricevuta', 'success');
-                    console.log('Batch scan response:', response);
-                    
-                    if (response.success && response.data) {
-                        const result = response.data;
-                        DebugPanel.log('BATCH-RESULT', `Trovati: ${result.found}, Processati: ${result.processed}, Errori: ${result.errors}`, 'success');
-                        
-                        // Log messaggi
-                        if (result.messages && result.messages.length > 0) {
-                            result.messages.forEach(msg => {
-                                this.addActivityLog(msg, msg.includes('✅') ? 'success' : msg.includes('❌') ? 'error' : 'info');
-                            });
-                        }
-                        
-                        // Notifica successo
-                        if (result.processed > 0) {
-                            this.showNotification('success', `✅ Scansione completata: ${result.processed} file processati`);
-                        } else {
-                            this.showNotification('warning', '⚠️ Scansione completata ma nessun file processato');
-                        }
-                        
-                        // Ricarica la tabella con i nuovi dati
-                        this.loadExcelTable();
-                        
-                    } else {
-                        const errorMsg = response.data?.message || response.data || 'Errore sconosciuto';
-                        DebugPanel.logError('BATCH', errorMsg);
-                        this.showNotification('error', `❌ Errore: ${errorMsg}`);
-                    }
+                error: function(xhr, status, error) {
+                    console.error('[Excel-Scan] Errore AJAX:', {xhr: xhr, status: status, error: error});
+                    ExcelScan.handleScanError(xhr, status, error);
                 },
-                error: (xhr, status, error) => {
-                    DebugPanel.logError('AJAX', `${status}: ${error}`);
-                    console.error('AJAX Error:', xhr.responseText);
-                    this.showNotification('error', `❌ Errore di connessione: ${error}`);
-                },
-                complete: () => {
-                    DebugPanel.log('BATCH', 'Operazione completata', 'info');
-                    
-                    // Reset stato
-                    this.isBatchScanning = false;
-                    $('#disco747-start-batch-scan').prop('disabled', false).text('✅ Analizza Ora');
-                    
-                    if ($progress.length) {
-                        setTimeout(() => $progress.fadeOut(), 3000);
-                    }
+                complete: function() {
+                    console.log('[Excel-Scan] Richiesta AJAX completata');
+                    btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
+                    resetBtn.prop('disabled', false);
                 }
             });
         },
-
-        /**
-         * Carica la tabella dei file Excel analizzati
-         * @param {number} page - Numero pagina da caricare (default: 1)
-         */
-        loadExcelTable: function(page = 1) {
-            DebugPanel.log('TABLE', 'Caricamento tabella - pagina ' + page, 'info');
+        
+        handleResetScan: function(e) {
+            e.preventDefault();
+            console.log('[Excel-Scan] === AVVIO RESET & SCAN ===');
             
-            const $container = $('#excel-table-container');
-            if (!$container.length) {
-                DebugPanel.logError('TABLE', 'Container #excel-table-container non trovato!');
+            if (!confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\n\nSei sicuro di voler procedere?')) {
+                console.log('[Excel-Scan] Reset annullato dall\'utente');
                 return;
             }
             
-            // Mostra loading
-            $container.html(`
-                <div style="text-align: center; padding: 40px;">
-                    <div class="spinner is-active" style="float: none; margin: 0 auto 20px;"></div>
-                    <p style="color: #666;">Caricamento dati in corso...</p>
-                </div>
-            `);
-            
-            // Prepara dati AJAX
+            const year = $('#scan-year').val();
+            const month = $('#scan-month').val();
+            const btn = $('#reset-scan-btn');
+            const scanBtn = $('#start-scan-btn');
+
+            console.log('[Excel-Scan] Parametri reset:', {year: year, month: month});
+
+            $('#progress-section').show();
+            $('#progress-bar-fill').css('width', '0%');
+            $('#progress-percent').text('0%');
+            $('#progress-status').text('🗑️ Svuotamento database...');
+            $('#results-section').hide();
+            $('#new-files-box').hide();
+            $('#debug-log').text('🗑️ Svuotamento database in corso...\n');
+
+            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Elaborazione...');
+            scanBtn.prop('disabled', true);
+
             const ajaxData = {
-                action: 'load_excel_analysis_table',
-                nonce: window.disco747ExcelScanData?.nonce || '',
-                _wpnonce: window.disco747ExcelScanData?.nonce || '',
-                page: page,
-                search: $('#search-excel').val() || '',
-                filter_menu: $('#filter-menu').val() || ''
+                action: 'reset_and_scan_excel',
+                nonce: this.config.nonce,
+                year: year,
+                month: month
             };
-            
-            DebugPanel.log('AJAX', `Chiamata load_excel_analysis_table - pagina ${page}`, 'ajax');
-            
+
+            console.log('[Excel-Scan] Invio richiesta AJAX reset a:', this.config.ajaxurl);
+            console.log('[Excel-Scan] Dati AJAX reset:', ajaxData);
+
             $.ajax({
-                url: window.disco747ExcelScanData?.ajaxurl || ajaxurl,
+                url: this.config.ajaxurl,
                 type: 'POST',
                 data: ajaxData,
-                success: (response) => {
-                    DebugPanel.log('AJAX', 'Risposta ricevuta da load_excel_analysis_table', 'success');
-                    
-                    if (response.success && response.data) {
-                        // Aggiorna HTML tabella
-                        if (response.data.html) {
-                            $container.html(response.data.html);
-                            DebugPanel.log('TABLE', 'HTML tabella aggiornato', 'success');
-                        }
-                        
-                        // Aggiorna paginazione se presente
-                        if (response.data.pagination) {
-                            $('#excel-pagination').html(response.data.pagination).show();
-                            
-                            // Bind eventi paginazione
-                            $('#excel-pagination .prev-page, #excel-pagination .next-page').on('click', (e) => {
-                                e.preventDefault();
-                                const newPage = $(e.target).data('page');
-                                if (newPage) {
-                                    this.loadExcelTable(newPage);
-                                }
-                            });
-                            
-                            DebugPanel.log('TABLE', 'Paginazione aggiornata', 'info');
-                        }
-                        
-                        // Aggiorna statistiche
-                        if (response.data.stats) {
-                            this.updateStats(response.data.stats);
-                            DebugPanel.log('TABLE', 'Statistiche aggiornate', 'info');
-                        }
-                        
-                        // Bind eventi sui nuovi elementi
-                        this.bindTableEvents();
-                        
-                        DebugPanel.log('TABLE', `Tabella caricata con successo - ${response.data.total || 0} record`, 'success');
-                        
-                    } else {
-                        const errorMsg = response.data?.message || response.data || 'Errore sconosciuto';
-                        $container.html(`
-                            <div style="text-align: center; padding: 40px; color: #dc3545;">
-                                <div style="font-size: 3rem; margin-bottom: 20px;">⚠️</div>
-                                <p>Errore caricamento dati: ${errorMsg}</p>
-                                <button class="button button-secondary" onclick="window.ExcelScanner.loadExcelTable()">
-                                    🔄 Riprova
-                                </button>
-                            </div>
-                        `);
-                        DebugPanel.logError('TABLE', 'Errore risposta: ' + errorMsg);
-                    }
+                success: function(response) {
+                    console.log('[Excel-Scan] Risposta AJAX reset ricevuta:', response);
+                    ExcelScan.handleScanSuccess(response);
                 },
-                error: (xhr, status, error) => {
-                    DebugPanel.logError('AJAX', `Errore chiamata: ${status} - ${error}`);
-                    
-                    $container.html(`
-                        <div style="text-align: center; padding: 40px; color: #dc3545;">
-                            <div style="font-size: 3rem; margin-bottom: 20px;">❌</div>
-                            <p>Errore di connessione al server</p>
-                            <p style="font-size: 0.9rem; color: #999;">${error}</p>
-                            <button class="button button-secondary" onclick="window.ExcelScanner.loadExcelTable()">
-                                🔄 Riprova
-                            </button>
-                        </div>
-                    `);
+                error: function(xhr, status, error) {
+                    console.error('[Excel-Scan] Errore AJAX reset:', {xhr: xhr, status: status, error: error});
+                    ExcelScan.handleScanError(xhr, status, error);
                 },
-                complete: () => {
-                    DebugPanel.log('AJAX', 'Chiamata load_excel_analysis_table completata', 'info');
+                complete: function() {
+                    console.log('[Excel-Scan] Richiesta AJAX reset completata');
+                    btn.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Svuota e Rianalizza');
+                    scanBtn.prop('disabled', false);
                 }
             });
         },
-
-        /**
-         * Aggiorna le statistiche nella UI
-         * @param {object} stats - Oggetto con le statistiche
-         */
-        updateStats: function(stats) {
-            if (!stats) return;
+        
+        handleScanSuccess: function(response) {
+            console.log('[Excel-Scan] === GESTIONE RISPOSTA SUCCESSO ===');
+            console.log('[Excel-Scan] Response completa:', response);
             
-            // Aggiorna contatori principali
-            if (stats.total_files !== undefined) {
-                $('#stats-total').text(Number(stats.total_files).toLocaleString('it-IT'));
-            }
-            if (stats.analyzed_success !== undefined) {
-                $('#stats-success').text(Number(stats.analyzed_success).toLocaleString('it-IT'));
-            }
-            if (stats.confirmed_count !== undefined) {
-                $('#stats-confirmed').text(Number(stats.confirmed_count).toLocaleString('it-IT'));
-            }
-            if (stats.analysis_errors !== undefined) {
-                $('#stats-errors').text(Number(stats.analysis_errors).toLocaleString('it-IT'));
-            }
-            
-            // Aggiorna debug panel se presente
-            if (stats.total_files !== undefined) {
-                $('#debug-db-records').text(Number(stats.total_files).toLocaleString('it-IT'));
-            }
-            
-            DebugPanel.log('STATS', `Statistiche aggiornate - Total: ${stats.total_files || 0}`, 'info');
-        },
-
-        /**
-         * Bind eventi sulla tabella (dopo caricamento AJAX)
-         */
-        bindTableEvents: function() {
-            // Tooltip se disponibile
-            if (typeof $.fn.tooltip === 'function') {
-                $('[data-toggle="tooltip"]').tooltip();
-            }
-            
-            // Click su righe tabella per dettagli
-            $('#excel-table-container tbody tr').on('click', function(e) {
-                if (!$(e.target).is('a, button')) {
-                    $(this).toggleClass('selected');
+            if (response.success) {
+                console.log('[Excel-Scan] Risposta positiva, elaborazione dati...');
+                const d = response.data;
+                
+                $('#progress-bar-fill').css('width', '100%');
+                $('#progress-percent').text('100%');
+                $('#progress-status').text('✅ Completato!');
+                
+                $('#stat-total').text(d.total_files || 0);
+                $('#stat-processed').text(d.processed || 0);
+                $('#stat-new').text(d.new_records || 0);
+                $('#stat-updated').text(d.updated_records || 0);
+                $('#stat-errors').text(d.errors || 0);
+                
+                $('#summary-total').text(d.total_files || 0);
+                $('#summary-new').text(d.new_records || 0);
+                $('#summary-updated').text(d.updated_records || 0);
+                $('#summary-errors').text(d.errors || 0);
+                
+                if (d.errors > 0) {
+                    $('#error-card').show();
                 }
-            });
-            
-            DebugPanel.log('EVENTS', 'Eventi tabella collegati', 'info');
-        },
-
-        // ========================================================================
-        // ALTRE FUNZIONI DI UTILITY
-        // ========================================================================
-
-        validateFileId: function(fileId) {
-            const btn = $('#analyze-manual-btn');
-            const input = $('#manual-file-id');
-            
-            if (!fileId || fileId.length < 10) {
-                btn.prop('disabled', true);
-                input.removeClass('valid').addClass('invalid');
-                return false;
-            }
-            
-            const gdFileIdPattern = /^[a-zA-Z0-9_-]{25,50}$/;
-            
-            if (gdFileIdPattern.test(fileId)) {
-                btn.prop('disabled', false);
-                input.removeClass('invalid').addClass('valid');
-                return true;
+                
+                $('#results-section').fadeIn();
+                
+                const log = '✅ SCANSIONE COMPLETATA\n' + '='.repeat(50) + '\n\n' +
+                    '📊 RISULTATI:\n' +
+                    '   File trovati:    ' + (d.total_files || 0) + '\n' +
+                    '   Processati:      ' + (d.processed || 0) + '\n' +
+                    '   Nuovi:           ' + (d.new_records || 0) + '\n' +
+                    '   Aggiornati:      ' + (d.updated_records || 0) + '\n' +
+                    '   Errori:          ' + (d.errors || 0) + '\n\n' +
+                    '='.repeat(50) + '\n' +
+                    '⏱️  Completato: ' + new Date().toLocaleString('it-IT');
+                
+                $('#debug-log').text(log);
+                
+                if (d.new_files_list && d.new_files_list.length > 0) {
+                    console.log('[Excel-Scan] Mostrando ' + d.new_files_list.length + ' file processati');
+                    this.showNewFiles(d.new_files_list);
+                } else {
+                    console.log('[Excel-Scan] Nessun file da mostrare');
+                    $('#new-files-box').fadeIn();
+                    $('#new-files-table-body').html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nessun file processato</td></tr>');
+                }
             } else {
-                btn.prop('disabled', true);
-                input.removeClass('valid').addClass('invalid');
-                return false;
+                console.error('[Excel-Scan] Risposta negativa dal server');
+                $('#progress-status').text('❌ Errore');
+                const errorMsg = (response.data && response.data.message) ? response.data.message : 'Errore sconosciuto';
+                $('#debug-log').text('❌ ERRORE:\n' + errorMsg);
+                alert('❌ Errore: ' + errorMsg);
             }
         },
-
-        analyzeManualId: function() {
-            const fileId = $('#manual-file-id').val().trim();
+        
+        handleScanError: function(xhr, status, error) {
+            console.error('[Excel-Scan] === ERRORE AJAX ===');
+            console.error('[Excel-Scan] Status:', status);
+            console.error('[Excel-Scan] Error:', error);
+            console.error('[Excel-Scan] Response:', xhr.responseText);
             
-            if (!this.validateFileId(fileId)) {
-                alert('Inserisci un File ID valido');
-                $('#manual-file-id').focus().select();
+            $('#progress-status').text('❌ Errore connessione');
+            $('#debug-log').text('❌ ERRORE AJAX:\n' +
+                'Status: ' + status + '\n' +
+                'Error: ' + error + '\n' +
+                'Response: ' + (xhr.responseText || 'Nessuna risposta'));
+            alert('❌ Errore di connessione: ' + error);
+        },
+        
+        showNewFiles: function(files) {
+            console.log('[Excel-Scan] Popolamento tabella con ' + files.length + ' file');
+            const tbody = $('#new-files-table-body');
+            tbody.empty();
+            
+            if (!files || files.length === 0) {
+                tbody.html('<tr><td colspan="5" style="text-align: center; padding: 30px; color: #999;">Nessun file da mostrare</td></tr>');
                 return;
             }
             
-            DebugPanel.log('MANUAL', `Analisi manuale File ID: ${fileId}`, 'info');
-        },
-
-        refreshAll: function() {
-            DebugPanel.log('REFRESH-ALL', 'Refresh completo', 'info');
-            this.currentSearch = '';
-            this.currentPage = 1;
-            $('#excel-search').val('');
-            $('#filter-menu').val('');
-            this.loadExcelTable(1);
-        },
-
-        clearResults: function() {
-            DebugPanel.log('CLEAR', 'Pulizia risultati', 'info');
-            $('#results-container').empty();
-            $('#results-summary').hide();
-        },
-
-        toggleLog: function() {
-            $('#log-panel').toggle();
-            const isVisible = $('#log-panel').is(':visible');
-            $('#toggle-log-btn').text(isVisible ? '📋 Nascondi Log' : '📋 Mostra Log');
-        },
-
-        copyLogToClipboard: function() {
-            const logText = DebugPanel.logs.map(entry => 
-                `[${entry.time}] [${entry.category}] ${entry.message}`
-            ).join('\n');
-            
-            const textarea = $('<textarea>').val(logText).appendTo('body').select();
-            document.execCommand('copy');
-            textarea.remove();
-            
-            this.showNotification('success', '📋 Log copiato negli appunti');
-        },
-
-        downloadLog: function() {
-            const logText = DebugPanel.logs.map(entry => 
-                `[${entry.time}] [${entry.category}] ${entry.message}`
-            ).join('\n');
-            
-            const blob = new Blob([logText], {type: 'text/plain'});
-            const url = URL.createObjectURL(blob);
-            const a = $('<a>').attr({
-                href: url,
-                download: `excel-scan-log-${new Date().toISOString().substr(0,10)}.txt`
+            files.forEach(function(f) {
+                let badge = 'badge-info';
+                let icon = '📅';
+                let stato = f.stato || 'Attivo';
+                
+                if (stato.toLowerCase() === 'confermato') {
+                    badge = 'badge-success';
+                    icon = '✅';
+                } else if (stato.toLowerCase() === 'annullato') {
+                    badge = 'badge-danger';
+                    icon = '❌';
+                }
+                
+                const row = '<tr>' +
+                    '<td style="font-weight: bold; color: #667eea;">' + (f.data_evento || '-') + '</td>' +
+                    '<td>' + (f.tipo_evento || '-') + '</td>' +
+                    '<td><span class="badge ' + badge + '">' + (f.tipo_menu || '-') + '</span></td>' +
+                    '<td>' + icon + ' ' + stato + '</td>' +
+                    '<td class="mobile-hide" style="font-size: 12px; color: #666;">' + (f.filename || '-') + '</td>' +
+                    '</tr>';
+                
+                tbody.append(row);
             });
-            a[0].click();
-            URL.revokeObjectURL(url);
-        },
-
-        exportResults: function() {
-            DebugPanel.log('EXPORT', 'Esportazione risultati', 'info');
-            // TODO: Implementare export CSV/Excel
-        },
-
-        prevPage: function() {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.loadExcelTable(this.currentPage);
-            }
-        },
-
-        nextPage: function() {
-            if (this.currentPage < this.totalPages) {
-                this.currentPage++;
-                this.loadExcelTable(this.currentPage);
-            }
-        },
-
-        /**
-         * Aggiunge log attività nel pannello visuale
-         */
-        addActivityLog: function(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString('it-IT');
-            const log = document.getElementById('activity-log');
-            if (!log) return;
             
-            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#00ff00';
+            $('#new-files-box').fadeIn();
             
-            const logEntry = document.createElement('div');
-            logEntry.style.color = color;
-            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            setTimeout(function() {
+                const box = $('#new-files-box')[0];
+                if (box) {
+                    box.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest'
+                    });
+                }
+            }, 300);
             
-            log.appendChild(logEntry);
-            log.scrollTop = log.scrollHeight;
-        },
-
-        /**
-         * Mostra notifica toast
-         */
-        showNotification: function(type, message) {
-            // Se esiste sistema notifiche WordPress
-            if (typeof wp !== 'undefined' && wp.data && wp.data.dispatch) {
-                wp.data.dispatch('core/notices').createNotice(
-                    type === 'error' ? 'error' : 'success',
-                    message,
-                    {
-                        isDismissible: true,
-                        type: 'snackbar',
-                    }
-                );
-            } else {
-                // Fallback alert
-                alert(message);
-            }
+            console.log('[Excel-Scan] Tabella popolata con successo');
         }
     };
 
-    // ========================================================================
-    // INIZIALIZZAZIONE AL DOCUMENT READY
-    // ========================================================================
-
-    $(document).ready(function() {
-        DebugPanel.log('INIT', '🚀 747 Disco Excel Scanner - Document Ready', 'success');
-        DebugPanel.log('CONFIG', `jQuery version: ${$.fn.jquery}`, 'info');
-        
-        // Esponi globalmente per debug
-        window.ExcelScanner = ExcelScanner;
-        window.ExcelScannerDebug = DebugPanel;
-        
-        // Inizializza scanner
-        ExcelScanner.init();
-        
-        // Verifica pulsante nel DOM
-        if ($('#disco747-start-batch-scan').length > 0) {
-            DebugPanel.log('DOM-CHECK', `Pulsante trovato: #disco747-start-batch-scan`, 'success');
-            DebugPanel.log('DOM-CHECK', `Testo pulsante: "${$('#disco747-start-batch-scan').text()}"`, 'info');
-            DebugPanel.log('DOM-CHECK', `Pulsante abilitato: ${!$('#disco747-start-batch-scan').prop('disabled')}`, !$('#disco747-start-batch-scan').prop('disabled') ? 'success' : 'warning');
-        }
-
-        // Log completo configurazione
-        DebugPanel.log('FINAL-CHECK', '🎵 747 Disco Excel Scanner inizializzato', 'success');
-        DebugPanel.log('VERSION', '1.1.0', 'info');
-        DebugPanel.log('TIMESTAMP', new Date().toISOString(), 'info');
-    });
-
-})(jQuery);
+    console.log('[Excel-Scan] Avvio inizializzazione...');
+    ExcelScan.init();
+});

@@ -1,6 +1,6 @@
 /**
  * JavaScript Frontend 747 Disco CRM
- * Funzionalità avanzate per interfaccia utente
+ * FunzionalitÃ  avanzate per interfaccia utente
  * Mobile-first, ottimizzato per touch e dispositivi mobili
  */
 
@@ -54,8 +54,8 @@
      * Formatta importo in euro
      */
     function formatCurrency(amount) {
-        if (!amount && amount !== 0) return '€0,00';
-        return '€' + parseFloat(amount).toLocaleString('it-IT', {
+        if (!amount && amount !== 0) return 'â‚¬0,00';
+        return 'â‚¬' + parseFloat(amount).toLocaleString('it-IT', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
@@ -118,17 +118,17 @@
         
         show(message, type = 'success', duration = 5000) {
             const icons = {
-                success: '✅',
-                error: '❌',
-                warning: '⚠️',
-                info: 'ℹ️'
+                success: 'âœ…',
+                error: 'âŒ',
+                warning: 'âš ï¸',
+                info: 'â„¹ï¸'
             };
             
             const notification = $(`
                 <div class="disco747-notification ${type} disco747-fade-in">
-                    <span class="disco747-notification-icon">${icons[type] || '📢'}</span>
+                    <span class="disco747-notification-icon">${icons[type] || 'ðŸ“¢'}</span>
                     <span class="disco747-notification-message">${escapeHtml(message)}</span>
-                    <button class="disco747-notification-close" aria-label="Chiudi notifica">×</button>
+                    <button class="disco747-notification-close" aria-label="Chiudi notifica">Ã—</button>
                 </div>
             `);
             
@@ -190,7 +190,7 @@
             
             // Evita richieste duplicate
             if (this.activeRequests.has(cacheKey)) {
-                log(`Richiesta già in corso per: ${action}`);
+                log(`Richiesta giÃ  in corso per: ${action}`);
                 return this.activeRequests.get(cacheKey);
             }
             
@@ -268,7 +268,7 @@
         
         _getErrorMessage(xhr, status, error) {
             if (status === 'timeout') {
-                return 'Timeout della richiesta. Riprova più tardi.';
+                return 'Timeout della richiesta. Riprova piÃ¹ tardi.';
             } else if (status === 'abort') {
                 return 'Richiesta annullata.';
             } else if (xhr.status === 0) {
@@ -347,7 +347,7 @@
                 const value = $field.val().trim();
                 
                 if (!value) {
-                    FormManager.showFieldError($field, 'Questo campo è obbligatorio');
+                    FormManager.showFieldError($field, 'Questo campo Ã¨ obbligatorio');
                     isValid = false;
                 } else {
                     FormManager.clearFieldError($field);
@@ -388,7 +388,7 @@
             if (loading) {
                 $submitBtn.prop('disabled', true);
                 $submitBtn.data('original-text', $submitBtn.text());
-                $submitBtn.text('🔄 Elaborazione...');
+                $submitBtn.text('ðŸ”„ Elaborazione...');
                 $form.addClass('disco747-form-loading');
             } else {
                 $submitBtn.prop('disabled', false);
@@ -445,7 +445,7 @@
                     }, 2000);
                 }
                 
-                // Reset form se non in modalità modifica
+                // Reset form se non in modalitÃ  modifica
                 if (!isEditMode) {
                     this.resetForm($form);
                 }
@@ -630,11 +630,11 @@
                     <td><span class="disco747-created-by">${escapeHtml(createdBy)}</span></td>
                     <td>
                         <div class="disco747-action-buttons">
-                            <a href="/disco747-preventivi/?edit=${preventivo.id}" class="disco747-btn disco747-btn-sm disco747-btn-primary">
-                                ✏️ Modifica
+                            <a href="/disco747-preventivi/?edit_id=${preventivo.id}" class="disco747-btn disco747-btn-sm disco747-btn-primary">
+                                âœï¸ Modifica
                             </a>
                             <button class="disco747-btn disco747-btn-sm disco747-btn-danger disco747-action-cancel" data-id="${preventivo.id}">
-                                ❌ Annulla
+                                âŒ Annulla
                             </button>
                         </div>
                     </td>
@@ -646,11 +646,11 @@
             return `
                 <tr>
                     <td colspan="8" class="disco747-empty-state">
-                        <div class="disco747-empty-icon">📋</div>
+                        <div class="disco747-empty-icon">ðŸ“‹</div>
                         <div class="disco747-empty-title">Nessun preventivo trovato</div>
                         <div class="disco747-empty-text">Non ci sono preventivi che corrispondono ai filtri selezionati</div>
                         <a href="/disco747-preventivi/" class="disco747-btn disco747-btn-primary">
-                            ➕ Crea nuovo preventivo
+                            âž• Crea nuovo preventivo
                         </a>
                     </td>
                 </tr>
@@ -695,11 +695,11 @@
             $('#preventivi-table-body').html(`
                 <tr>
                     <td colspan="8" class="disco747-empty-state">
-                        <div class="disco747-empty-icon">⚠️</div>
+                        <div class="disco747-empty-icon">âš ï¸</div>
                         <div class="disco747-empty-title">Errore</div>
                         <div class="disco747-empty-text">${escapeHtml(message)}</div>
                         <button class="disco747-btn disco747-btn-primary" onclick="DashboardManager.loadPreventivi()">
-                            🔄 Riprova
+                            ðŸ”„ Riprova
                         </button>
                     </td>
                 </tr>
@@ -733,7 +733,7 @@
             const $btn = $('#sync-btn');
             const originalHtml = $btn.html();
             
-            $btn.html('<span>🔄</span> Sincronizzando...').prop('disabled', true);
+            $btn.html('<span>ðŸ”„</span> Sincronizzando...').prop('disabled', true);
             
             try {
                 const result = await AjaxManager.request('disco747_sync_dropbox');
@@ -925,7 +925,7 @@
     // INIZIALIZZAZIONE GLOBALE
     // ============================================================================
     
-    // Inizializza tutto quando il DOM è pronto
+    // Inizializza tutto quando il DOM Ã¨ pronto
     $(document).ready(function() {
         log('Inizializzazione 747 Disco CRM Frontend');
         
