@@ -78,9 +78,18 @@ class Disco747_Email {
             if ($pdf_path && file_exists($pdf_path)) {
                 $attachments[] = $pdf_path;
                 $this->log('PDF allegato: ' . basename($pdf_path));
+                $this->log('PDF path completo: ' . $pdf_path);
+                $this->log('PDF dimensione: ' . filesize($pdf_path) . ' bytes');
+            } else {
+                if ($pdf_path) {
+                    $this->log('ATTENZIONE: PDF path fornito ma file non esiste: ' . $pdf_path, 'WARNING');
+                } else {
+                    $this->log('Nessun PDF da allegare');
+                }
             }
             
             // Invia email tramite wp_mail
+            $this->log('Invio wp_mail con ' . count($attachments) . ' allegati');
             $sent = wp_mail(
                 $email_data['recipient_email'],
                 $email_data['subject'],
