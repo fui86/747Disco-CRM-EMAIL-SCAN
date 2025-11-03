@@ -704,19 +704,31 @@ jQuery(document).ready(function($) {
     // Inizializza preventivoData se siamo in edit mode
     <?php if ($is_edit_mode && $edit_data): ?>
     window.preventivoData = {
-        preventivo_id: <?php echo intval($edit_id); ?>,
-        id: <?php echo intval($edit_id); ?>,
-        nome_referente: '<?php echo esc_js($edit_data['nome_referente'] ?? $edit_data['nome_cliente'] ?? ''); ?>',
+        preventivo_id: '<?php echo esc_js($edit_data['preventivo_id'] ?? ''); ?>',  // ✅ Codice preventivo (es: "#001")
+        id: <?php echo intval($edit_id); ?>,  // ID numerico database
+        db_id: <?php echo intval($edit_id); ?>,  // ID numerico database (alias)
+        nome_referente: '<?php echo esc_js($edit_data['nome_referente'] ?? ''); ?>',
         cognome_referente: '<?php echo esc_js($edit_data['cognome_referente'] ?? ''); ?>',
-        nome_cliente: '<?php echo esc_js(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? '')); ?>',
-        email: '<?php echo esc_js($edit_data['email'] ?? $edit_data['mail'] ?? ''); ?>',
-        telefono: '<?php echo esc_js($edit_data['telefono'] ?? $edit_data['cellulare'] ?? ''); ?>',
+        nome_cliente: '<?php echo esc_js($edit_data['nome_cliente'] ?? trim(($edit_data['nome_referente'] ?? '') . ' ' . ($edit_data['cognome_referente'] ?? ''))); ?>',
+        email: '<?php echo esc_js($edit_data['email'] ?? ''); ?>',
+        telefono: '<?php echo esc_js($edit_data['telefono'] ?? ''); ?>',
         data_evento: '<?php echo esc_js($edit_data['data_evento'] ?? ''); ?>',
         tipo_evento: '<?php echo esc_js($edit_data['tipo_evento'] ?? ''); ?>',
         tipo_menu: '<?php echo esc_js($edit_data['tipo_menu'] ?? ''); ?>',
         numero_invitati: <?php echo intval($edit_data['numero_invitati'] ?? 0); ?>,
-        importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? $edit_data['importo_preventivo'] ?? 0); ?>,
-        acconto: <?php echo floatval($edit_data['acconto'] ?? 0); ?>
+        orario_inizio: '<?php echo esc_js($edit_data['orario_inizio'] ?? ''); ?>',
+        orario_fine: '<?php echo esc_js($edit_data['orario_fine'] ?? ''); ?>',
+        importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? 0); ?>,
+        importo_preventivo: <?php echo floatval($edit_data['importo_preventivo'] ?? $edit_data['importo_totale'] ?? 0); ?>,
+        acconto: <?php echo floatval($edit_data['acconto'] ?? 0); ?>,
+        saldo: <?php echo floatval(($edit_data['importo_preventivo'] ?? $edit_data['importo_totale'] ?? 0) - ($edit_data['acconto'] ?? 0)); ?>,
+        omaggio1: '<?php echo esc_js($edit_data['omaggio1'] ?? ''); ?>',
+        omaggio2: '<?php echo esc_js($edit_data['omaggio2'] ?? ''); ?>',
+        omaggio3: '<?php echo esc_js($edit_data['omaggio3'] ?? ''); ?>',
+        extra1: '<?php echo esc_js($edit_data['extra1'] ?? ''); ?>',
+        extra2: '<?php echo esc_js($edit_data['extra2'] ?? ''); ?>',
+        extra3: '<?php echo esc_js($edit_data['extra3'] ?? ''); ?>',
+        stato: '<?php echo esc_js($edit_data['stato'] ?? 'attivo'); ?>'
     };
     console.log('📝 Edit mode - preventivoData inizializzato:', window.preventivoData);
     
@@ -810,9 +822,17 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-generate-pdf').on('click', function() {
         console.log('📄 Genera PDF cliccato');
+        console.log('📊 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
-            alert('❌ Errore: Dati preventivo non disponibili');
+        if (!window.preventivoData) {
+            alert('❌ Errore: window.preventivoData è undefined');
+            console.error('❌ window.preventivoData è undefined!');
+            return;
+        }
+        
+        if (!window.preventivoData.preventivo_id && !window.preventivoData.id) {
+            alert('❌ Errore: Mancano ID preventivo');
+            console.error('❌ preventivoData non ha né preventivo_id né id:', window.preventivoData);
             return;
         }
         
@@ -864,9 +884,17 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-send-email').on('click', function() {
         console.log('📧 Invia Email cliccato');
+        console.log('📊 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
-            alert('❌ Errore: Dati preventivo non disponibili');
+        if (!window.preventivoData) {
+            alert('❌ Errore: window.preventivoData è undefined');
+            console.error('❌ window.preventivoData è undefined!');
+            return;
+        }
+        
+        if (!window.preventivoData.preventivo_id && !window.preventivoData.id) {
+            alert('❌ Errore: Mancano ID preventivo');
+            console.error('❌ preventivoData non ha né preventivo_id né id:', window.preventivoData);
             return;
         }
         
@@ -934,9 +962,17 @@ jQuery(document).ready(function($) {
     // ========================================================================
     $('#btn-send-whatsapp').on('click', function() {
         console.log('💬 Invia WhatsApp cliccato');
+        console.log('📊 window.preventivoData:', window.preventivoData);
         
-        if (!window.preventivoData || !window.preventivoData.preventivo_id) {
-            alert('❌ Errore: Dati preventivo non disponibili');
+        if (!window.preventivoData) {
+            alert('❌ Errore: window.preventivoData è undefined');
+            console.error('❌ window.preventivoData è undefined!');
+            return;
+        }
+        
+        if (!window.preventivoData.preventivo_id && !window.preventivoData.id) {
+            alert('❌ Errore: Mancano ID preventivo');
+            console.error('❌ preventivoData non ha né preventivo_id né id:', window.preventivoData);
             return;
         }
         
