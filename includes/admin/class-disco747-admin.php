@@ -538,11 +538,18 @@ class Disco747_Admin {
             )))
         );
         
-        // Preventivi futuri (da oggi in poi)
-        $preventivi_futuri = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$table} WHERE data_evento >= %s ORDER BY data_evento ASC LIMIT 50",
-            date('Y-m-d')
+        // Eventi imminenti (prossimi 14 giorni)
+        $eventi_imminenti = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$table} 
+             WHERE data_evento BETWEEN %s AND %s 
+             ORDER BY data_evento ASC 
+             LIMIT 10",
+            date('Y-m-d'),
+            date('Y-m-d', strtotime('+14 days'))
         ), ARRAY_A);
+        
+        // KPI Finanziari
+        $kpi_finanziari = $this->get_financial_kpi();
         
         // Preventivi recenti (ultimi 10)
         $preventivi_recenti = $wpdb->get_results(
@@ -562,6 +569,57 @@ class Disco747_Admin {
         
         // Passa variabili alla vista
         require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/main-page.php';
+    }
+    
+    /**
+     * Ottieni KPI finanziari
+     */
+    private function get_financial_kpi() {
+        global $wpdb;
+        $table = $wpdb->prefix . 'disco747_preventivi';
+        
+        // Entrate previste questo mese
+        $entrate_mese = floatval($wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(importo_totale) FROM {$table} 
+             WHERE MONTH(data_evento) = %d AND YEAR(data_evento) = %d 
+             AND stato != 'annullato'",
+            date('m'),
+            date('Y')
+        )));
+        
+        // Acconti incassati questo mese
+        $acconti_mese = floatval($wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(acconto) FROM {$table} 
+             WHERE MONTH(data_evento) = %d AND YEAR(data_evento) = %d 
+             AND acconto > 0",
+            date('m'),
+            date('Y')
+        )));
+        
+        // Saldo da incassare (confermati con eventi futuri)
+        $saldo_da_incassare = floatval($wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(importo_totale - acconto) FROM {$table} 
+             WHERE data_evento >= %s 
+             AND acconto > 0 
+             AND stato != 'annullato'",
+            date('Y-m-d')
+        )));
+        
+        // Valore preventivi attivi (non confermati)
+        $valore_attivi = floatval($wpdb->get_var($wpdb->prepare(
+            "SELECT SUM(importo_totale) FROM {$table} 
+             WHERE data_evento >= %s 
+             AND (acconto = 0 OR acconto IS NULL)
+             AND stato = 'attivo'",
+            date('Y-m-d')
+        )));
+        
+        return array(
+            'entrate_mese' => $entrate_mese,
+            'acconti_mese' => $acconti_mese,
+            'saldo_da_incassare' => $saldo_da_incassare,
+            'valore_attivi' => $valore_attivi
+        );
     }
     
     /**

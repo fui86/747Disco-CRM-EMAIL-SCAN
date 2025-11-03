@@ -19,7 +19,8 @@ if (!defined('ABSPATH')) exit;
 
 // Sicurezza dati
 $stats = $stats ?? array('total' => 0, 'attivi' => 0, 'confermati' => 0, 'this_month' => 0, 'annullati' => 0);
-$preventivi_futuri = $preventivi_futuri ?? array();
+$eventi_imminenti = $eventi_imminenti ?? array();
+$kpi_finanziari = $kpi_finanziari ?? array('entrate_mese' => 0, 'acconti_mese' => 0, 'saldo_da_incassare' => 0, 'valore_attivi' => 0);
 $preventivi_recenti = $preventivi_recenti ?? array();
 $chart_data = $chart_data ?? array('preventivi_per_mese' => array(), 'confermati' => 0, 'non_confermati' => 0);
 $system_status = $system_status ?? array('plugin_version' => '11.8.0', 'storage_type' => 'googledrive', 'storage_connected' => false);
@@ -60,186 +61,209 @@ $version = $system_status['plugin_version'];
     </div>
 
     <!-- ============================================================================ -->
-    <!-- PREVENTIVI FUTURI - Sezione In Evidenza -->
+    <!-- SEZIONE INSIGHTS: KPI Finanziari + Eventi Imminenti -->
     <!-- ============================================================================ -->
-    <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); margin-bottom: 35px; overflow: hidden;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
         
-        <!-- Header Sezione -->
-        <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 25px 35px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-            <div>
-                <h2 style="margin: 0; font-size: 1.8rem; font-weight: 700; color: white;">
-                    📅 Preventivi in Essere
+        <!-- ============= KPI FINANZIARI ============= -->
+        <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px 30px;">
+                <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+                    💰 KPI Finanziari
                 </h2>
-                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 1rem;">
-                    Eventi da oggi in poi · <?php echo count($preventivi_futuri); ?> preventivi programmati
+                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
+                    Situazione economica corrente
                 </p>
             </div>
             
-            <!-- Filtri Rapidi -->
-            <div class="filtri-rapidi" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="filter-btn active" data-filter="all" style="background: white; color: #dc3545; border: 2px solid white; padding: 10px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
-                    Tutti (<?php echo count($preventivi_futuri); ?>)
-                </button>
-                <button class="filter-btn" data-filter="attivi" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.4); padding: 10px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
-                    ⏳ Attivi (<?php echo count(array_filter($preventivi_futuri, function($p) { return $p['stato'] === 'attivo'; })); ?>)
-                </button>
-                <button class="filter-btn" data-filter="confermati" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.4); padding: 10px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
-                    ✅ Confermati (<?php echo count(array_filter($preventivi_futuri, function($p) { return floatval($p['acconto']) > 0; })); ?>)
-                </button>
-                <button class="filter-btn" data-filter="questo-mese" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.4); padding: 10px 18px; border-radius: 20px; font-weight: 600; cursor: pointer; transition: all 0.3s;">
-                    📆 Questo Mese (<?php echo count(array_filter($preventivi_futuri, function($p) { return date('Y-m', strtotime($p['data_evento'])) === date('Y-m'); })); ?>)
-                </button>
+            <div style="padding: 30px;">
+                <!-- Entrate Previste Mese -->
+                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #28a745;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.85rem; color: #2e7d32; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                                💵 Entrate Previste (<?php echo date('F'); ?>)
+                            </div>
+                            <div style="font-size: 2.2rem; font-weight: 800; color: #1b5e20;">
+                                €<?php echo number_format($kpi_finanziari['entrate_mese'], 2, ',', '.'); ?>
+                            </div>
+                        </div>
+                        <div style="font-size: 3rem; opacity: 0.3;">📊</div>
+                    </div>
+                </div>
+                
+                <!-- Acconti Incassati -->
+                <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #ff9800;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.85rem; color: #e65100; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                                ✅ Acconti Incassati
+                            </div>
+                            <div style="font-size: 2.2rem; font-weight: 800; color: #e65100;">
+                                €<?php echo number_format($kpi_finanziari['acconti_mese'], 2, ',', '.'); ?>
+                            </div>
+                        </div>
+                        <div style="font-size: 3rem; opacity: 0.3;">💳</div>
+                    </div>
+                </div>
+                
+                <!-- Saldo da Incassare -->
+                <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #2196f3;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.85rem; color: #0d47a1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                                ⏳ Saldo da Incassare
+                            </div>
+                            <div style="font-size: 2.2rem; font-weight: 800; color: #0d47a1;">
+                                €<?php echo number_format($kpi_finanziari['saldo_da_incassare'], 2, ',', '.'); ?>
+                            </div>
+                        </div>
+                        <div style="font-size: 3rem; opacity: 0.3;">🕐</div>
+                    </div>
+                </div>
+                
+                <!-- Potenziale Attivi -->
+                <div style="background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%); padding: 20px; border-radius: 15px; border-left: 5px solid #fbc02d;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.85rem; color: #f57f17; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                                🎯 Potenziale Attivi
+                            </div>
+                            <div style="font-size: 2.2rem; font-weight: 800; color: #f57f17;">
+                                €<?php echo number_format($kpi_finanziari['valore_attivi'], 2, ',', '.'); ?>
+                            </div>
+                        </div>
+                        <div style="font-size: 3rem; opacity: 0.3;">💡</div>
+                    </div>
+                </div>
             </div>
         </div>
         
-        <!-- Lista Preventivi Futuri -->
-        <div id="preventivi-futuri-container" style="padding: 30px;">
-            <?php if (empty($preventivi_futuri)): ?>
-                <div style="text-align: center; padding: 60px 20px; color: #6c757d;">
-                    <div style="font-size: 4rem; margin-bottom: 15px; opacity: 0.3;">📭</div>
-                    <h3 style="margin: 0 0 10px 0; font-size: 1.5rem; color: #495057;">Nessun Preventivo Futuro</h3>
-                    <p style="margin: 0; font-size: 1.1rem;">Non ci sono preventivi programmati da oggi in poi</p>
-                    <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=new_preventivo')); ?>" 
-                       style="display: inline-block; margin-top: 25px; background: #28a745; color: white; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: 600;">
-                        ➕ Crea Primo Preventivo
-                    </a>
-                </div>
-            <?php else: ?>
-                <div id="preventivi-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;">
-                    <?php foreach ($preventivi_futuri as $prev): 
-                        $is_confermato = floatval($prev['acconto']) > 0;
-                        $is_attivo = $prev['stato'] === 'attivo';
-                        $is_annullato = $prev['stato'] === 'annullato';
-                        $is_questo_mese = date('Y-m', strtotime($prev['data_evento'])) === date('Y-m');
+        <!-- ============= EVENTI IMMINENTI ============= -->
+        <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
+            <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 25px 30px;">
+                <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+                    ⚡ Eventi Imminenti
+                </h2>
+                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
+                    Prossimi 14 giorni · <?php echo count($eventi_imminenti); ?> eventi
+                </p>
+            </div>
+            
+            <div style="padding: 25px; max-height: 520px; overflow-y: auto;">
+                <?php if (empty($eventi_imminenti)): ?>
+                    <div style="text-align: center; padding: 80px 20px; color: #6c757d;">
+                        <div style="font-size: 4rem; margin-bottom: 15px; opacity: 0.2;">😴</div>
+                        <h3 style="margin: 0 0 8px 0; font-size: 1.3rem; color: #495057;">Nessun Evento Imminente</h3>
+                        <p style="margin: 0; font-size: 0.95rem;">I prossimi 14 giorni sono liberi</p>
+                    </div>
+                <?php else: ?>
+                    <?php foreach ($eventi_imminenti as $evento): 
+                        $is_confermato = floatval($evento['acconto']) > 0;
+                        $is_annullato = $evento['stato'] === 'annullato';
+                        $giorni_mancanti = floor((strtotime($evento['data_evento']) - time()) / (60 * 60 * 24));
                         
-                        $border_color = $is_annullato ? '#dc3545' : ($is_confermato ? '#28a745' : '#ffc107');
-                        $data_filter = array();
-                        $data_filter[] = 'all';
-                        if ($is_attivo && !$is_confermato) $data_filter[] = 'attivi';
-                        if ($is_confermato) $data_filter[] = 'confermati';
-                        if ($is_questo_mese) $data_filter[] = 'questo-mese';
+                        // Colore urgenza
+                        if ($giorni_mancanti <= 3) {
+                            $urgenza_color = '#dc3545';
+                            $urgenza_bg = '#ffe6e6';
+                            $urgenza_text = 'URGENTE';
+                        } elseif ($giorni_mancanti <= 7) {
+                            $urgenza_color = '#ff9800';
+                            $urgenza_bg = '#fff8e6';
+                            $urgenza_text = 'Vicino';
+                        } else {
+                            $urgenza_color = '#28a745';
+                            $urgenza_bg = '#e8f5e9';
+                            $urgenza_text = 'Programmato';
+                        }
                     ?>
-                    <div class="preventivo-card" data-filters="<?php echo implode(' ', $data_filter); ?>" style="background: white; border: 3px solid <?php echo $border_color; ?>; border-radius: 15px; padding: 20px; transition: all 0.3s ease; box-shadow: 0 3px 15px rgba(0,0,0,0.08);">
+                    <div style="background: white; border: 2px solid <?php echo $urgenza_color; ?>; border-radius: 12px; padding: 18px; margin-bottom: 15px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.06);" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.06)'">
                         
-                        <!-- Header Card -->
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-                            <div>
-                                <h3 style="margin: 0 0 5px 0; font-size: 1.3rem; color: #2b1e1a; font-weight: 700;">
-                                    <?php echo esc_html($prev['nome_cliente']); ?>
-                                </h3>
-                                <div style="font-size: 0.9rem; color: #6c757d;">
-                                    #<?php echo esc_html($prev['preventivo_id'] ?? $prev['id']); ?>
+                        <!-- Header Evento -->
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                            <div style="flex: 1;">
+                                <h4 style="margin: 0 0 5px 0; font-size: 1.1rem; font-weight: 700; color: #2b1e1a;">
+                                    <?php echo esc_html($evento['nome_cliente']); ?>
+                                </h4>
+                                <div style="font-size: 0.8rem; color: #6c757d;">
+                                    #<?php echo esc_html($evento['preventivo_id'] ?? $evento['id']); ?> · <?php echo esc_html($evento['tipo_evento']); ?>
                                 </div>
                             </div>
                             <div style="text-align: right;">
                                 <?php if ($is_annullato): ?>
-                                    <span style="background: #dc3545; color: white; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; font-weight: 700; white-space: nowrap;">
+                                    <span style="background: #dc3545; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
                                         ❌ ANNULLATO
                                     </span>
                                 <?php elseif ($is_confermato): ?>
-                                    <span style="background: #28a745; color: white; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; font-weight: 700; white-space: nowrap;">
-                                        ✅ CONFERMATO
+                                    <span style="background: #28a745; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
+                                        ✅ OK
                                     </span>
                                 <?php else: ?>
-                                    <span style="background: #ffc107; color: #2b1e1a; padding: 6px 12px; border-radius: 15px; font-size: 0.85rem; font-weight: 700; white-space: nowrap;">
+                                    <span style="background: #ffc107; color: #2b1e1a; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
                                         ⏳ ATTIVO
                                     </span>
                                 <?php endif; ?>
                             </div>
                         </div>
                         
-                        <!-- Info Evento -->
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                            <div style="display: grid; gap: 10px;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span style="font-size: 1.3rem;">📅</span>
-                                    <div>
-                                        <div style="font-size: 0.85rem; color: #6c757d;">Data Evento</div>
-                                        <div style="font-weight: 700; color: #2b1e1a; font-size: 1.1rem;">
-                                            <?php echo date('d/m/Y', strtotime($prev['data_evento'])); ?>
-                                        </div>
+                        <!-- Data e Urgenza -->
+                        <div style="background: <?php echo $urgenza_bg; ?>; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid <?php echo $urgenza_color; ?>;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 1.3rem; font-weight: 800; color: <?php echo $urgenza_color; ?>; margin-bottom: 3px;">
+                                        <?php echo date('d/m/Y', strtotime($evento['data_evento'])); ?>
+                                    </div>
+                                    <div style="font-size: 0.8rem; color: #6c757d;">
+                                        <?php echo ($giorni_mancanti == 0) ? 'OGGI!' : ($giorni_mancanti == 1 ? 'DOMANI!' : "Tra {$giorni_mancanti} giorni"); ?>
                                     </div>
                                 </div>
-                                
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <span style="font-size: 1.3rem;">🎉</span>
-                                    <div>
-                                        <div style="font-size: 0.85rem; color: #6c757d;">Tipo Evento</div>
-                                        <div style="font-weight: 600; color: #495057;">
-                                            <?php echo esc_html($prev['tipo_evento']); ?>
-                                        </div>
-                                    </div>
+                                <div style="background: <?php echo $urgenza_color; ?>; color: white; padding: 6px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">
+                                    <?php echo $urgenza_text; ?>
                                 </div>
-                                
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="font-size: 1.1rem;">🍽️</span>
-                                        <div>
-                                            <div style="font-size: 0.75rem; color: #6c757d;">Menu</div>
-                                            <div style="font-weight: 600; color: #495057; font-size: 0.9rem;">
-                                                <?php echo esc_html($prev['tipo_menu']); ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span style="font-size: 1.1rem;">👥</span>
-                                        <div>
-                                            <div style="font-size: 0.75rem; color: #6c757d;">Invitati</div>
-                                            <div style="font-weight: 600; color: #495057; font-size: 0.9rem;">
-                                                <?php echo esc_html($prev['numero_invitati']); ?>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Dettagli Rapidi -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; font-size: 0.85rem;">
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: #6c757d; font-size: 0.75rem; margin-bottom: 3px;">Menu</div>
+                                <div style="font-weight: 700; color: #495057;"><?php echo esc_html($evento['tipo_menu']); ?></div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: #6c757d; font-size: 0.75rem; margin-bottom: 3px;">Invitati</div>
+                                <div style="font-weight: 700; color: #495057;"><?php echo esc_html($evento['numero_invitati']); ?> pax</div>
                             </div>
                         </div>
                         
                         <!-- Importo -->
-                        <div style="background: linear-gradient(135deg, #c28a4d 0%, #a67339 100%); padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center;">
-                            <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">
-                                Importo Totale
-                            </div>
-                            <div style="color: white; font-size: 2rem; font-weight: 800;">
-                                €<?php echo number_format(floatval($prev['importo_totale']), 2, ',', '.'); ?>
+                        <div style="background: linear-gradient(135deg, #c28a4d 0%, #a67339 100%); padding: 12px; border-radius: 8px; margin-bottom: 12px; text-align: center;">
+                            <div style="color: rgba(255,255,255,0.8); font-size: 0.75rem; margin-bottom: 3px;">Importo</div>
+                            <div style="color: white; font-size: 1.5rem; font-weight: 800;">
+                                €<?php echo number_format(floatval($evento['importo_totale']), 0, ',', '.'); ?>
                             </div>
                             <?php if ($is_confermato): ?>
-                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.3);">
-                                    <div style="display: flex; justify-content: space-between; color: white; font-size: 0.9rem;">
-                                        <span>Acconto: €<?php echo number_format(floatval($prev['acconto']), 2, ',', '.'); ?></span>
-                                        <span>Saldo: €<?php echo number_format(floatval($prev['importo_totale']) - floatval($prev['acconto']), 2, ',', '.'); ?></span>
-                                    </div>
+                                <div style="color: rgba(255,255,255,0.9); font-size: 0.75rem; margin-top: 4px;">
+                                    Saldo: €<?php echo number_format(floatval($evento['importo_totale']) - floatval($evento['acconto']), 0, ',', '.'); ?>
                                 </div>
                             <?php endif; ?>
                         </div>
                         
-                        <!-- Contatti -->
-                        <div style="margin-bottom: 15px; padding: 12px; background: #fff8e6; border-radius: 8px; border-left: 4px solid #ffc107;">
-                            <div style="font-size: 0.9rem; color: #495057; margin-bottom: 6px;">
-                                <strong>📧</strong> <?php echo esc_html($prev['email']); ?>
-                            </div>
-                            <div style="font-size: 0.9rem; color: #495057;">
-                                <strong>📱</strong> <?php echo esc_html($prev['telefono']); ?>
-                            </div>
-                        </div>
-                        
                         <!-- Azioni -->
                         <div style="display: flex; gap: 8px;">
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=edit_preventivo&edit_id=' . $prev['id'])); ?>" 
-                               style="flex: 1; background: #007bff; color: white; padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.3s;">
-                                ✏️ Modifica
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=edit_preventivo&edit_id=' . $evento['id'])); ?>" 
+                               style="flex: 1; background: #007bff; color: white; padding: 8px; border-radius: 6px; text-align: center; text-decoration: none; font-weight: 600; font-size: 0.8rem;">
+                                ✏️ Gestisci
                             </a>
-                            <?php if (!empty($prev['googledrive_url']) || !empty($prev['excel_url'])): ?>
-                            <a href="<?php echo esc_url($prev['googledrive_url'] ?? $prev['excel_url']); ?>" 
-                               target="_blank"
-                               style="flex: 1; background: #28a745; color: white; padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.3s;">
-                                📄 Excel
+                            <a href="tel:<?php echo esc_attr($evento['telefono']); ?>" 
+                               style="background: #28a745; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem;">
+                                📱
                             </a>
-                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
@@ -580,41 +604,6 @@ document.addEventListener('DOMContentLoaded', function() {
         chartContainer.appendChild(centerText);
     }
     
-    // ========================================================================
-    // FILTRI PREVENTIVI FUTURI
-    // ========================================================================
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    const preventivoCards = document.querySelectorAll('.preventivo-card');
-    
-    filterButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const filter = this.dataset.filter;
-            
-            // Aggiorna pulsanti attivi
-            filterButtons.forEach(b => {
-                b.classList.remove('active');
-                b.style.background = 'rgba(255,255,255,0.2)';
-                b.style.color = 'white';
-                b.style.borderColor = 'rgba(255,255,255,0.4)';
-            });
-            
-            this.classList.add('active');
-            this.style.background = 'white';
-            this.style.color = '#dc3545';
-            this.style.borderColor = 'white';
-            
-            // Filtra card
-            preventivoCards.forEach(card => {
-                const filters = card.dataset.filters.split(' ');
-                if (filter === 'all' || filters.includes(filter)) {
-                    card.style.display = 'block';
-                    card.style.animation = 'fadeIn 0.3s ease';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
-    });
 });
 </script>
 
@@ -632,10 +621,6 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 12px 35px rgba(0,0,0,0.2) !important;
 }
 
-.disco747-dashboard-enhanced .preventivo-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.18) !important;
-}
 
 .disco747-dashboard-enhanced .btn-nuovo-preventivo:hover {
     transform: translateY(-3px) scale(1.05);
@@ -651,20 +636,6 @@ document.addEventListener('DOMContentLoaded', function() {
     background: #f8f9fa !important;
 }
 
-.filter-btn {
-    transition: all 0.3s ease;
-}
-
-.filter-btn:hover {
-    transform: scale(1.05);
-    opacity: 0.9;
-}
-
-.filter-btn.active {
-    background: white !important;
-    color: #dc3545 !important;
-    border-color: white !important;
-}
 
 /* ============================================================================ */
 /* RESPONSIVE DESIGN */
