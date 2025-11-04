@@ -405,14 +405,33 @@ if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'di
 // Genera l'URL di autorizzazione Google Drive
 $google_auth_url = '';
 $google_auth_error = '';
+$debug_info = array();
+
 try {
     $disco747 = disco747_crm();
     if ($disco747) {
         $googledrive_handler = $disco747->get_googledrive_handler();
         if ($googledrive_handler) {
+            // Debug: verifica credenziali
+            $test_creds = $googledrive_handler->get_oauth_credentials();
+            $debug_info['client_id_presente'] = !empty($test_creds['client_id']);
+            $debug_info['client_id_length'] = !empty($test_creds['client_id']) ? strlen($test_creds['client_id']) : 0;
+            $debug_info['redirect_uri'] = $test_creds['redirect_uri'] ?? 'MANCANTE';
+            
             $auth_result = $googledrive_handler->generate_auth_url();
+            
+            $debug_info['auth_result_success'] = $auth_result['success'] ?? false;
+            $debug_info['auth_result_message'] = $auth_result['message'] ?? '';
+            
             if ($auth_result['success']) {
                 $google_auth_url = $auth_result['auth_url'];
+                
+                // Debug: verifica parametri nell'URL
+                $parsed_url = parse_url($google_auth_url);
+                parse_str($parsed_url['query'] ?? '', $url_params);
+                $debug_info['url_params'] = array_keys($url_params);
+                $debug_info['has_response_type'] = isset($url_params['response_type']);
+                $debug_info['has_client_id'] = isset($url_params['client_id']);
             } else {
                 $google_auth_error = $auth_result['message'];
             }
@@ -424,16 +443,21 @@ try {
     }
 } catch (Exception $e) {
     $google_auth_error = $e->getMessage();
+    $debug_info['exception'] = $e->getMessage();
 }
 
 // Output variabili JavaScript
 if (!empty($google_auth_url)) {
-    echo "var googleAuthUrl = '" . esc_js($google_auth_url) . "';\n";
+    // ✅ FIX CRITICO: Decodifica &amp; in & per l'URL JavaScript
+    $google_auth_url_clean = str_replace('&amp;', '&', $google_auth_url);
+    echo "var googleAuthUrl = '" . addslashes($google_auth_url_clean) . "';\n";
     echo "var googleAuthError = null;\n";
 } else {
     echo "var googleAuthUrl = null;\n";
     echo "var googleAuthError = '" . esc_js($google_auth_error) . "';\n";
 }
+
+echo "var googleDebugInfo = " . json_encode($debug_info) . ";\n";
 ?>
 
 function copyToClipboard(text) {
@@ -457,6 +481,7 @@ function copyToClipboard(text) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔍 Debug: googleAuthUrl =', googleAuthUrl);
     console.log('🔍 Debug: googleAuthError =', googleAuthError);
+    console.log('🔍 Debug INFO completo:', googleDebugInfo);
     
     // Pulsante Autorizza Google Drive
     var btnAuthorize = document.querySelector('.btn-authorize-googledrive');

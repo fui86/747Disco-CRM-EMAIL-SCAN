@@ -450,7 +450,9 @@ try {
 
 // Output variabili JavaScript
 if (!empty($google_auth_url)) {
-    echo "var googleAuthUrl = '" . esc_js($google_auth_url) . "';\n";
+    // ✅ FIX CRITICO: Decodifica &amp; in & per l'URL JavaScript
+    $google_auth_url_clean = str_replace('&amp;', '&', $google_auth_url);
+    echo "var googleAuthUrl = '" . addslashes($google_auth_url_clean) . "';\n";
     echo "var googleAuthError = null;\n";
 } else {
     echo "var googleAuthUrl = null;\n";
