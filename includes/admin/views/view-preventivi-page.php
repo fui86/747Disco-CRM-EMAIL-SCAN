@@ -266,14 +266,14 @@ $stats = array(
                 </div>
             <?php else: ?>
                 
-                <div style="overflow-x: auto;">
+                <!-- TABELLA DESKTOP (nascosta su mobile) -->
+                <div class="preventivi-table-desktop" style="overflow-x: auto;">
                     <table class="wp-list-table widefat fixed striped" style="margin: 0;">
                         <thead>
                             <tr>
-                                <th style="width: 60px;">ID</th>
-                                <th style="width: 80px;">Prev. ID</th>
                                 <th style="width: 100px;">Data Evento</th>
                                 <th>Cliente</th>
+                                <th style="width: 60px; text-align: center;">WhatsApp</th>
                                 <th>Tipo Evento</th>
                                 <th style="width: 100px;">Menu</th>
                                 <th style="width: 70px;">Invitati</th>
@@ -286,12 +286,6 @@ $stats = array(
                         <tbody>
                             <?php foreach ($preventivi as $prev): ?>
                                 <tr data-preventivo-id="<?php echo $prev->id; ?>">
-                                    <td><strong>#<?php echo $prev->id; ?></strong></td>
-                                    <td>
-                                        <span style="background: #FFD700; color: #000; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px;">
-                                            <?php echo $prev->preventivo_id ?: 'N/A'; ?>
-                                        </span>
-                                    </td>
                                     <td><?php echo $prev->data_evento ? date('d/m/Y', strtotime($prev->data_evento)) : 'N/A'; ?></td>
                                     <td>
                                         <strong><?php echo esc_html($prev->nome_cliente ?: 'N/A'); ?></strong>
@@ -300,6 +294,27 @@ $stats = array(
                                         <?php endif; ?>
                                         <?php if ($prev->email): ?>
                                             <br><small style="color: #666;">✉️ <?php echo esc_html($prev->email); ?></small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <?php if ($prev->telefono): 
+                                            // Formatta numero per WhatsApp (rimuovi spazi, trattini, parentesi)
+                                            $whatsapp_number = preg_replace('/[^0-9+]/', '', $prev->telefono);
+                                            // Se non inizia con +, aggiungi prefisso Italia
+                                            if (substr($whatsapp_number, 0, 1) !== '+') {
+                                                $whatsapp_number = '+39' . $whatsapp_number;
+                                            }
+                                        ?>
+                                            <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
+                                               target="_blank"
+                                               title="Apri chat WhatsApp con <?php echo esc_attr($prev->nome_cliente); ?>"
+                                               style="display: inline-flex; align-items: center; justify-content: center; background: #25D366; color: white; width: 36px; height: 36px; border-radius: 50%; text-decoration: none; font-size: 18px; transition: all 0.3s;"
+                                               onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(37, 211, 102, 0.4)';"
+                                               onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
+                                                📱
+                                            </a>
+                                        <?php else: ?>
+                                            <span style="color: #ccc; font-size: 12px;">N/A</span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html($prev->tipo_evento ?: 'N/A'); ?></td>
@@ -360,6 +375,158 @@ $stats = array(
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- CARDS MOBILE (visibili solo su mobile) -->
+                <div class="preventivi-cards-mobile">
+                    <?php foreach ($preventivi as $prev): 
+                        $stato = strtolower($prev->stato);
+                        $badge_colors = array(
+                            'confermato' => '#2ea044',
+                            'attivo' => '#0969da',
+                            'annullato' => '#cf222e',
+                            'bozza' => '#999'
+                        );
+                        $badge_color = $badge_colors[$stato] ?? '#999';
+                        
+                        // WhatsApp number
+                        $whatsapp_number = '';
+                        if ($prev->telefono) {
+                            $whatsapp_number = preg_replace('/[^0-9+]/', '', $prev->telefono);
+                            if (substr($whatsapp_number, 0, 1) !== '+') {
+                                $whatsapp_number = '+39' . $whatsapp_number;
+                            }
+                        }
+                    ?>
+                    <div class="preventivo-card-mobile" data-preventivo-id="<?php echo $prev->id; ?>" style="background: white; border: 2px solid #e9ecef; border-radius: 12px; padding: 18px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                        
+                        <!-- Header Card -->
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                            <div style="flex: 1;">
+                                <h3 style="margin: 0 0 8px 0; font-size: 1.2rem; color: #2b1e1a; font-weight: 700;">
+                                    <?php echo esc_html($prev->nome_cliente ?: 'N/A'); ?>
+                                </h3>
+                                <div style="color: #666; font-size: 0.9rem;">
+                                    <?php echo esc_html($prev->tipo_evento ?: 'N/A'); ?>
+                                </div>
+                            </div>
+                            <div>
+                                <span style="background: <?php echo $badge_color; ?>; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">
+                                    <?php echo esc_html(strtoupper($prev->stato ?: 'N/A')); ?>
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- Info Grid -->
+                        <div style="display: grid; gap: 12px; margin-bottom: 15px;">
+                            
+                            <!-- Data Evento -->
+                            <div style="display: flex; align-items: center; gap: 12px; background: #f8f9fa; padding: 12px; border-radius: 8px;">
+                                <div style="font-size: 1.8rem;">📅</div>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 0.75rem; color: #6c757d; margin-bottom: 3px;">Data Evento</div>
+                                    <div style="font-weight: 700; color: #2b1e1a; font-size: 1.1rem;">
+                                        <?php echo $prev->data_evento ? date('d/m/Y', strtotime($prev->data_evento)) : 'N/A'; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Menu e Invitati -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 0.75rem; color: #6c757d; margin-bottom: 5px;">Menu</div>
+                                    <div style="font-weight: 700; color: #495057;">
+                                        <?php echo esc_html($prev->tipo_menu ?: 'N/A'); ?>
+                                    </div>
+                                </div>
+                                <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 0.75rem; color: #6c757d; margin-bottom: 5px;">Invitati</div>
+                                    <div style="font-weight: 700; color: #495057;">
+                                        <?php echo intval($prev->numero_invitati); ?> pax
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Importi -->
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 10px; color: white;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <div>
+                                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Importo Totale</div>
+                                        <div style="font-size: 1.5rem; font-weight: 800;">
+                                            €<?php echo number_format(floatval($prev->importo_totale), 2, ',', '.'); ?>
+                                        </div>
+                                    </div>
+                                    <?php if (floatval($prev->acconto) > 0): ?>
+                                    <div style="text-align: right;">
+                                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Acconto</div>
+                                        <div style="font-size: 1.2rem; font-weight: 700;">
+                                            €<?php echo number_format(floatval($prev->acconto), 2, ',', '.'); ?>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if (floatval($prev->acconto) > 0): ?>
+                                <div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 0.85rem; opacity: 0.95;">
+                                    Saldo: €<?php echo number_format(floatval($prev->importo_totale) - floatval($prev->acconto), 2, ',', '.'); ?>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <!-- Contatti -->
+                            <div style="background: #fff8e6; padding: 12px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                                <?php if ($prev->telefono): ?>
+                                <div style="font-size: 0.9rem; color: #495057; margin-bottom: 6px;">
+                                    <strong>📞</strong> <?php echo esc_html($prev->telefono); ?>
+                                </div>
+                                <?php endif; ?>
+                                <?php if ($prev->email): ?>
+                                <div style="font-size: 0.9rem; color: #495057;">
+                                    <strong>✉️</strong> <?php echo esc_html($prev->email); ?>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <!-- Azioni -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                            <button type="button" 
+                                    class="button button-small btn-edit-preventivo" 
+                                    data-id="<?php echo $prev->id; ?>"
+                                    style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #0073aa; color: white; border: none; border-radius: 8px; font-weight: 600;">
+                                ✏️ Modifica
+                            </button>
+                            
+                            <?php if ($whatsapp_number): ?>
+                            <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
+                               target="_blank"
+                               style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #25D366; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center;">
+                                📱 WhatsApp
+                            </a>
+                            <?php else: ?>
+                            <div style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #e9ecef; color: #999; border-radius: 8px; text-align: center;">
+                                N/A
+                            </div>
+                            <?php endif; ?>
+                            
+                            <button type="button" 
+                                    class="button button-small btn-delete-preventivo" 
+                                    data-id="<?php echo $prev->id; ?>"
+                                    style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #dc3232; color: white; border: none; border-radius: 8px; font-weight: 600;">
+                                ❌
+                            </button>
+                        </div>
+                        
+                        <?php if ($prev->googledrive_file_id): ?>
+                        <div style="margin-top: 10px;">
+                            <a href="https://drive.google.com/file/d/<?php echo esc_attr($prev->googledrive_file_id); ?>/view" 
+                               target="_blank"
+                               style="display: block; width: 100%; padding: 10px; background: #f8f9fa; color: #495057; text-decoration: none; border-radius: 8px; text-align: center; font-weight: 600; border: 2px solid #e9ecef;">
+                                📁 Apri su Google Drive
+                            </a>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
 
                 <!-- Paginazione -->
@@ -529,7 +696,7 @@ $stats = array(
     margin-bottom: 20px;
 }
 .disco747-card-header {
-    padding: 20px
+    padding: 20px;
     border-bottom: 1px solid #e9ecef;
     font-size: 16px;
     font-weight: 600;
@@ -574,6 +741,187 @@ $stats = array(
 }
 .btn-delete-preventivo:hover {
     background: #a00;
+}
+
+/* ============================================================================ */
+/* RESPONSIVE DESIGN */
+/* ============================================================================ */
+
+/* Default: mostra tabella, nascondi cards */
+.preventivi-table-desktop {
+    display: block;
+}
+.preventivi-cards-mobile {
+    display: none;
+}
+
+/* TABLET (< 992px) */
+@media (max-width: 992px) {
+    .disco747-wrap {
+        padding: 15px;
+    }
+    
+    .disco747-card-content {
+        padding: 15px;
+    }
+    
+    /* Statistiche a 2 colonne */
+    .disco747-card-content > div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    /* Filtri più compatti */
+    #filters-form > div[style*="grid-template-columns"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* MOBILE (< 768px) */
+@media (max-width: 768px) {
+    .disco747-wrap {
+        padding: 10px;
+    }
+    
+    /* Header più compatto */
+    .disco747-wrap > div:first-child {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 15px;
+    }
+    
+    .disco747-wrap > div:first-child h1 {
+        font-size: 1.5rem !important;
+    }
+    
+    .disco747-wrap > div:first-child > div {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .disco747-wrap > div:first-child > div .button {
+        flex: 1;
+    }
+    
+    /* Statistiche a 1 colonna */
+    .disco747-card-content > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .stat-box {
+        padding: 15px !important;
+    }
+    
+    .stat-value {
+        font-size: 24px !important;
+    }
+    
+    /* Filtri a 1 colonna */
+    #filters-form > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+    
+    #filters-form input,
+    #filters-form select {
+        font-size: 16px !important; /* Previene zoom su iOS */
+    }
+    
+    #filters-form > div:last-child {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    #filters-form > div:last-child .button {
+        width: 100%;
+    }
+    
+    /* NASCONDI TABELLA, MOSTRA CARDS */
+    .preventivi-table-desktop {
+        display: none !important;
+    }
+    
+    .preventivi-cards-mobile {
+        display: block !important;
+        padding: 15px;
+    }
+    
+    /* Paginazione più compatta */
+    .disco747-card-content > div[style*="padding: 20px"] {
+        padding: 15px !important;
+    }
+    
+    .disco747-card-content > div[style*="padding: 20px"] > div:first-child {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .disco747-card-content > div[style*="padding: 20px"] > div:first-child > div:last-child {
+        width: 100%;
+    }
+    
+    .disco747-card-content > div[style*="padding: 20px"] > div:first-child > div:last-child a {
+        flex: 1;
+    }
+    
+    /* Modal più compatto */
+    #modal-edit-preventivo > div {
+        margin: 20px 10px !important;
+        padding: 20px !important;
+        max-width: 100% !important;
+    }
+    
+    #modal-edit-preventivo h2 {
+        font-size: 1.3rem !important;
+        padding-right: 40px;
+    }
+    
+    #form-edit-preventivo > div:first-child {
+        grid-template-columns: 1fr !important;
+    }
+    
+    #form-edit-preventivo input,
+    #form-edit-preventivo select,
+    #form-edit-preventivo textarea {
+        font-size: 16px !important;
+    }
+    
+    #form-edit-preventivo > div[style*="margin-top: 20px"] > div {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* MOBILE SMALL (< 480px) */
+@media (max-width: 480px) {
+    .disco747-card-header {
+        padding: 15px !important;
+        font-size: 14px !important;
+    }
+    
+    .preventivo-card-mobile h3 {
+        font-size: 1.1rem !important;
+    }
+    
+    .preventivo-card-mobile {
+        padding: 15px !important;
+    }
+}
+
+/* Animazione cards */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.preventivo-card-mobile {
+    animation: slideInUp 0.3s ease-out;
 }
 </style>
 
@@ -748,7 +1096,7 @@ jQuery(document).ready(function($) {
     $(document).on('click', '.btn-delete-preventivo', function() {
         var preventivoId = $(this).data('id');
         var $row = $(this).closest('tr');
-        var cliente = $row.find('td:nth-child(4) strong').text();
+        var cliente = $row.find('td:nth-child(2) strong').text();
         
         if (!confirm('⚠️ Sei sicuro di voler eliminare il preventivo di ' + cliente + '?\n\nQuesta azione è irreversibile!')) {
             return;

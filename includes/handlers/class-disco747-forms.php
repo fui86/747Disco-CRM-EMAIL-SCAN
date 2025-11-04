@@ -274,12 +274,93 @@ class Disco747_Forms {
         
         $this->log('[Forms] âœ… Preventivo aggiornato con successo');
         
-        
         // Rileggi preventivo aggiornato dal database per avere tutti i dati
         $preventivo = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ), ARRAY_A);
+        
+        // âœ… RIGENERA EXCEL E RICARICA SU GOOGLE DRIVE
+        $this->log('[Forms] ðŸ"„ Rigenerazione Excel per preventivo aggiornato...');
+        
+        // Prepara dati per Excel (mappatura completa)
+        $excel_data = array(
+            'preventivo_id' => $preventivo['preventivo_id'],
+            'nome_referente' => $preventivo['nome_referente'],
+            'cognome_referente' => $preventivo['cognome_referente'],
+            'cellulare' => $preventivo['telefono'],
+            'mail' => $preventivo['email'],
+            'data_evento' => $preventivo['data_evento'],
+            'tipo_evento' => $preventivo['tipo_evento'],
+            'tipo_menu' => $preventivo['tipo_menu'],
+            'numero_invitati' => $preventivo['numero_invitati'],
+            'orario_inizio' => $preventivo['orario_inizio'],
+            'orario_fine' => $preventivo['orario_fine'],
+            'omaggio1' => $preventivo['omaggio1'],
+            'omaggio2' => $preventivo['omaggio2'],
+            'omaggio3' => $preventivo['omaggio3'],
+            'extra1' => $preventivo['extra1'],
+            'extra1_importo' => $preventivo['extra1_importo'],
+            'extra2' => $preventivo['extra2'],
+            'extra2_importo' => $preventivo['extra2_importo'],
+            'extra3' => $preventivo['extra3'],
+            'extra3_importo' => $preventivo['extra3_importo'],
+            'importo_preventivo' => $preventivo['importo_totale'],
+            'acconto' => $preventivo['acconto'],
+            'stato' => $preventivo['stato']
+        );
+        
+        // Genera Excel aggiornato
+        $excel_path = $this->create_excel_safe($excel_data);
+        
+        if ($excel_path && file_exists($excel_path)) {
+            $this->log('[Forms] âœ… Excel rigenerato: ' . basename($excel_path));
+            
+            // Upload su Google Drive (sovrascrive il vecchio)
+            if ($this->storage) {
+                $this->log('[Forms] â˜ï¸ Upload Excel aggiornato su Google Drive...');
+                
+                try {
+                    // Usa data_evento per determinare il percorso corretto
+                    $date_parts = explode('-', $preventivo['data_evento']);
+                    $year = $date_parts[0];
+                    $month_num = $date_parts[1];
+                    
+                    // Converti numero mese in nome mese italiano
+                    $mesi = array(
+                        '01' => 'Gennaio', '02' => 'Febbraio', '03' => 'Marzo',
+                        '04' => 'Aprile', '05' => 'Maggio', '06' => 'Giugno',
+                        '07' => 'Luglio', '08' => 'Agosto', '09' => 'Settembre',
+                        '10' => 'Ottobre', '11' => 'Novembre', '12' => 'Dicembre'
+                    );
+                    $month_name = $mesi[$month_num] ?? $month_num;
+                    
+                    // Percorso corretto: /747-Preventivi/2025/Novembre/
+                    $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
+                    
+                    $this->log('[Forms] ðŸ" Percorso Google Drive: ' . $drive_folder);
+                    
+                    // Upload Excel
+                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
+                    if ($excel_url) {
+                        // Aggiorna URL nel database
+                        $wpdb->update(
+                            $this->table_name,
+                            array('googledrive_url' => $excel_url),
+                            array('id' => $edit_id),
+                            array('%s'),
+                            array('%d')
+                        );
+                        $this->log('[Forms] âœ… Excel aggiornato su Drive: ' . basename($excel_path));
+                    }
+                    
+                } catch (\Exception $e) {
+                    $this->log('[Forms] âš ï¸ Errore upload Drive: ' . $e->getMessage(), 'WARNING');
+                }
+            }
+        } else {
+            $this->log('[Forms] âš ï¸ Impossibile rigenerare Excel', 'WARNING');
+        }
         
         wp_send_json_success(array(
             'message' => 'Preventivo aggiornato con successo!',
