@@ -120,6 +120,14 @@ class Disco747_Admin {
                 'disco747-financial',
                 array($this, 'render_financial_page')
             );
+            add_submenu_page(
+                'disco747-crm',
+                __('Automazione Funnel', 'disco747'),
+                __('🚀 Automazione Funnel', 'disco747'),
+                $this->min_capability,
+                'disco747-funnel',
+                array($this, 'render_funnel_page')
+            );
             if (get_option('disco747_debug_mode', false)) {
                 add_submenu_page(
                     'disco747-crm',
@@ -312,6 +320,14 @@ class Disco747_Admin {
         }
         
         require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/financial-analytics-page.php';
+    }
+
+    public function render_funnel_page() {
+        if (!current_user_can($this->min_capability)) {
+            wp_die('Non hai i permessi per accedere a questa pagina.');
+        }
+        
+        require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/funnel-automation-page.php';
     }
 
     public function render_debug_page() {
