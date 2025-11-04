@@ -54,31 +54,125 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     <!-- ============================================================================ -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
         
-        <!-- ============= LINK ANALISI FINANZIARIA ============= -->
+        <!-- ============= STATISTICHE & AZIONI RAPIDE ============= -->
         <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 25px 30px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px 30px;">
                 <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
-                    💰 Analisi Finanziaria
+                    📊 Statistiche & Azioni
                 </h2>
                 <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
-                    Dashboard completa per monitoraggio economico
+                    Panoramica rapida e scorciatoie
                 </p>
             </div>
             
-            <div style="padding: 40px; text-align: center;">
-                <div style="font-size: 5rem; margin-bottom: 20px; opacity: 0.8;">📊</div>
-                <h3 style="margin: 0 0 15px 0; font-size: 1.4rem; color: #1e3a8a;">
-                    Accedi all'Analisi Completa
-                </h3>
-                <p style="margin: 0 0 30px 0; color: #6c757d; font-size: 1rem;">
-                    KPI finanziari, trend, grafici e filtri temporali personalizzabili
-                </p>
-                <a href="<?php echo admin_url('admin.php?page=disco747-financial'); ?>" 
-                   style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: white; padding: 18px 40px; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 1.1rem; display: inline-block; box-shadow: 0 4px 20px rgba(30, 58, 138, 0.3); transition: all 0.3s ease;"
-                   onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 6px 30px rgba(30, 58, 138, 0.5)'"
-                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 20px rgba(30, 58, 138, 0.3)'">
-                    💰 Vai all'Analisi Finanziaria
-                </a>
+            <div style="padding: 25px;">
+                
+                <!-- Statistiche Rapide -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    
+                    <!-- Preventivi Totali -->
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            📋 Totali
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['total']); ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Preventivi Attivi -->
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            🔵 Attivi
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['attivi']); ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Preventivi Confermati -->
+                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            ✅ Confermati
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['confermati']); ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Questo Mese -->
+                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            📆 Questo Mese
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['this_month']); ?>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- Azioni Rapide -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 0.9rem; font-weight: 700; color: #495057; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ⚡ Azioni Rapide
+                    </h3>
+                    <div style="display: grid; gap: 10px;">
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=new_preventivo'); ?>" 
+                           style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(40, 167, 69, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(40, 167, 69, 0.2)'">
+                            <span style="font-size: 1.5rem;">➕</span>
+                            <span>Nuovo Preventivo</span>
+                        </a>
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
+                           style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(0, 123, 255, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(0, 123, 255, 0.2)'">
+                            <span style="font-size: 1.5rem;">📊</span>
+                            <span>View Database</span>
+                        </a>
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-scan-excel'); ?>" 
+                           style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(111, 66, 193, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(111, 66, 193, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(111, 66, 193, 0.2)'">
+                            <span style="font-size: 1.5rem;">🔄</span>
+                            <span>Scansione Excel</span>
+                        </a>
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-financial'); ?>" 
+                           style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(255, 193, 7, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(255, 193, 7, 0.2)'">
+                            <span style="font-size: 1.5rem;">💰</span>
+                            <span>Analisi Finanziaria</span>
+                        </a>
+                        
+                    </div>
+                </div>
+                
+                <!-- Info Rapide -->
+                <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; border-radius: 8px;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <div style="font-size: 1.5rem;">💡</div>
+                        <div>
+                            <div style="font-weight: 700; color: #0056b3; margin-bottom: 5px; font-size: 0.9rem;">
+                                Tasso di Conversione
+                            </div>
+                            <div style="color: #495057; font-size: 0.85rem;">
+                                <?php 
+                                $tasso = $stats['total'] > 0 ? round(($stats['confermati'] / $stats['total']) * 100, 1) : 0;
+                                echo $tasso; 
+                                ?>% dei preventivi vengono confermati
+                                <span style="color: #6c757d;">(<?php echo $stats['confermati']; ?>/<?php echo $stats['total']; ?>)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
             </div>
         </div>
         
