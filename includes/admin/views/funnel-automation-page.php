@@ -14,14 +14,30 @@ if (!defined('ABSPATH')) {
 
 use Disco747_CRM\Funnel\Disco747_Funnel_Manager;
 use Disco747_CRM\Funnel\Disco747_Funnel_Scheduler;
+use Disco747_CRM\Funnel\Disco747_Funnel_Database;
 
 global $wpdb;
 $sequences_table = $wpdb->prefix . 'disco747_funnel_sequences';
 $tracking_table = $wpdb->prefix . 'disco747_funnel_tracking';
 
+// ✅ AUTO-FIX: Crea tabelle se non esistono
+$table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$sequences_table}'");
+if ($table_exists !== $sequences_table) {
+    $funnel_db = new Disco747_Funnel_Database();
+    $funnel_db->create_tables();
+    error_log('[747Disco-Funnel] ✅ Tabelle funnel create automaticamente');
+    $auto_created = true;
+}
+
 // Inizializza manager
 $funnel_manager = new Disco747_Funnel_Manager();
 $scheduler = new Disco747_Funnel_Scheduler();
+
+// ✅ AUTO-FIX: Attiva scheduler se non attivo
+if (!wp_next_scheduled('disco747_funnel_check_sends')) {
+    $scheduler->activate();
+    error_log('[747Disco-Funnel] ✅ Scheduler attivato automaticamente');
+}
 
 // TAB attivo
 $active_tab = sanitize_key($_GET['tab'] ?? 'pre_conferma');
@@ -103,6 +119,13 @@ $cron_status = $scheduler->get_cron_status();
             Sistema automatico per convertire preventivi e aumentare le vendite
         </p>
     </div>
+
+    <?php if (isset($auto_created) && $auto_created): ?>
+        <div class="notice notice-success is-dismissible">
+            <p><strong>✅ Tabelle Funnel create con successo!</strong> Il sistema è ora operativo. Ricarica la pagina per vedere le sequenze di default.</p>
+            <p><a href="<?php echo admin_url('admin.php?page=disco747-funnel'); ?>" class="button button-primary">🔄 Ricarica Pagina</a></p>
+        </div>
+    <?php endif; ?>
 
     <?php if (isset($message)): ?>
         <div class="notice notice-success is-dismissible">
