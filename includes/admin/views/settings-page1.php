@@ -417,8 +417,110 @@ function copyToClipboard(text) {
     }
 }
 
-// Effetti hover sui pulsanti
+// ✅ GESTIONE AUTORIZZAZIONE GOOGLE DRIVE
 document.addEventListener('DOMContentLoaded', function() {
+    // Pulsante Autorizza Google Drive
+    var btnAuthorize = document.querySelector('.btn-authorize-googledrive');
+    if (btnAuthorize) {
+        btnAuthorize.addEventListener('click', function() {
+            var button = this;
+            var originalText = button.innerHTML;
+            
+            // Disabilita pulsante e mostra loading
+            button.disabled = true;
+            button.innerHTML = '⏳ Generazione URL...';
+            
+            // Genera URL di autorizzazione
+            <?php
+            $disco747 = disco747_crm();
+            $googledrive_handler = $disco747->get_googledrive_handler();
+            if ($googledrive_handler) {
+                $auth_result = $googledrive_handler->generate_auth_url();
+                if ($auth_result['success']) {
+                    $auth_url = $auth_result['auth_url'];
+                    echo "var authUrl = '" . esc_js($auth_url) . "';";
+                } else {
+                    echo "alert('❌ Errore: " . esc_js($auth_result['message']) . "'); button.disabled = false; button.innerHTML = originalText; return;";
+                }
+            } else {
+                echo "alert('❌ GoogleDrive handler non disponibile'); button.disabled = false; button.innerHTML = originalText; return;";
+            }
+            ?>
+            
+            // Apri popup di autorizzazione
+            var width = 600;
+            var height = 700;
+            var left = (screen.width - width) / 2;
+            var top = (screen.height - height) / 2;
+            
+            var authWindow = window.open(
+                authUrl,
+                'google_oauth',
+                'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes'
+            );
+            
+            if (!authWindow) {
+                alert('❌ Popup bloccato! Abilita i popup per questo sito e riprova.');
+                button.disabled = false;
+                button.innerHTML = originalText;
+                return;
+            }
+            
+            // Polling per controllare se la finestra si chiude
+            var pollTimer = setInterval(function() {
+                if (authWindow.closed) {
+                    clearInterval(pollTimer);
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    
+                    // Aspetta un attimo e ricarica la pagina per mostrare il nuovo stato
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1000);
+                }
+            }, 500);
+            
+            // Reset button dopo 30 secondi (timeout)
+            setTimeout(function() {
+                if (!authWindow.closed) {
+                    clearInterval(pollTimer);
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+            }, 30000);
+        });
+    }
+    
+    // Pulsante Test Connessione
+    var btnTest = document.querySelector('.btn-test-googledrive');
+    if (btnTest) {
+        btnTest.addEventListener('click', function() {
+            var button = this;
+            var originalText = button.innerHTML;
+            
+            button.disabled = true;
+            button.innerHTML = '⏳ Test in corso...';
+            
+            // Test connessione
+            <?php
+            if ($googledrive_handler && $is_gd_configured) {
+                $test_result = $googledrive_handler->test_connection();
+                if ($test_result['success']) {
+                    echo "alert('✅ Connessione OK!\\n\\nUtente: " . esc_js($test_result['user_name'] ?? 'N/D') . "\\nEmail: " . esc_js($test_result['user_email'] ?? 'N/D') . "');";
+                } else {
+                    echo "alert('❌ Errore connessione:\\n" . esc_js($test_result['message']) . "');";
+                }
+            } else {
+                echo "alert('❌ Google Drive non configurato correttamente');";
+            }
+            ?>
+            
+            button.disabled = false;
+            button.innerHTML = originalText;
+        });
+    }
+    
+    // Effetti hover sui pulsanti
     var buttons = document.querySelectorAll('button[style*="linear-gradient"], a[style*="linear-gradient"]');
     buttons.forEach(function(button) {
         button.addEventListener('mouseenter', function() {
