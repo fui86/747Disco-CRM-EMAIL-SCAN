@@ -88,6 +88,15 @@ class Disco747_Storage_Manager {
     }
     
     /**
+     * ✅ NUOVO: Alias per compatibilità - ottiene Google Drive handler
+     * 
+     * @return object|null Google Drive handler o null
+     */
+    public function get_googledrive() {
+        return $this->googledrive_handler;
+    }
+    
+    /**
      * Ottiene il tipo di storage attivo
      * 
      * @return string 'googledrive' o 'dropbox'

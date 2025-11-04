@@ -46,6 +46,46 @@ if (isset($_POST['save_general_settings']) && wp_verify_nonce($_POST['_wpnonce']
     update_option('disco747_storage_type', sanitize_text_field($_POST['storage_type']));
     echo '<div class="notice notice-success is-dismissible"><p>✅ Impostazioni generali salvate!</p></div>';
 }
+
+// ✅ NUOVO: Gestione salvataggio credenziali Google Drive
+if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'disco747_save_gd')) {
+    $new_credentials = array(
+        'client_id' => sanitize_text_field($_POST['gd_client_id']),
+        'client_secret' => sanitize_text_field($_POST['gd_client_secret']),
+        'redirect_uri' => $gd_redirect_uri,
+        'refresh_token' => $gd_credentials['refresh_token'] ?? '' // Mantieni il token esistente
+    );
+    
+    update_option('disco747_gd_credentials', $new_credentials);
+    echo '<div class="notice notice-success is-dismissible"><p>✅ Credenziali Google Drive salvate! Ora puoi autorizzare l\'accesso.</p></div>';
+    
+    // Reload per aggiornare le variabili
+    $gd_credentials = $new_credentials;
+    $gd_client_id = $new_credentials['client_id'];
+    $gd_client_secret = $new_credentials['client_secret'];
+}
+
+// ✅ NUOVO: Gestione callback OAuth Google Drive
+if (isset($_GET['action']) && $_GET['action'] === 'google_callback' && isset($_GET['code'])) {
+    $auth_code = sanitize_text_field($_GET['code']);
+    $state = isset($_GET['state']) ? sanitize_text_field($_GET['state']) : '';
+    
+    // Usa il handler Google Drive per scambiare il code
+    if (class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive')) {
+        $gd_handler = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+        $result = $gd_handler->exchange_code_for_tokens($auth_code, $state);
+        
+        if ($result['success']) {
+            echo '<div class="notice notice-success is-dismissible"><p>✅ ' . esc_html($result['message']) . '</p></div>';
+            // Reload per aggiornare lo stato
+            $gd_credentials = get_option('disco747_gd_credentials', array());
+            $gd_refresh_token = $gd_credentials['refresh_token'] ?? '';
+            $is_gd_configured = !empty($gd_refresh_token);
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p>❌ ' . esc_html($result['message']) . '</p></div>';
+        }
+    }
+}
 ?>
 
 <div class="wrap" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;">
@@ -341,6 +381,76 @@ function copyToClipboard(text) {
         alert('✅ URL copiato! Incollalo in Google Cloud Console');
     }
 }
+
+// ✅ NUOVO: Gestione autorizzazione Google Drive
+jQuery(document).ready(function($) {
+    
+    // Pulsante autorizza Google Drive
+    $('.btn-authorize-googledrive').on('click', function(e) {
+        e.preventDefault();
+        
+        var clientId = '<?php echo esc_js($gd_client_id); ?>';
+        var redirectUri = '<?php echo esc_js($gd_redirect_uri); ?>';
+        
+        if (!clientId || !redirectUri) {
+            alert('❌ Configura prima Client ID e Client Secret');
+            return;
+        }
+        
+        // Genera state per sicurezza
+        var state = 'gd_' + Math.random().toString(36).substring(2, 15);
+        
+        // Costruisci URL autorizzazione
+        var authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 
+            'client_id=' + encodeURIComponent(clientId) +
+            '&redirect_uri=' + encodeURIComponent(redirectUri) +
+            '&response_type=code' +
+            '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.file') +
+            '&access_type=offline' +
+            '&prompt=consent' +
+            '&state=' + state;
+        
+        console.log('🔗 URL autorizzazione:', authUrl);
+        
+        // Apri in nuova finestra
+        window.location.href = authUrl;
+    });
+    
+    // Pulsante test connessione Google Drive
+    $('.btn-test-googledrive').on('click', function(e) {
+        e.preventDefault();
+        
+        var $btn = $(this);
+        var originalText = $btn.text();
+        
+        $btn.prop('disabled', true).text('🔄 Test in corso...');
+        
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'disco747_test_googledrive',
+                nonce: '<?php echo wp_create_nonce('disco747_test_gd'); ?>'
+            },
+            success: function(response) {
+                if (response.success && response.data) {
+                    var data = response.data;
+                    alert('✅ Connessione Google Drive OK!\n\n' +
+                          'User: ' + (data.user_name || 'N/D') + '\n' +
+                          'Email: ' + (data.user_email || 'N/D'));
+                } else {
+                    alert('❌ Errore test connessione:\n' + (response.data || 'Errore sconosciuto'));
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('❌ Errore di comunicazione: ' + error);
+            },
+            complete: function() {
+                $btn.prop('disabled', false).text(originalText);
+            }
+        });
+    });
+});
 
 // Effetti hover sui pulsanti
 document.addEventListener('DOMContentLoaded', function() {

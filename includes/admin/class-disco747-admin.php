@@ -61,6 +61,7 @@ class Disco747_Admin {
             add_action('wp_ajax_disco747_get_preventivo', array($this, 'handle_get_preventivo'));
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
+            add_action('wp_ajax_disco747_test_googledrive', array($this, 'handle_test_googledrive'));
             
             $this->hooks_registered = true;
             $this->log('Hook WordPress registrati (incluso batch scan)');
@@ -492,6 +493,51 @@ class Disco747_Admin {
 
         } catch (\Exception $e) {
             wp_die('Errore export: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * ✅ NUOVO: Handler AJAX per test connessione Google Drive
+     */
+    public function handle_test_googledrive() {
+        try {
+            // Verifica nonce
+            if (!check_ajax_referer('disco747_test_gd', 'nonce', false)) {
+                throw new \Exception('Nonce non valido');
+            }
+
+            // Verifica permessi
+            if (!current_user_can($this->min_capability)) {
+                throw new \Exception('Permessi insufficienti');
+            }
+
+            // Ottieni handler Google Drive
+            if (!$this->storage_manager) {
+                throw new \Exception('Storage Manager non disponibile');
+            }
+
+            $gd_handler = $this->storage_manager->get_active_handler();
+            
+            if (!$gd_handler || get_option('disco747_storage_type') !== 'googledrive') {
+                throw new \Exception('Google Drive non configurato come storage attivo');
+            }
+
+            // Test connessione
+            if (method_exists($gd_handler, 'test_connection')) {
+                $result = $gd_handler->test_connection();
+                
+                if ($result['success']) {
+                    wp_send_json_success($result);
+                } else {
+                    wp_send_json_error($result['message']);
+                }
+            } else {
+                throw new \Exception('Metodo test_connection non disponibile');
+            }
+
+        } catch (\Exception $e) {
+            $this->log('Errore test Google Drive: ' . $e->getMessage(), 'error');
+            wp_send_json_error($e->getMessage());
         }
     }
 
