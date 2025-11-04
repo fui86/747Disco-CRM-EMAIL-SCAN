@@ -1,33 +1,22 @@
 <?php
 /**
- * Dashboard Principale 747 Disco CRM - VERSIONE RIMODELLATA
+ * Dashboard Principale 747 Disco CRM - VERSIONE MINIMALISTA
  * 
  * FEATURES:
- * - Preventivi futuri da oggi in poi
- * - Filtri: Tutti, Attivi, Confermati, Questo Mese
- * - Link nuovo preventivo in evidenza
- * - Grafici statistiche
- * - Tabella ultimi preventivi
- * - Completamente responsive
+ * - Solo link di navigazione rapida
+ * - Nessun dato/statistica visualizzato
+ * - Design pulito e veloce
  * 
  * @package    Disco747_CRM
  * @subpackage Admin/Views
- * @version    12.0.0
+ * @version    12.1.0
  */
 
 if (!defined('ABSPATH')) exit;
 
-// Sicurezza dati
-$stats = $stats ?? array('total' => 0, 'attivi' => 0, 'confermati' => 0, 'this_month' => 0, 'annullati' => 0);
-$eventi_imminenti = $eventi_imminenti ?? array();
-$kpi_finanziari = $kpi_finanziari ?? array('entrate_mese' => 0, 'acconti_mese' => 0, 'saldo_da_incassare' => 0, 'valore_attivi' => 0);
-$preventivi_recenti = $preventivi_recenti ?? array();
-$chart_data = $chart_data ?? array('preventivi_per_mese' => array(), 'confermati' => 0, 'non_confermati' => 0);
-$system_status = $system_status ?? array('plugin_version' => '11.8.0', 'storage_type' => 'googledrive', 'storage_connected' => false);
-
 $current_user = wp_get_current_user();
 $user_name = $current_user->display_name ?? 'Utente';
-$version = $system_status['plugin_version'];
+$version = DISCO747_CRM_VERSION ?? '11.8.0';
 ?>
 
 <div class="wrap disco747-dashboard-enhanced" style="max-width: 1600px; margin: 20px auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
