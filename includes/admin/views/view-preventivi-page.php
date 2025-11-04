@@ -347,12 +347,11 @@ $stats = array(
                                     </td>
                                     <td>
                                         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                                            <button type="button" 
-                                                    class="button button-small btn-edit-preventivo" 
-                                                    data-id="<?php echo $prev->id; ?>"
-                                                    title="Modifica preventivo">
+                                            <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo&id=' . $prev->id); ?>" 
+                                               class="button button-small" 
+                                               title="Modifica preventivo">
                                                 ✏️ Modifica
-                                            </button>
+                                            </a>
                                             <?php if ($prev->googledrive_file_id): ?>
                                                 <a href="https://drive.google.com/file/d/<?php echo esc_attr($prev->googledrive_file_id); ?>/view" 
                                                    target="_blank" 
@@ -489,12 +488,11 @@ $stats = array(
                         
                         <!-- Azioni -->
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                            <button type="button" 
-                                    class="button button-small btn-edit-preventivo" 
-                                    data-id="<?php echo $prev->id; ?>"
-                                    style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #0073aa; color: white; border: none; border-radius: 8px; font-weight: 600;">
+                            <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo&id=' . $prev->id); ?>" 
+                               class="button button-small" 
+                               style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #0073aa; color: white; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center;">
                                 ✏️ Modifica
-                            </button>
+                            </a>
                             
                             <?php if ($whatsapp_number): ?>
                             <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
@@ -560,129 +558,7 @@ $stats = array(
 
 </div>
 
-<!-- Modal Modifica Preventivo -->
-<div id="modal-edit-preventivo" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999999; overflow-y: auto;">
-    <div style="max-width: 900px; margin: 50px auto; background: #fff; border-radius: 8px; padding: 30px; position: relative;">
-        <button type="button" id="close-modal" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">✖</button>
-        
-        <h2 style="margin-top: 0;">✏️ Modifica Preventivo</h2>
-        
-        <form id="form-edit-preventivo" style="margin-top: 30px;">
-            <input type="hidden" name="preventivo_id" id="edit-preventivo-id">
-            <input type="hidden" name="action" value="disco747_save_preventivo">
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <!-- Colonna 1 -->
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Nome Cliente *</label>
-                    <input type="text" name="nome_cliente" id="edit-nome-cliente" required style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Telefono</label>
-                    <input type="tel" name="telefono" id="edit-telefono" style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Email</label>
-                    <input type="email" name="email" id="edit-email" style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Tipo Evento</label>
-                    <input type="text" name="tipo_evento" id="edit-tipo-evento" style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Data Evento *</label>
-                    <input type="date" name="data_evento" id="edit-data-evento" required style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Orario</label>
-                    <input type="text" name="orario_evento" id="edit-orario-evento" style="width: 100%; padding: 8px;" placeholder="es: 19:00 - 23:00">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Menu</label>
-                    <select name="tipo_menu" id="edit-tipo-menu" style="width: 100%; padding: 8px;">
-                        <option value="Menu 7">Menu 7</option>
-                        <option value="Menu 74">Menu 74</option>
-                        <option value="Menu 747">Menu 747</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Numero Invitati</label>
-                    <input type="number" name="numero_invitati" id="edit-numero-invitati" min="0" style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Importo Totale €</label>
-                    <input type="number" name="importo_totale" id="edit-importo-totale" step="0.01" min="0" style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Acconto €</label>
-                    <input type="number" name="acconto" id="edit-acconto" step="0.01" min="0" style="width: 100%; padding: 8px;">
-                </div>
-
-                <div>
-                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Stato</label>
-                    <select name="stato" id="edit-stato" style="width: 100%; padding: 8px;">
-                        <option value="attivo">Attivo</option>
-                        <option value="confermato">Confermato</option>
-                        <option value="annullato">Annullato</option>
-                        <option value="bozza">Bozza</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Omaggi -->
-            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-                <h4 style="margin: 0 0 15px 0;">🎁 Omaggi</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;">Omaggio 1</label>
-                        <input type="text" name="omaggio1" id="edit-omaggio1" style="width: 100%; padding: 8px;">
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;">Omaggio 2</label>
-                        <input type="text" name="omaggio2" id="edit-omaggio2" style="width: 100%; padding: 8px;">
-                    </div>
-                    <div>
-                        <label style="display: block; margin-bottom: 5px;">Omaggio 3</label>
-                        <input type="text" name="omaggio3" id="edit-omaggio3" style="width: 100%; padding: 8px;">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Extra -->
-            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
-                <h4 style="margin: 0 0 15px 0;">💰 Extra a Pagamento</h4>
-                <div style="display: grid; gap: 15px;">
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
-                        <input type="text" name="extra1" id="edit-extra1" placeholder="Descrizione extra 1" style="padding: 8px;">
-                        <input type="number" name="extra1_importo" id="edit-extra1-importo" placeholder="€" step="0.01" min="0" style="padding: 8px;">
-                    </div>
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
-                        <input type="text" name="extra2" id="edit-extra2" placeholder="Descrizione extra 2" style="padding: 8px;">
-                        <input type="number" name="extra2_importo" id="edit-extra2-importo" placeholder="€" step="0.01" min="0" style="padding: 8px;">
-                    </div>
-                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
-                        <input type="text" name="extra3" id="edit-extra3" placeholder="Descrizione extra 3" style="padding: 8px;">
-                        <input type="number" name="extra3_importo" id="edit-extra3-importo" placeholder="€" step="0.01" min="0" style="padding: 8px;">
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-top: 30px; text-align: right;">
-                <button type="button" id="cancel-edit" class="button" style="margin-right: 10px;">Annulla</button>
-                <button type="submit" class="button button-primary">💾 Salva Modifiche</button>
-            </div>
-        </form>
-    </div>
-</div>
+<!-- Modal Modifica Preventivo - RIMOSSO: Ora si apre il form principale -->
 
 <style>
 .disco747-wrap {
@@ -717,18 +593,6 @@ $stats = array(
 .stat-value {
     font-size: 32px;
     font-weight: bold;
-}
-.btn-edit-preventivo {
-    background: #0073aa;
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    cursor: pointer;
-    font-size: 11px;
-    border-radius: 3px;
-}
-.btn-edit-preventivo:hover {
-    background: #005a87;
 }
 .btn-delete-preventivo {
     background: #dc3232;
@@ -952,143 +816,9 @@ jQuery(document).ready(function($) {
     });
 
     // ========================================================================
-    // MODIFICA PREVENTIVO
+    // MODIFICA PREVENTIVO - Ora reindirizza al form invece del modal
     // ========================================================================
-    $(document).on('click', '.btn-edit-preventivo', function() {
-        var preventivoId = $(this).data('id');
-        console.log('✏️ Modifica preventivo ID:', preventivoId);
-        
-        loadPreventivoData(preventivoId);
-    });
-
-    function loadPreventivoData(id) {
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'disco747_get_preventivo',
-                nonce: '<?php echo wp_create_nonce('disco747_get_preventivo'); ?>',
-                preventivo_id: id
-            },
-            beforeSend: function() {
-                console.log('⏳ Caricamento dati preventivo...');
-            },
-            success: function(response) {
-                console.log('✅ Risposta server:', response);
-                
-                if (response.success && response.data) {
-                    populateEditForm(response.data);
-                    $('#modal-edit-preventivo').fadeIn(300);
-                } else {
-                    alert('❌ Errore: ' + (response.data || 'Preventivo non trovato'));
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX:', error);
-                alert('❌ Errore di connessione al server');
-            }
-        });
-    }
-
-    function populateEditForm(data) {
-        console.log('📝 Precompilo form con:', data);
-        
-        $('#edit-preventivo-id').val(data.id);
-        $('#edit-nome-cliente').val(data.nome_cliente || '');
-        $('#edit-telefono').val(data.telefono || '');
-        $('#edit-email').val(data.email || '');
-        $('#edit-tipo-evento').val(data.tipo_evento || '');
-        $('#edit-data-evento').val(data.data_evento || '');
-        $('#edit-orario-evento').val(data.orario_evento || '');
-        $('#edit-tipo-menu').val(data.tipo_menu || 'Menu 7');
-        $('#edit-numero-invitati').val(data.numero_invitati || 0);
-        $('#edit-importo-totale').val(data.importo_totale || 0);
-        $('#edit-acconto').val(data.acconto || 0);
-        $('#edit-stato').val(data.stato || 'attivo');
-        
-        // Omaggi
-        $('#edit-omaggio1').val(data.omaggio1 || '');
-        $('#edit-omaggio2').val(data.omaggio2 || '');
-        $('#edit-omaggio3').val(data.omaggio3 || '');
-        
-        // Extra
-        $('#edit-extra1').val(data.extra1 || '');
-        $('#edit-extra1-importo').val(data.extra1_importo || 0);
-        $('#edit-extra2').val(data.extra2 || '');
-        $('#edit-extra2-importo').val(data.extra2_importo || 0);
-        $('#edit-extra3').val(data.extra3 || '');
-        $('#edit-extra3-importo').val(data.extra3_importo || 0);
-    }
-
-    // ========================================================================
-    // SUBMIT FORM MODIFICA
-    // ========================================================================
-    $('#form-edit-preventivo').on('submit', function(e) {
-        e.preventDefault();
-        console.log('💾 Submit modifica preventivo');
-        
-        var formData = new FormData(this);
-        formData.append('nonce', '<?php echo wp_create_nonce('disco747_save_preventivo'); ?>');
-        
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            beforeSend: function() {
-                $('#form-edit-preventivo button[type="submit"]')
-                    .prop('disabled', true)
-                    .text('⏳ Salvataggio...');
-            },
-            success: function(response) {
-                console.log('✅ Risposta salvataggio:', response);
-                
-                if (response.success) {
-                    alert('✅ ' + (response.data.message || 'Preventivo aggiornato con successo!'));
-                    $('#modal-edit-preventivo').fadeOut(300);
-                    
-                    // Ricarica pagina dopo 500ms
-                    setTimeout(function() {
-                        location.reload();
-                    }, 500);
-                } else {
-                    alert('❌ Errore: ' + (response.data || 'Impossibile salvare il preventivo'));
-                    $('#form-edit-preventivo button[type="submit"]')
-                        .prop('disabled', false)
-                        .text('💾 Salva Modifiche');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('❌ Errore AJAX:', error);
-                alert('❌ Errore di connessione al server');
-                $('#form-edit-preventivo button[type="submit"]')
-                    .prop('disabled', false)
-                    .text('💾 Salva Modifiche');
-            }
-        });
-    });
-
-    // ========================================================================
-    // CHIUDI MODAL
-    // ========================================================================
-    $('#close-modal, #cancel-edit').on('click', function() {
-        $('#modal-edit-preventivo').fadeOut(300);
-    });
-
-    // Chiudi modal cliccando fuori
-    $('#modal-edit-preventivo').on('click', function(e) {
-        if ($(e.target).is('#modal-edit-preventivo')) {
-            $(this).fadeOut(300);
-        }
-    });
-
-    // ESC per chiudere modal
-    $(document).on('keydown', function(e) {
-        if (e.key === 'Escape') {
-            $('#modal-edit-preventivo').fadeOut(300);
-        }
-    });
+    // Rimosso: gestito tramite link diretto alla pagina del form
 
     // ========================================================================
     // ELIMINA PREVENTIVO
