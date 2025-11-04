@@ -398,19 +398,23 @@ class Disco747_GoogleDrive {
             ? $credentials['redirect_uri'] 
             : admin_url('admin.php?page=disco747-settings&action=google_callback');
         
-        $params = array(
-            'client_id' => $credentials['client_id'],
-            'redirect_uri' => $redirect_uri,
-            'scope' => 'https://www.googleapis.com/auth/drive.file',
-            'response_type' => 'code',
-            'access_type' => 'offline',
-            'prompt' => 'consent',
-            'state' => $state
-        );
+        // ✅ FIX: Costruisci URL manualmente per evitare problemi con http_build_query
+        $client_id = urlencode(trim($credentials['client_id']));
+        $redirect_uri_encoded = urlencode($redirect_uri);
+        $scope = urlencode('https://www.googleapis.com/auth/drive.file');
+        $state_encoded = urlencode($state);
         
-        $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params);
+        $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?'
+            . 'client_id=' . $client_id
+            . '&redirect_uri=' . $redirect_uri_encoded
+            . '&response_type=code'
+            . '&scope=' . $scope
+            . '&access_type=offline'
+            . '&prompt=consent'
+            . '&state=' . $state_encoded;
         
-        $this->log('URL autorizzazione generato');
+        $this->log('URL autorizzazione generato: ' . substr($auth_url, 0, 100) . '...');
+        $this->log('Parametri: client_id=' . strlen($credentials['client_id']) . 'chars, redirect_uri=' . $redirect_uri);
         
         return array(
             'success' => true,

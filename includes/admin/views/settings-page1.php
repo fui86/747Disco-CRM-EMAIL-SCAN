@@ -469,17 +469,42 @@ document.addEventListener('DOMContentLoaded', function() {
             var button = this;
             var originalText = button.innerHTML;
             
-            // Verifica URL autorizzazione
-            if (!googleAuthUrl) {
-                alert('❌ Errore: ' + (googleAuthError || 'Impossibile generare URL di autorizzazione. Verifica che Client ID e Client Secret siano salvati.'));
-                return;
+            // ✅ Verifica URL autorizzazione - Se manca, costruiscilo in JavaScript
+            if (!googleAuthUrl || googleAuthUrl.length < 50) {
+                console.warn('⚠️ URL server vuoto o troppo corto, costruisco manualmente...');
+                
+                // Costruisci URL manualmente in JavaScript
+                var clientId = '<?php echo esc_js($gd_client_id); ?>';
+                var redirectUri = '<?php echo esc_js($gd_redirect_uri); ?>';
+                
+                if (!clientId || clientId.length < 10) {
+                    alert('❌ Errore: Client ID mancante o non valido.\n\nVai nella sezione sopra, inserisci Client ID e Client Secret, poi clicca "Salva Configurazione".');
+                    return;
+                }
+                
+                // Genera stato sicuro
+                var state = 'state_' + Date.now() + '_' + Math.random().toString(36).substring(7);
+                
+                googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+                    + '?client_id=' + encodeURIComponent(clientId)
+                    + '&redirect_uri=' + encodeURIComponent(redirectUri)
+                    + '&response_type=code'
+                    + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.file')
+                    + '&access_type=offline'
+                    + '&prompt=consent'
+                    + '&state=' + encodeURIComponent(state);
+                
+                console.log('✅ URL costruito in JavaScript:', googleAuthUrl);
             }
+            
+            // Debug: mostra info URL
+            console.log('🔍 Debug: Apertura popup con URL:', googleAuthUrl);
+            console.log('🔍 Debug: Lunghezza URL:', googleAuthUrl.length);
+            console.log('🔍 Debug: URL contiene response_type?', googleAuthUrl.indexOf('response_type') > -1);
             
             // Disabilita pulsante
             button.disabled = true;
             button.innerHTML = '⏳ Apertura Google...';
-            
-            console.log('🔍 Debug: Apertura popup con URL:', googleAuthUrl);
             
             // Apri popup di autorizzazione
             var width = 600;

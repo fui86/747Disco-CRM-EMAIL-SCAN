@@ -407,14 +407,33 @@ if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'di
 // Genera l'URL di autorizzazione Google Drive
 $google_auth_url = '';
 $google_auth_error = '';
+$debug_info = array();
+
 try {
     $disco747 = disco747_crm();
     if ($disco747) {
         $googledrive_handler = $disco747->get_googledrive_handler();
         if ($googledrive_handler) {
+            // Debug: verifica credenziali
+            $test_creds = $googledrive_handler->get_oauth_credentials();
+            $debug_info['client_id_presente'] = !empty($test_creds['client_id']);
+            $debug_info['client_id_length'] = !empty($test_creds['client_id']) ? strlen($test_creds['client_id']) : 0;
+            $debug_info['redirect_uri'] = $test_creds['redirect_uri'] ?? 'MANCANTE';
+            
             $auth_result = $googledrive_handler->generate_auth_url();
+            
+            $debug_info['auth_result_success'] = $auth_result['success'] ?? false;
+            $debug_info['auth_result_message'] = $auth_result['message'] ?? '';
+            
             if ($auth_result['success']) {
                 $google_auth_url = $auth_result['auth_url'];
+                
+                // Debug: verifica parametri nell'URL
+                $parsed_url = parse_url($google_auth_url);
+                parse_str($parsed_url['query'] ?? '', $url_params);
+                $debug_info['url_params'] = array_keys($url_params);
+                $debug_info['has_response_type'] = isset($url_params['response_type']);
+                $debug_info['has_client_id'] = isset($url_params['client_id']);
             } else {
                 $google_auth_error = $auth_result['message'];
             }
@@ -426,6 +445,7 @@ try {
     }
 } catch (Exception $e) {
     $google_auth_error = $e->getMessage();
+    $debug_info['exception'] = $e->getMessage();
 }
 
 // Output variabili JavaScript
@@ -436,6 +456,8 @@ if (!empty($google_auth_url)) {
     echo "var googleAuthUrl = null;\n";
     echo "var googleAuthError = '" . esc_js($google_auth_error) . "';\n";
 }
+
+echo "var googleDebugInfo = " . json_encode($debug_info) . ";\n";
 ?>
 
 function copyToClipboard(text) {
@@ -459,6 +481,7 @@ function copyToClipboard(text) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔍 Debug: googleAuthUrl =', googleAuthUrl);
     console.log('🔍 Debug: googleAuthError =', googleAuthError);
+    console.log('🔍 Debug INFO completo:', googleDebugInfo);
     
     // Pulsante Autorizza Google Drive
     var btnAuthorize = document.querySelector('.btn-authorize-googledrive');
@@ -471,17 +494,42 @@ document.addEventListener('DOMContentLoaded', function() {
             var button = this;
             var originalText = button.innerHTML;
             
-            // Verifica URL autorizzazione
-            if (!googleAuthUrl) {
-                alert('❌ Errore: ' + (googleAuthError || 'Impossibile generare URL di autorizzazione. Verifica che Client ID e Client Secret siano salvati.'));
-                return;
+            // ✅ Verifica URL autorizzazione - Se manca, costruiscilo in JavaScript
+            if (!googleAuthUrl || googleAuthUrl.length < 50) {
+                console.warn('⚠️ URL server vuoto o troppo corto, costruisco manualmente...');
+                
+                // Costruisci URL manualmente in JavaScript
+                var clientId = '<?php echo esc_js($gd_client_id); ?>';
+                var redirectUri = '<?php echo esc_js($gd_redirect_uri); ?>';
+                
+                if (!clientId || clientId.length < 10) {
+                    alert('❌ Errore: Client ID mancante o non valido.\n\nVai nella sezione sopra, inserisci Client ID e Client Secret, poi clicca "Salva Configurazione".');
+                    return;
+                }
+                
+                // Genera stato sicuro
+                var state = 'state_' + Date.now() + '_' + Math.random().toString(36).substring(7);
+                
+                googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
+                    + '?client_id=' + encodeURIComponent(clientId)
+                    + '&redirect_uri=' + encodeURIComponent(redirectUri)
+                    + '&response_type=code'
+                    + '&scope=' + encodeURIComponent('https://www.googleapis.com/auth/drive.file')
+                    + '&access_type=offline'
+                    + '&prompt=consent'
+                    + '&state=' + encodeURIComponent(state);
+                
+                console.log('✅ URL costruito in JavaScript:', googleAuthUrl);
             }
+            
+            // Debug: mostra info URL
+            console.log('🔍 Debug: Apertura popup con URL:', googleAuthUrl);
+            console.log('🔍 Debug: Lunghezza URL:', googleAuthUrl.length);
+            console.log('🔍 Debug: URL contiene response_type?', googleAuthUrl.indexOf('response_type') > -1);
             
             // Disabilita pulsante
             button.disabled = true;
             button.innerHTML = '⏳ Apertura Google...';
-            
-            console.log('🔍 Debug: Apertura popup con URL:', googleAuthUrl);
             
             // Apri popup di autorizzazione
             var width = 600;
