@@ -408,6 +408,166 @@ class Disco747_WhatsApp {
     }
 
     /**
+     * ✅ NUOVO: Genera messaggi WhatsApp FUNNEL di pre-vendita
+     * Sistema di messaggi sequenziali per convertire il cliente
+     * 
+     * @param array $preventivo_data Dati preventivo
+     * @param array $options Opzioni (delay tra messaggi, etc.)
+     * @return array Array di URL WhatsApp per ogni messaggio del funnel
+     */
+    public function generate_presale_funnel($preventivo_data, $options = array()) {
+        $this->log("Generazione funnel WhatsApp pre-vendita per: " . ($preventivo_data['nome_referente'] ?? 'N/A'));
+
+        // Prepara dati messaggio
+        $message_data = $this->prepare_presale_message_data($preventivo_data, $options);
+        
+        // Genera tutti i messaggi del funnel
+        $funnel_messages = $this->get_presale_funnel_templates();
+        
+        $funnel_urls = array();
+        $phone_number = $this->extract_phone_number($preventivo_data['cellulare'] ?? '');
+        
+        foreach ($funnel_messages as $step => $template_info) {
+            // Renderizza messaggio con template
+            $message_content = $this->render_funnel_template($template_info['template'], $message_data);
+            
+            // Genera URL WhatsApp
+            $whatsapp_url = $this->build_whatsapp_url($phone_number, $message_content);
+            
+            $funnel_urls[$step] = array(
+                'step' => $step,
+                'name' => $template_info['name'],
+                'delay_hours' => $template_info['delay_hours'] ?? 0,
+                'message' => $message_content,
+                'url' => $whatsapp_url
+            );
+        }
+        
+        $this->log("Funnel WhatsApp generato con " . count($funnel_urls) . " messaggi");
+        
+        return $funnel_urls;
+    }
+
+    /**
+     * Prepara i dati per i messaggi funnel di pre-vendita
+     * 
+     * @param array $preventivo_data Dati preventivo
+     * @param array $options Opzioni
+     * @return array Dati preparati
+     */
+    private function prepare_presale_message_data($preventivo_data, $options = array()) {
+        // Usa la classe Config per ottenere i contatti
+        $config_class = null;
+        if (class_exists('Disco747_Config')) {
+            $config_class = 'Disco747_Config';
+        } elseif (class_exists('Disco747_CRM\\Core\\Disco747_Config')) {
+            $config_class = 'Disco747_CRM\\Core\\Disco747_Config';
+        }
+        
+        $config = $config_class ? $config_class::get_instance() : null;
+        
+        return array(
+            'nome_referente' => $preventivo_data['nome_referente'] ?? '',
+            'cognome_referente' => $preventivo_data['cognome_referente'] ?? '',
+            'nome_cliente' => trim(($preventivo_data['nome_referente'] ?? '') . ' ' . ($preventivo_data['cognome_referente'] ?? '')),
+            'data_evento' => $this->format_date($preventivo_data['data_evento'] ?? ''),
+            'tipo_evento' => $preventivo_data['tipo_evento'] ?? '',
+            'numero_invitati' => $preventivo_data['numero_invitati'] ?? 0,
+            'tipo_menu' => $preventivo_data['tipo_menu'] ?? '',
+            'importo_totale' => $this->format_currency($preventivo_data['importo_preventivo'] ?? 0),
+            'acconto' => $this->format_currency($preventivo_data['acconto'] ?? 0),
+            'telefono_sede' => $config ? $config->get('company_phone', '06 123456789') : '06 123456789',
+            'email_sede' => $config ? $config->get('email_from_address', 'info@747disco.it') : 'info@747disco.it'
+        );
+    }
+
+    /**
+     * Ottiene i template dei messaggi funnel di pre-vendita
+     * Sistema a 4 step per massimizzare le conversioni
+     * 
+     * @return array Template funnel
+     */
+    private function get_presale_funnel_templates() {
+        return array(
+            'step1_welcome' => array(
+                'name' => 'Benvenuto e Anticipation',
+                'delay_hours' => 0, // Invio immediato
+                'template' => "🎉 Ciao {{nome_referente}}!\n\nSiamo FELICISSIMI di averti preparato un preventivo unico per il tuo {{tipo_evento}} del {{data_evento}}!\n\n✨ A 747 Disco non facciamo solo feste... creiamo ricordi indimenticabili!\n\nHai visto la nostra email? Contiene tutti i dettagli e una SPECIALE SORPRESA che ti aspetta! 😉\n\nFammi sapere se hai domande o se vuoi personalizzare qualcosa! 💬"
+            ),
+            'step2_urgency' => array(
+                'name' => 'Creazione Urgenza',
+                'delay_hours' => 24, // Dopo 24 ore
+                'template' => "Ciao {{nome_referente}}! 👋\n\nHai avuto modo di visionare il preventivo per il tuo {{tipo_evento}}?\n\n⏰ Ti ricordo che hai tempo solo 7 giorni per confermare e ricevere:\n\n✨ Servizio Fotografico Professionale (€250)\n🍫 Crepes Nutella Express per tutti (€200)\n\n💰 Valore totale: €450 di OMAGGI GRATIS!\n\nQuesta offerta è riservata ESCLUSIVAMENTE a chi conferma entro 7 giorni dalla richiesta preventivo.\n\nVuoi che ti aiuti a chiarire qualche dubbio? Sono qui! 💬"
+            ),
+            'step3_social_proof' => array(
+                'name' => 'Social Proof e Trust',
+                'delay_hours' => 48, // Dopo 48 ore
+                'template' => "Ciao {{nome_referente}}! 🙌\n\nSpero che il preventivo ti sia piaciuto!\n\nSai cosa dice sempre chi organizza il proprio evento da noi?\n\n⭐ \"La festa più bella che abbiamo mai fatto! Location spettacolare, servizio impeccabile e attenzione ai dettagli incredibile.\"\n\n🎊 Abbiamo già organizzato centinaia di {{tipo_evento}} come il tuo e ogni volta ci emozioniamo come fosse la prima!\n\nIl tuo evento del {{data_evento}} sarà SPETTACOLARE!\n\nVuoi confermare? Chiamami o scrivimi! 📞💬"
+            ),
+            'step4_final_offer' => array(
+                'name' => 'Offerta Finale e CTA',
+                'delay_hours' => 72, // Dopo 72 ore (3 giorni)
+                'template' => "{{nome_referente}}, ultimo messaggio prima che scada l'offerta! ⏰\n\nStai ancora pensando al tuo {{tipo_evento}} del {{data_evento}}?\n\n🎁 Ricordo che hai ancora qualche giorno per confermare e ricevere €450 di omaggi GRATIS!\n\n📋 Riepilogo rapido:\n• {{tipo_evento}} per {{numero_invitati}} persone\n• Menu {{tipo_menu}}\n• Investimento: {{importo_totale}}\n• + €450 di OMAGGI se confermi entro 7 giorni!\n\n💬 Sono qui per qualsiasi chiarimento o personalizzazione!\n\nNon perdere questa opportunità unica! \n\nChiamami al {{telefono_sede}} o rispondi a questo messaggio! 🚀"
+            )
+        );
+    }
+
+    /**
+     * Renderizza un template funnel sostituendo i placeholder
+     * 
+     * @param string $template Template del messaggio
+     * @param array $message_data Dati per sostituzione
+     * @return string Messaggio renderizzato
+     */
+    private function render_funnel_template($template, $message_data) {
+        $message = $template;
+        
+        // Sostituisci tutti i placeholder
+        foreach ($message_data as $key => $value) {
+            $message = str_replace('{{' . $key . '}}', $value, $message);
+        }
+        
+        return $message;
+    }
+
+    /**
+     * ✅ NUOVO: Genera singolo messaggio WhatsApp di pre-vendita
+     * Versione semplificata per invio immediato
+     * 
+     * @param array $preventivo_data Dati preventivo
+     * @param string $step Step del funnel ('step1', 'step2', etc.)
+     * @return string URL WhatsApp
+     */
+    public function generate_presale_whatsapp_message($preventivo_data, $step = 'step1_welcome') {
+        $this->log("Generazione messaggio WhatsApp pre-vendita step: $step");
+
+        // Prepara dati messaggio
+        $message_data = $this->prepare_presale_message_data($preventivo_data);
+        
+        // Ottieni template del funnel
+        $funnel_templates = $this->get_presale_funnel_templates();
+        
+        if (!isset($funnel_templates[$step])) {
+            $step = 'step1_welcome'; // Default al primo step
+        }
+        
+        $template_info = $funnel_templates[$step];
+        
+        // Renderizza messaggio
+        $message_content = $this->render_funnel_template($template_info['template'], $message_data);
+        
+        // Ottieni numero telefono pulito
+        $phone_number = $this->extract_phone_number($preventivo_data['cellulare'] ?? '');
+        
+        // Genera URL WhatsApp
+        $whatsapp_url = $this->build_whatsapp_url($phone_number, $message_content);
+        
+        $this->log("Messaggio WhatsApp pre-vendita generato: " . substr($whatsapp_url, 0, 50) . '...');
+        
+        return $whatsapp_url;
+    }
+
+    /**
      * Log centralizzato
      * 
      * @param string $message Messaggio

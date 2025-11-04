@@ -103,6 +103,82 @@ class Disco747_Messaging {
     }
 
     /**
+     * ✅ NUOVO: Invia comunicazioni di PRE-VENDITA dopo preventivo
+     * Email accattivante + WhatsApp funnel per massimizzare conversioni
+     * 
+     * @param array $preventivo_data Dati preventivo
+     * @param array $options Opzioni aggiuntive
+     * @return array Risultati invio
+     */
+    public function send_presale_communication($preventivo_data, $options = array()) {
+        $this->log("Invio comunicazioni pre-vendita per: " . ($preventivo_data['nome_referente'] ?? 'N/A'));
+
+        $results = array(
+            'email' => null,
+            'whatsapp' => null,
+            'success' => false,
+            'errors' => array(),
+        );
+
+        try {
+            // Invio Email di pre-vendita
+            if ($options['send_email'] ?? true) {
+                try {
+                    $email_sent = $this->email_handler->send_presale_email($preventivo_data, $options['email'] ?? array());
+                    $results['email'] = array(
+                        'success' => $email_sent,
+                        'type' => 'presale'
+                    );
+                } catch (Exception $e) {
+                    $results['errors'][] = 'Email pre-vendita: ' . $e->getMessage();
+                    $results['email'] = array(
+                        'success' => false,
+                        'error' => $e->getMessage()
+                    );
+                }
+            }
+
+            // Generazione WhatsApp funnel (primo messaggio immediato)
+            if ($options['send_whatsapp'] ?? true) {
+                try {
+                    $whatsapp_url = $this->whatsapp_handler->generate_presale_whatsapp_message(
+                        $preventivo_data,
+                        $options['whatsapp_step'] ?? 'step1_welcome'
+                    );
+                    
+                    // Genera anche tutti i messaggi del funnel per riferimento futuro
+                    $funnel_messages = $this->whatsapp_handler->generate_presale_funnel($preventivo_data, $options);
+                    
+                    $results['whatsapp'] = array(
+                        'success' => true,
+                        'url' => $whatsapp_url,
+                        'funnel' => $funnel_messages,
+                        'type' => 'presale_funnel'
+                    );
+                } catch (Exception $e) {
+                    $results['errors'][] = 'WhatsApp pre-vendita: ' . $e->getMessage();
+                    $results['whatsapp'] = array(
+                        'success' => false,
+                        'error' => $e->getMessage()
+                    );
+                }
+            }
+
+            // Valuta successo complessivo
+            $results['success'] = ($results['email']['success'] ?? false) || ($results['whatsapp']['success'] ?? false);
+
+            $this->log("Comunicazioni pre-vendita completate - Successo: " . ($results['success'] ? 'SI' : 'NO'));
+
+            return $results;
+
+        } catch (Exception $e) {
+            $this->log("Errore comunicazioni pre-vendita: " . $e->getMessage());
+            $results['errors'][] = 'Generale: ' . $e->getMessage();
+            return $results;
+        }
+    }
+
+    /**
      * Invia comunicazione completa per un preventivo
      * 
      * @param array  $preventivo_data Dati preventivo

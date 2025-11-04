@@ -386,6 +386,352 @@ class Disco747_Email {
     }
 
     /**
+     * ✅ NUOVO: Invia email di PRE-VENDITA dopo preventivo
+     * Template accattivante con colori del locale (Nero, Oro, Grigio, Bianco)
+     * 
+     * @param array $preventivo_data Dati del preventivo
+     * @param array $options Opzioni aggiuntive
+     * @return bool Success
+     */
+    public function send_presale_email($preventivo_data, $options = array()) {
+        $this->log('Invio email pre-vendita per: ' . ($preventivo_data['nome_referente'] ?? 'N/A'));
+
+        try {
+            // Prepara dati email
+            $email_data = $this->prepare_presale_email_data($preventivo_data, $options);
+            
+            // Genera contenuto HTML dell'email di pre-vendita
+            $email_content = $this->generate_presale_email_content($email_data);
+            
+            // Invia email tramite wp_mail
+            $this->log('Invio email pre-vendita wp_mail');
+            $sent = wp_mail(
+                $email_data['recipient_email'],
+                $email_data['subject'],
+                $email_content,
+                $this->get_email_headers()
+            );
+            
+            // Log risultato
+            $this->log_delivery($email_data, $sent, array());
+            
+            if ($sent) {
+                $this->log('✅ Email pre-vendita inviata con successo a: ' . $email_data['recipient_email']);
+            } else {
+                throw new Exception('Errore invio email pre-vendita tramite wp_mail');
+            }
+            
+            return $sent;
+            
+        } catch (Exception $e) {
+            $this->log('❌ Errore invio email pre-vendita: ' . $e->getMessage(), 'ERROR');
+            return false;
+        }
+    }
+
+    /**
+     * Prepara i dati per l'email di pre-vendita
+     * 
+     * @param array $preventivo_data Dati preventivo
+     * @param array $options Opzioni
+     * @return array Dati email preparati
+     */
+    private function prepare_presale_email_data($preventivo_data, $options = array()) {
+        // Email destinatario
+        $recipient_email = $preventivo_data['mail'] ?? '';
+        if (!is_email($recipient_email)) {
+            throw new Exception('Email destinatario non valida: ' . $recipient_email);
+        }
+        
+        // Prepara TUTTE le variabili per il template
+        $template_vars = array(
+            // Dati cliente
+            'nome_referente' => $preventivo_data['nome_referente'] ?? '',
+            'cognome_referente' => $preventivo_data['cognome_referente'] ?? '',
+            'nome_cliente' => trim(($preventivo_data['nome_referente'] ?? '') . ' ' . ($preventivo_data['cognome_referente'] ?? '')),
+            
+            // Dati evento
+            'data_evento' => $this->format_date($preventivo_data['data_evento'] ?? ''),
+            'tipo_evento' => $preventivo_data['tipo_evento'] ?? '',
+            'numero_invitati' => $preventivo_data['numero_invitati'] ?? 0,
+            'tipo_menu' => $preventivo_data['tipo_menu'] ?? '',
+            
+            // Importi formattati
+            'importo_totale' => $this->format_currency($preventivo_data['importo_preventivo'] ?? 0),
+            'acconto' => $this->format_currency($preventivo_data['acconto'] ?? 0),
+            
+            // Contatti
+            'telefono_sede' => $this->get_company_phone(),
+            'email_sede' => $this->config->get('email_from_address', 'info@747disco.it')
+        );
+        
+        // Oggetto email accattivante
+        $subject = 'Il tuo evento da sogno ti aspetta, ' . $template_vars['nome_referente'] . '! ✨';
+        
+        return array(
+            'recipient_email' => $recipient_email,
+            'subject' => $subject,
+            'template_vars' => $template_vars,
+            'options' => $options
+        );
+    }
+
+    /**
+     * ✅ Genera contenuto HTML dell'email di PRE-VENDITA
+     * Template accattivante con colori del locale: Nero, Oro, Grigio, Bianco
+     * 
+     * @param array $email_data Dati email
+     * @return string HTML content
+     */
+    private function generate_presale_email_content($email_data) {
+        $vars = $email_data['template_vars'];
+        
+        // Colori del locale
+        $colore_nero = '#000000';
+        $colore_oro = '#D4AF37';
+        $colore_grigio = '#808080';
+        $colore_bianco = '#FFFFFF';
+        $colore_grigio_chiaro = '#F5F5F5';
+        $colore_oro_scuro = '#B8941F';
+        
+        // ✅ TEMPLATE HTML PRE-VENDITA CON COLORI DEL LOCALE
+        $html = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Il tuo evento da sogno ti aspetta!</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: \'Arial\', \'Helvetica Neue\', Helvetica, sans-serif; background-color: ' . $colore_grigio_chiaro . ';">
+    <div style="max-width: 650px; margin: 0 auto; background: ' . $colore_grigio_chiaro . '; padding: 0;">
+        
+        <!-- Header Nero con Logo Oro -->
+        <div style="background: ' . $colore_nero . '; padding: 30px 20px; text-align: center;">
+            <img src="https://747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 200px; height: auto;">
+        </div>
+        
+        <!-- Hero Section con Gradiente Oro -->
+        <div style="background: linear-gradient(135deg, ' . $colore_oro . ' 0%, ' . $colore_oro_scuro . ' 100%); padding: 50px 30px; text-align: center; color: ' . $colore_bianco . ';">
+            <h1 style="margin: 0; font-size: 32px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                🎉 Ciao ' . esc_html($vars['nome_referente']) . '!
+            </h1>
+            <p style="margin: 20px 0 0; font-size: 20px; font-weight: 300;">
+                Il tuo evento da sogno ti aspetta!
+            </p>
+        </div>
+        
+        <!-- Contenuto principale Bianco -->
+        <div style="background: ' . $colore_bianco . '; padding: 40px 30px; margin: 0;">
+            
+            <!-- Messaggio personale -->
+            <div style="margin-bottom: 30px;">
+                <p style="color: ' . $colore_nero . '; line-height: 1.8; font-size: 17px; margin: 0 0 20px;">
+                    Siamo <strong style="color: ' . $colore_oro . ';">felicissimi</strong> di averti preparato un preventivo unico per il tuo <strong style="color: ' . $colore_oro . ';">' . esc_html($vars['tipo_evento']) . '</strong> del <strong>' . esc_html($vars['data_evento']) . '</strong>!
+                </p>
+                <p style="color: ' . $colore_grigio . '; line-height: 1.8; font-size: 16px; margin: 0;">
+                    A <strong style="color: ' . $colore_nero . ';">747 Disco</strong> non facciamo solo feste... <em>creiamo ricordi indimenticabili!</em> ✨
+                </p>
+            </div>
+            
+            <!-- Box URGENZA con sfondo Oro -->
+            <div style="background: linear-gradient(135deg, ' . $colore_oro . ' 0%, ' . $colore_oro_scuro . ' 100%); padding: 30px; border-radius: 15px; margin: 30px 0; text-align: center; border: 3px solid ' . $colore_nero . '; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+                <p style="margin: 0; color: ' . $colore_bianco . '; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                    ⏰ OFFERTA LIMITATA!
+                </p>
+                <p style="margin: 15px 0 10px; color: ' . $colore_bianco . '; font-size: 36px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">
+                    €450 di OMAGGI GRATIS
+                </p>
+                <p style="margin: 0; color: ' . $colore_bianco . '; font-size: 16px; line-height: 1.6;">
+                    ✨ Servizio Fotografico Professionale (valore €250)<br>
+                    🍫 Crepes Nutella Express per tutti gli ospiti (valore €200)
+                </p>
+                <p style="margin: 15px 0 0; color: ' . $colore_bianco . '; font-size: 14px; font-weight: bold; border-top: 2px dashed rgba(255,255,255,0.5); padding-top: 15px;">
+                    ⚡ Riservato solo a chi conferma entro 7 giorni!
+                </p>
+            </div>
+            
+            <!-- Riepilogo Evento con stile elegante -->
+            <div style="background: ' . $colore_grigio_chiaro . '; padding: 25px; border-radius: 10px; margin: 30px 0; border-left: 5px solid ' . $colore_oro . ';">
+                <h2 style="color: ' . $colore_nero . '; margin: 0 0 20px; font-size: 24px; font-weight: bold;">
+                    📋 Il Tuo Evento
+                </h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 12px 0; color: ' . $colore_grigio . '; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.1);"><strong>📅 Data:</strong></td>
+                        <td style="padding: 12px 0; color: ' . $colore_nero . '; font-size: 16px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.1); font-weight: bold;">' . esc_html($vars['data_evento']) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 0; color: ' . $colore_grigio . '; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.1);"><strong>🎉 Tipo Evento:</strong></td>
+                        <td style="padding: 12px 0; color: ' . $colore_nero . '; font-size: 16px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.1); font-weight: bold;">' . esc_html($vars['tipo_evento']) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 0; color: ' . $colore_grigio . '; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.1);"><strong>👥 Numero Invitati:</strong></td>
+                        <td style="padding: 12px 0; color: ' . $colore_nero . '; font-size: 16px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.1); font-weight: bold;">' . esc_html($vars['numero_invitati']) . ' persone</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 0; color: ' . $colore_grigio . '; font-size: 16px; border-bottom: 1px solid rgba(0,0,0,0.1);"><strong>🍽️ Menu Selezionato:</strong></td>
+                        <td style="padding: 12px 0; color: ' . $colore_oro . '; font-size: 16px; text-align: right; border-bottom: 1px solid rgba(0,0,0,0.1); font-weight: bold;">' . esc_html($vars['tipo_menu']) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 0; color: ' . $colore_grigio . '; font-size: 16px;"><strong>💰 Investimento Totale:</strong></td>
+                        <td style="padding: 12px 0; color: ' . $colore_oro . '; font-size: 20px; text-align: right; font-weight: bold;">' . esc_html($vars['importo_totale']) . '</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Cosa è incluso -->
+            <div style="background: ' . $colore_bianco . '; padding: 25px; border-radius: 10px; margin: 30px 0; border: 2px solid ' . $colore_oro . ';">
+                <h3 style="color: ' . $colore_nero . '; margin: 0 0 20px; font-size: 22px; text-align: center; font-weight: bold;">
+                    ✨ TUTTO INCLUSO NEL PACCHETTO
+                </h3>
+                <div style="display: block;">
+                    <div style="padding: 10px 0; border-bottom: 1px solid ' . $colore_grigio_chiaro . ';">
+                        <span style="color: ' . $colore_oro . '; font-size: 20px; margin-right: 10px;">✓</span>
+                        <span style="color: ' . $colore_nero . '; font-size: 15px;">Allestimenti sala personalizzati</span>
+                    </div>
+                    <div style="padding: 10px 0; border-bottom: 1px solid ' . $colore_grigio_chiaro . ';">
+                        <span style="color: ' . $colore_oro . '; font-size: 20px; margin-right: 10px;">✓</span>
+                        <span style="color: ' . $colore_nero . '; font-size: 15px;">DJ & Animazione professionale</span>
+                    </div>
+                    <div style="padding: 10px 0; border-bottom: 1px solid ' . $colore_grigio_chiaro . ';">
+                        <span style="color: ' . $colore_oro . '; font-size: 20px; margin-right: 10px;">✓</span>
+                        <span style="color: ' . $colore_nero . '; font-size: 15px;">SIAE inclusa</span>
+                    </div>
+                    <div style="padding: 10px 0; border-bottom: 1px solid ' . $colore_grigio_chiaro . ';">
+                        <span style="color: ' . $colore_oro . '; font-size: 20px; margin-right: 10px;">✓</span>
+                        <span style="color: ' . $colore_nero . '; font-size: 15px;">Impianto luci professionale (18 luminoso)</span>
+                    </div>
+                    <div style="padding: 10px 0; border-bottom: 1px solid ' . $colore_grigio_chiaro . ';">
+                        <span style="color: ' . $colore_oro . '; font-size: 20px; margin-right: 10px;">✓</span>
+                        <span style="color: ' . $colore_nero . '; font-size: 15px;">Locandina virtuale invito personalizzata</span>
+                    </div>
+                    <div style="padding: 10px 0;">
+                        <span style="color: ' . $colore_oro . '; font-size: 20px; margin-right: 10px;">✓</span>
+                        <span style="color: ' . $colore_nero . '; font-size: 15px;">Menu selezionato (' . esc_html($vars['tipo_menu']) . ')</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Immagine Gallery (se disponibile) -->
+            <div style="text-align: center; margin: 30px 0;">
+                <img src="https://747disco.it/wp-content/uploads/2025/11/Marco-74-1024x683.jpg" alt="747 Disco - Location eventi" style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            </div>
+            
+            <!-- Box Investimento Nero con Accento Oro -->
+            <div style="background: ' . $colore_nero . '; padding: 35px; border-radius: 15px; margin: 30px 0; text-align: center; border: 3px solid ' . $colore_oro . ';">
+                <p style="margin: 0; color: ' . $colore_grigio . '; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">
+                    Investimento Totale
+                </p>
+                <p style="margin: 15px 0; color: ' . $colore_oro . '; font-size: 48px; font-weight: bold; text-shadow: 0 0 20px rgba(212,175,55,0.5);">
+                    ' . esc_html($vars['importo_totale']) . '
+                </p>
+                <p style="margin: 10px 0 0; color: ' . $colore_grigio . '; font-size: 14px; line-height: 1.6;">
+                    Include tutto quanto descritto<br>
+                    <span style="color: ' . $colore_oro . '; font-weight: bold;">+ €450 di omaggi GRATIS se confermi entro 7 giorni!</span>
+                </p>
+                ' . (!empty($vars['acconto']) && $vars['acconto'] !== '€0,00' ? '<p style="margin: 15px 0 0; color: ' . $colore_grigio . '; font-size: 13px;">Acconto richiesto: <span style="color: ' . $colore_oro . '; font-weight: bold;">' . esc_html($vars['acconto']) . '</span></p>' : '') . '
+            </div>
+            
+            <!-- CTA Principale Oro -->
+            <div style="background: linear-gradient(135deg, ' . $colore_oro . ' 0%, ' . $colore_oro_scuro . ' 100%); padding: 35px; border-radius: 15px; margin: 30px 0; text-align: center; box-shadow: 0 8px 25px rgba(212,175,55,0.4);">
+                <p style="color: ' . $colore_bianco . '; font-size: 20px; font-weight: bold; margin: 0 0 20px; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">
+                    🎊 Pronto a rendere questo evento indimenticabile?
+                </p>
+                <p style="color: ' . $colore_bianco . '; font-size: 16px; margin: 0 0 25px; line-height: 1.6;">
+                    Conferma entro 7 giorni e ricevi <strong>€450 di omaggi GRATIS</strong>!<br>
+                    <span style="font-size: 14px; opacity: 0.9;">Non perdere questa opportunità unica!</span>
+                </p>
+                <a href="https://wa.me/39' . preg_replace('/[^0-9]/', '', $vars['telefono_sede']) . '?text=Ciao%2C%20vorrei%20confermare%20il%20preventivo%20per%20il%20mio%20' . urlencode($vars['tipo_evento']) . '%20del%20' . urlencode($vars['data_evento']) . '" 
+                   style="display: inline-block; background: ' . $colore_nero . '; color: ' . $colore_oro . '; padding: 18px 50px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 18px; margin: 10px 5px; border: 3px solid ' . $colore_oro . '; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: all 0.3s;">
+                    💬 Conferma su WhatsApp
+                </a>
+                <p style="margin: 20px 0 0; color: ' . $colore_bianco . '; font-size: 14px; opacity: 0.9;">
+                    Oppure chiamaci al <strong>' . esc_html($vars['telefono_sede']) . '</strong><br>
+                    o rispondi a questa email
+                </p>
+            </div>
+            
+            <!-- Social Proof -->
+            <div style="background: ' . $colore_grigio_chiaro . '; padding: 25px; border-radius: 10px; margin: 30px 0; text-align: center;">
+                <p style="color: ' . $colore_nero . '; font-size: 16px; margin: 0 0 15px; font-weight: bold;">
+                    ⭐ Cosa dicono di noi:
+                </p>
+                <p style="color: ' . $colore_grigio . '; font-size: 15px; margin: 0; font-style: italic; line-height: 1.8;">
+                    "La festa più bella che abbiamo mai fatto! Location spettacolare, servizio impeccabile e attenzione ai dettagli incredibile. Consigliatissimo!" - <strong style="color: ' . $colore_oro . ';">Marco, Festa 18 Anni</strong>
+                </p>
+            </div>
+            
+            <!-- Chiusura personale -->
+            <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid ' . $colore_grigio_chiaro . ';">
+                <p style="color: ' . $colore_nero . '; line-height: 1.8; font-size: 16px; margin: 0 0 15px;">
+                    Non vediamo l\'ora di rendere il tuo <strong style="color: ' . $colore_oro . ';">' . esc_html($vars['tipo_evento']) . '</strong> un\'esperienza da ricordare per sempre!
+                </p>
+                <p style="color: ' . $colore_nero . '; line-height: 1.8; font-size: 16px; margin: 0;">
+                    Se hai domande, dubbi o vuoi personalizzare qualcosa, siamo sempre a tua disposizione. <strong style="color: ' . $colore_oro . ';">Il tuo evento è la nostra priorità!</strong>
+                </p>
+            </div>
+        </div>
+        
+        <!-- Footer Nero con Testo Grigio -->
+        <div style="background: ' . $colore_nero . '; padding: 40px 30px; text-align: center;">
+            <p style="margin: 0 0 15px;">
+                <img src="https://747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 150px; height: auto; opacity: 0.9;">
+            </p>
+            <p style="margin: 15px 0 5px; color: ' . $colore_oro . '; font-size: 20px; font-weight: bold;">
+                747 DISCO
+            </p>
+            <p style="margin: 5px 0 20px; color: ' . $colore_grigio . '; font-size: 14px; font-style: italic;">
+                La tua festa, la nostra passione
+            </p>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; margin-top: 20px;">
+                <p style="margin: 5px 0; color: ' . $colore_grigio . '; font-size: 14px;">
+                    📧 <a href="mailto:' . esc_attr($vars['email_sede']) . '" style="color: ' . $colore_oro . '; text-decoration: none;">' . esc_html($vars['email_sede']) . '</a>
+                </p>
+                <p style="margin: 5px 0; color: ' . $colore_grigio . '; font-size: 14px;">
+                    📞 <a href="tel:' . esc_attr(preg_replace('/[^0-9]/', '', $vars['telefono_sede'])) . '" style="color: ' . $colore_oro . '; text-decoration: none;">' . esc_html($vars['telefono_sede']) . '</a>
+                </p>
+                <p style="margin: 15px 0 5px; color: ' . $colore_grigio . '; font-size: 14px;">
+                    🌐 <a href="https://www.747disco.it" style="color: ' . $colore_oro . '; text-decoration: none;">www.747disco.it</a>
+                </p>
+            </div>
+            <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                <p style="margin: 0; font-size: 11px; color: ' . $colore_grigio . '; line-height: 1.6;">
+                    Hai ricevuto questa email perché hai richiesto un preventivo a 747 Disco.<br>
+                    Se non desideri più ricevere comunicazioni, puoi rispondere con "RIMUOVIMI".
+                </p>
+            </div>
+        </div>
+        
+    </div>
+</body>
+</html>';
+
+        return $html;
+    }
+
+    /**
+     * Ottiene il telefono della sede dalla configurazione
+     * 
+     * @return string Telefono
+     */
+    private function get_company_phone() {
+        // Prova a ottenere dalla configurazione
+        $phone = $this->config->get('company_phone', '');
+        
+        // Se non trovato, prova dalle opzioni WordPress
+        if (empty($phone)) {
+            $phone = get_option('disco747_company_phone', '');
+        }
+        
+        // Default se ancora vuoto
+        if (empty($phone)) {
+            $phone = '06 123456789';
+        }
+        
+        return $phone;
+    }
+
+    /**
      * Headers email
      */
     private function get_email_headers() {
