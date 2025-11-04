@@ -1,0 +1,26 @@
+{
+  "name": "747disco/preventivi-crm",
+  "description": "Sistema CRM per gestione preventivi ed eventi - 747 Disco",
+  "type": "wordpress-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": ">=7.4",
+    "phpoffice/phpspreadsheet": "^1.29",
+    "dompdf/dompdf": "^2.0",
+    "ext-zip": "*",
+    "ext-xml": "*",
+    "ext-gd": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Disco747_CRM\\": "includes/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "allow-plugins": {
+      "composer/installers": true
+    }
+  }
+}
