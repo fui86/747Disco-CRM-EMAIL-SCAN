@@ -13,6 +13,35 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ✅ GESTIONE CALLBACK OAUTH GOOGLE DRIVE
+if (isset($_GET['action']) && $_GET['action'] === 'google_callback' && isset($_GET['code'])) {
+    $auth_code = sanitize_text_field($_GET['code']);
+    $state = isset($_GET['state']) ? sanitize_text_field($_GET['state']) : '';
+    
+    try {
+        // Carica il GoogleDrive handler
+        $disco747 = disco747_crm();
+        $googledrive_handler = $disco747->get_googledrive_handler();
+        
+        if ($googledrive_handler) {
+            $result = $googledrive_handler->exchange_code_for_tokens($auth_code, $state);
+            
+            if ($result['success']) {
+                echo '<div class="notice notice-success is-dismissible"><p>✅ Google Drive configurato con successo!</p></div>';
+                // Redirect per pulire l'URL
+                echo '<script>window.location.href = "' . admin_url('admin.php?page=disco747-settings') . '";</script>';
+                exit;
+            } else {
+                echo '<div class="notice notice-error is-dismissible"><p>❌ Errore configurazione: ' . esc_html($result['message']) . '</p></div>';
+            }
+        } else {
+            echo '<div class="notice notice-error is-dismissible"><p>❌ Handler Google Drive non disponibile</p></div>';
+        }
+    } catch (Exception $e) {
+        echo '<div class="notice notice-error is-dismissible"><p>❌ Errore: ' . esc_html($e->getMessage()) . '</p></div>';
+    }
+}
+
 // Ottieni configurazioni esistenti
 $company_name = get_option('disco747_company_name', '747 Disco');
 $company_email = get_option('disco747_company_email', '');
@@ -45,6 +74,22 @@ if (isset($_POST['save_general_settings']) && wp_verify_nonce($_POST['_wpnonce']
     update_option('disco747_company_phone', sanitize_text_field($_POST['company_phone']));
     update_option('disco747_storage_type', sanitize_text_field($_POST['storage_type']));
     echo '<div class="notice notice-success is-dismissible"><p>✅ Impostazioni generali salvate!</p></div>';
+}
+
+// ✅ Gestione salvataggio credenziali Google Drive
+if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'disco747_save_gd')) {
+    $gd_credentials = array(
+        'client_id' => sanitize_text_field($_POST['gd_client_id']),
+        'client_secret' => sanitize_text_field($_POST['gd_client_secret']),
+        'redirect_uri' => $gd_redirect_uri, // Salva il redirect URI automatico
+        'refresh_token' => $gd_refresh_token // Mantieni il refresh token esistente se presente
+    );
+    update_option('disco747_gd_credentials', $gd_credentials);
+    echo '<div class="notice notice-success is-dismissible"><p>✅ Credenziali Google Drive salvate! Ora clicca su "Autorizza Accesso Google Drive".</p></div>';
+    
+    // Aggiorna le variabili locali
+    $gd_client_id = $gd_credentials['client_id'];
+    $gd_client_secret = $gd_credentials['client_secret'];
 }
 ?>
 
