@@ -14,6 +14,7 @@ if (!defined('ABSPATH')) {
 }
 
 // ✅ GESTIONE CALLBACK OAUTH GOOGLE DRIVE
+$oauth_callback_success = false;
 if (isset($_GET['action']) && $_GET['action'] === 'google_callback' && isset($_GET['code'])) {
     $auth_code = sanitize_text_field($_GET['code']);
     $state = isset($_GET['state']) ? sanitize_text_field($_GET['state']) : '';
@@ -27,10 +28,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'google_callback' && isset($_G
             $result = $googledrive_handler->exchange_code_for_tokens($auth_code, $state);
             
             if ($result['success']) {
+                $oauth_callback_success = true;
                 echo '<div class="notice notice-success is-dismissible"><p>✅ Google Drive configurato con successo!</p></div>';
                 // Redirect per pulire l'URL
-                echo '<script>window.location.href = "' . admin_url('admin.php?page=disco747-settings') . '";</script>';
-                exit;
+                echo '<script>setTimeout(function(){ window.location.href = "' . admin_url('admin.php?page=disco747-settings') . '"; }, 2000);</script>';
             } else {
                 echo '<div class="notice notice-error is-dismissible"><p>❌ Errore configurazione: ' . esc_html($result['message']) . '</p></div>';
             }
@@ -48,7 +49,7 @@ $company_email = get_option('disco747_company_email', '');
 $company_phone = get_option('disco747_company_phone', '');
 $current_storage = get_option('disco747_storage_type', 'googledrive');
 
-// Google Drive config
+// ✅ Google Drive config - RICARICA DOPO IL CALLBACK
 $gd_credentials = get_option('disco747_gd_credentials', array());
 $gd_client_id = $gd_credentials['client_id'] ?? '';
 $gd_client_secret = $gd_credentials['client_secret'] ?? '';
@@ -57,7 +58,26 @@ $gd_client_secret = $gd_credentials['client_secret'] ?? '';
 $site_url = get_site_url();
 $gd_redirect_uri = $site_url . '/wp-admin/admin.php?page=disco747-settings&action=google_callback';
 $gd_refresh_token = $gd_credentials['refresh_token'] ?? '';
-$is_gd_configured = !empty($gd_refresh_token);
+
+// ✅ Verifica configurazione - Usa il GoogleDrive handler per verificare
+$access_token = get_option('disco747_googledrive_access_token', '');
+$is_gd_configured = false;
+
+// Metodo 1: Verifica tramite handler
+try {
+    $disco747 = disco747_crm();
+    $googledrive_handler = $disco747->get_googledrive_handler();
+    if ($googledrive_handler && method_exists($googledrive_handler, 'is_oauth_configured')) {
+        $is_gd_configured = $googledrive_handler->is_oauth_configured();
+    }
+} catch (Exception $e) {
+    error_log('[747Disco] Errore verifica GoogleDrive: ' . $e->getMessage());
+}
+
+// Metodo 2 (fallback): Verifica opzioni database
+if (!$is_gd_configured) {
+    $is_gd_configured = (!empty($gd_refresh_token) || !empty($access_token) || $oauth_callback_success);
+}
 
 // Dropbox config (placeholder)
 $dropbox_credentials = get_option('disco747_dropbox_credentials', array());
@@ -199,6 +219,16 @@ if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'di
                         </code>
                     </div>
                 <?php endif; ?>
+                
+                <!-- Debug Info (sempre visibile per troubleshooting) -->
+                <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.5); border-radius: 5px; font-size: 11px; font-family: monospace;">
+                    <strong>🔍 Debug Info:</strong><br>
+                    Client ID: <?php echo !empty($gd_client_id) ? '✅ Presente' : '❌ Mancante'; ?><br>
+                    Client Secret: <?php echo !empty($gd_client_secret) ? '✅ Presente' : '❌ Mancante'; ?><br>
+                    Refresh Token: <?php echo !empty($gd_refresh_token) ? '✅ Presente (' . strlen($gd_refresh_token) . ' chars)' : '❌ Mancante'; ?><br>
+                    Access Token: <?php echo !empty($access_token) ? '✅ Presente (' . strlen($access_token) . ' chars)' : '❌ Mancante'; ?><br>
+                    Redirect URI: <?php echo !empty($gd_credentials['redirect_uri']) ? '✅ ' . esc_html($gd_credentials['redirect_uri']) : '❌ Mancante'; ?>
+                </div>
             </div>
 
             <!-- URL Redirect Automatico -->

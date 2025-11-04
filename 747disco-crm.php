@@ -70,6 +70,8 @@ final class Disco747_CRM_Plugin {
     private $admin = null;
     private $frontend = null;
     private $storage_manager = null;
+    private $googledrive_handler = null;
+    private $dropbox_handler = null;
     private $email_manager = null;
     private $pdf_generator = null;
     private $excel_generator = null;
@@ -243,6 +245,18 @@ final class Disco747_CRM_Plugin {
             } else {
                 $this->storage_manager = new Disco747_CRM\Storage\Disco747_Storage_Manager();
             }
+        }
+        
+        // ✅ GoogleDrive Handler (necessario per OAuth)
+        if (class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive')) {
+            $this->googledrive_handler = new Disco747_CRM\Storage\Disco747_GoogleDrive();
+            $this->public_log('✅ GoogleDrive Handler inizializzato');
+        }
+        
+        // ✅ Dropbox Handler
+        if (class_exists('Disco747_CRM\\Storage\\Disco747_Dropbox')) {
+            $this->dropbox_handler = new Disco747_CRM\Storage\Disco747_Dropbox();
+            $this->public_log('✅ Dropbox Handler inizializzato');
         }
         
         $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Componenti core inizializzati');
@@ -506,6 +520,20 @@ final class Disco747_CRM_Plugin {
      */
     public function get_gdrive_sync() {
         return $this->gdrive_sync;
+    }
+
+    /**
+     * ✅ Ottieni GoogleDrive Handler (per OAuth)
+     */
+    public function get_googledrive_handler() {
+        return $this->googledrive_handler;
+    }
+
+    /**
+     * ✅ Ottieni Dropbox Handler (per OAuth)
+     */
+    public function get_dropbox_handler() {
+        return $this->dropbox_handler;
     }
 
     /**
