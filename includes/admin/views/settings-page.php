@@ -47,43 +47,49 @@ if (isset($_POST['save_general_settings']) && wp_verify_nonce($_POST['_wpnonce']
     echo '<div class="notice notice-success is-dismissible"><p>✅ Impostazioni generali salvate!</p></div>';
 }
 
-// ✅ NUOVO: Gestione salvataggio credenziali Google Drive
+// ✅ FIX: Adapter per usare il sistema esistente
 if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'disco747_save_gd')) {
-    $new_credentials = array(
-        'client_id' => sanitize_text_field($_POST['gd_client_id']),
-        'client_secret' => sanitize_text_field($_POST['gd_client_secret']),
-        'redirect_uri' => $gd_redirect_uri,
-        'refresh_token' => $gd_credentials['refresh_token'] ?? '' // Mantieni il token esistente
+    // Converti nomi campi da 'gd_*' a 'googledrive_*' per compatibilità
+    $post_data = array(
+        'googledrive_client_id' => $_POST['gd_client_id'] ?? '',
+        'googledrive_client_secret' => $_POST['gd_client_secret'] ?? '',
+        'googledrive_redirect_uri' => $gd_redirect_uri
     );
     
-    update_option('disco747_gd_credentials', $new_credentials);
-    echo '<div class="notice notice-success is-dismissible"><p>✅ Credenziali Google Drive salvate! Ora puoi autorizzare l\'accesso.</p></div>';
-    
-    // Reload per aggiornare le variabili
-    $gd_credentials = $new_credentials;
-    $gd_client_id = $new_credentials['client_id'];
-    $gd_client_secret = $new_credentials['client_secret'];
+    // Usa il metodo esistente in Settings Helper
+    if (class_exists('Disco747_CRM\\Admin\\Disco747_Settings_Helper')) {
+        $helper = new \Disco747_CRM\Admin\Disco747_Settings_Helper();
+        $result = $helper->save_googledrive_credentials($post_data);
+        
+        $notice_class = $result['success'] ? 'notice-success' : 'notice-error';
+        echo '<div class="notice ' . $notice_class . ' is-dismissible"><p>' . esc_html($result['message']) . '</p></div>';
+        
+        // Reload variabili
+        $gd_credentials = get_option('disco747_gd_credentials', array());
+        $gd_client_id = $gd_credentials['client_id'] ?? '';
+        $gd_client_secret = $gd_credentials['client_secret'] ?? '';
+    }
 }
 
-// ✅ NUOVO: Gestione callback OAuth Google Drive
+// ✅ FIX: Gestione callback OAuth usando sistema esistente
 if (isset($_GET['action']) && $_GET['action'] === 'google_callback' && isset($_GET['code'])) {
-    $auth_code = sanitize_text_field($_GET['code']);
-    $state = isset($_GET['state']) ? sanitize_text_field($_GET['state']) : '';
+    $auth_data = array(
+        'auth_code' => sanitize_text_field($_GET['code']),
+        'state' => isset($_GET['state']) ? sanitize_text_field($_GET['state']) : ''
+    );
     
-    // Usa il handler Google Drive per scambiare il code
-    if (class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive')) {
-        $gd_handler = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
-        $result = $gd_handler->exchange_code_for_tokens($auth_code, $state);
+    // Usa il metodo esistente in Settings Helper
+    if (class_exists('Disco747_CRM\\Admin\\Disco747_Settings_Helper')) {
+        $helper = new \Disco747_CRM\Admin\Disco747_Settings_Helper();
+        $result = $helper->exchange_auth_code($auth_data);
         
-        if ($result['success']) {
-            echo '<div class="notice notice-success is-dismissible"><p>✅ ' . esc_html($result['message']) . '</p></div>';
-            // Reload per aggiornare lo stato
-            $gd_credentials = get_option('disco747_gd_credentials', array());
-            $gd_refresh_token = $gd_credentials['refresh_token'] ?? '';
-            $is_gd_configured = !empty($gd_refresh_token);
-        } else {
-            echo '<div class="notice notice-error is-dismissible"><p>❌ ' . esc_html($result['message']) . '</p></div>';
-        }
+        $notice_class = $result['success'] ? 'notice-success' : 'notice-error';
+        echo '<div class="notice ' . $notice_class . ' is-dismissible"><p>' . esc_html($result['message']) . '</p></div>';
+        
+        // Reload variabili
+        $gd_credentials = get_option('disco747_gd_credentials', array());
+        $gd_refresh_token = $gd_credentials['refresh_token'] ?? '';
+        $is_gd_configured = !empty($gd_refresh_token);
     }
 }
 ?>

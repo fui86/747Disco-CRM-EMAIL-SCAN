@@ -478,10 +478,17 @@ class Disco747_Settings_Helper {
         $required_fields = array('client_id', 'client_secret', 'redirect_uri');
         $errors = array();
 
+        // ✅ FIX: Leggi credenziali esistenti per mantenere refresh_token
+        $credentials = get_option('disco747_gd_credentials', array());
+
         foreach ($required_fields as $field) {
             if (empty($post_data["googledrive_{$field}"])) {
                 $errors[] = sprintf(__('Campo %s obbligatorio.', 'disco747'), $field);
             } else {
+                // ✅ FIX: Salva nell'array invece che in opzioni separate
+                $credentials[$field] = $this->sanitize_credential($post_data["googledrive_{$field}"]);
+                
+                // Mantieni retrocompatibilità salvando anche nella vecchia struttura
                 update_option("disco747_googledrive_{$field}", $this->sanitize_credential($post_data["googledrive_{$field}"]));
             }
         }
@@ -490,6 +497,7 @@ class Disco747_Settings_Helper {
         $optional_fields = array('refresh_token', 'folder_id');
         foreach ($optional_fields as $field) {
             if (!empty($post_data["googledrive_{$field}"])) {
+                $credentials[$field] = $this->sanitize_credential($post_data["googledrive_{$field}"]);
                 update_option("disco747_googledrive_{$field}", $this->sanitize_credential($post_data["googledrive_{$field}"]));
             }
         }
@@ -500,6 +508,9 @@ class Disco747_Settings_Helper {
                 'message' => implode(' ', $errors)
             );
         }
+
+        // ✅ FIX: Salva credenziali nell'array unificato
+        update_option('disco747_gd_credentials', $credentials);
 
         return array(
             'success' => true,

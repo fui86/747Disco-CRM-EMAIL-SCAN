@@ -97,6 +97,41 @@ class Disco747_Storage_Manager {
     }
     
     /**
+     * ✅ NUOVO: Scambia authorization code per tokens OAuth
+     * Delega all'handler attivo (Google Drive o Dropbox)
+     * 
+     * @param string $auth_code Authorization code da Google/Dropbox
+     * @param string|null $state State per sicurezza CSRF
+     * @return array Risultato operazione con 'success' e 'message'
+     */
+    public function exchange_code_for_tokens($auth_code, $state = null) {
+        $handler = $this->get_active_handler();
+        
+        if (!$handler) {
+            return array(
+                'success' => false,
+                'message' => 'Nessun handler storage disponibile'
+            );
+        }
+        
+        if (!method_exists($handler, 'exchange_code_for_tokens')) {
+            return array(
+                'success' => false,
+                'message' => 'Handler non supporta OAuth'
+            );
+        }
+        
+        try {
+            return $handler->exchange_code_for_tokens($auth_code, $state);
+        } catch (\Exception $e) {
+            return array(
+                'success' => false,
+                'message' => 'Errore OAuth: ' . $e->getMessage()
+            );
+        }
+    }
+    
+    /**
      * Ottiene il tipo di storage attivo
      * 
      * @return string 'googledrive' o 'dropbox'
