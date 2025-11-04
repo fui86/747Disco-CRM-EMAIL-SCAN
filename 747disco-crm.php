@@ -152,8 +152,12 @@ final class Disco747_CRM_Plugin {
             'includes/storage/class-disco747-storage-manager.php',
             // ✅ AGGIUNTO: Excel Scan Handler REALE
             'includes/handlers/class-disco747-excel-scan-handler.php',
-            // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ AGGIUNTO: AJAX Handlers per Excel Scan
-            'includes/admin/ajax-handlers.php'
+            // ✅ AGGIUNTO: AJAX Handlers per Excel Scan
+            'includes/admin/ajax-handlers.php',
+            // ✅ AGGIUNTO: Funnel Marketing System
+            'includes/funnel/class-disco747-funnel-database.php',
+            'includes/funnel/class-disco747-funnel-manager.php',
+            'includes/funnel/class-disco747-funnel-scheduler.php'
         );
         
         $loaded_files = 0;
@@ -180,6 +184,10 @@ final class Disco747_CRM_Plugin {
                     // Excel scan handler ÃƒÆ'Ã‚Â¨ opzionale
                     $optional_missing[] = $file;
                     $this->public_log("ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Excel scan handler non trovato (opzionale): {$file}", 'WARNING');
+                } elseif (strpos($file, 'funnel/') !== false) {
+                    // Funnel system è opzionale
+                    $optional_missing[] = $file;
+                    $this->public_log("⚠️ File funnel opzionale mancante: {$file}", 'WARNING');
                 } else {
                     $missing_files[] = $file;
                     $this->public_log("ÃƒÂ¢Ã‚ÂÃ…â€™ File core critico mancante: {$file}", 'ERROR');
@@ -523,20 +531,34 @@ final class Disco747_CRM_Plugin {
      */
     public function activate_plugin() {
         try {
-            $this->public_log('ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Å¾ Attivazione plugin 747 Disco CRM v' . DISCO747_CRM_VERSION);
+            $this->public_log('🚀 Attivazione plugin 747 Disco CRM v' . DISCO747_CRM_VERSION);
             
             // Crea tabelle database se necessario
             if ($this->database && method_exists($this->database, 'create_tables')) {
                 $this->database->create_tables();
             }
             
+            // Crea tabelle funnel
+            if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Database')) {
+                $funnel_db = new Disco747_CRM\Funnel\Disco747_Funnel_Database();
+                $funnel_db->create_tables();
+                $this->public_log('✅ Tabelle funnel create');
+            }
+            
+            // Attiva scheduler funnel
+            if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Scheduler')) {
+                $scheduler = new Disco747_CRM\Funnel\Disco747_Funnel_Scheduler();
+                $scheduler->activate();
+                $this->public_log('✅ Scheduler funnel attivato');
+            }
+            
             // Flush rewrite rules
             flush_rewrite_rules();
             
-            $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Plugin attivato con successo');
+            $this->public_log('✅ Plugin attivato con successo');
             
         } catch (Exception $e) {
-            $this->public_log('ÃƒÂ¢Ã‚ÂÃ…â€™ Errore attivazione: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore attivazione: ' . $e->getMessage(), 'ERROR');
         }
     }
 
@@ -545,7 +567,14 @@ final class Disco747_CRM_Plugin {
      */
     public function deactivate_plugin() {
         try {
-            $this->public_log('ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Å¾ Disattivazione plugin 747 Disco CRM');
+            $this->public_log('🛑 Disattivazione plugin 747 Disco CRM');
+            
+            // Disattiva scheduler funnel
+            if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Scheduler')) {
+                $scheduler = new Disco747_CRM\Funnel\Disco747_Funnel_Scheduler();
+                $scheduler->deactivate();
+                $this->public_log('✅ Scheduler funnel disattivato');
+            }
             
             // Flush rewrite rules
             flush_rewrite_rules();
@@ -553,10 +582,10 @@ final class Disco747_CRM_Plugin {
             // Pulizia scheduled events
             wp_clear_scheduled_hook('disco747_cleanup_temp_files');
             
-            $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Plugin disattivato');
+            $this->public_log('✅ Plugin disattivato');
             
         } catch (Exception $e) {
-            $this->public_log('ÃƒÂ¢Ã‚ÂÃ…â€™ Errore disattivazione: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore disattivazione: ' . $e->getMessage(), 'ERROR');
         }
     }
 
