@@ -61,6 +61,7 @@ class Disco747_Admin {
             add_action('wp_ajax_disco747_get_preventivo', array($this, 'handle_get_preventivo'));
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
+            add_action('wp_ajax_disco747_get_funnel_sequence', array($this, 'handle_get_funnel_sequence'));
             
             $this->hooks_registered = true;
             $this->log('Hook WordPress registrati (incluso batch scan)');
@@ -431,6 +432,41 @@ class Disco747_Admin {
 
         } catch (\Exception $e) {
             $this->log('Errore delete_preventivo: ' . $e->getMessage(), 'error');
+            wp_send_json_error($e->getMessage());
+        }
+    }
+
+    public function handle_get_funnel_sequence() {
+        try {
+            if (!wp_verify_nonce($_POST['nonce'], 'disco747_funnel_nonce')) {
+                throw new \Exception('Nonce non valido');
+            }
+
+            if (!current_user_can($this->min_capability)) {
+                throw new \Exception('Permessi insufficienti');
+            }
+
+            $sequence_id = intval($_POST['sequence_id'] ?? 0);
+            if ($sequence_id <= 0) {
+                throw new \Exception('ID sequenza non valido');
+            }
+
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'disco747_funnel_sequences';
+            
+            $sequence = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $sequence_id
+            ), ARRAY_A);
+
+            if (!$sequence) {
+                throw new \Exception('Sequenza non trovata');
+            }
+
+            wp_send_json_success($sequence);
+
+        } catch (\Exception $e) {
+            $this->log('Errore get_funnel_sequence: ' . $e->getMessage(), 'error');
             wp_send_json_error($e->getMessage());
         }
     }

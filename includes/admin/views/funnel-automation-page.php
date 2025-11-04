@@ -52,6 +52,7 @@ if (isset($_POST['save_sequence'])) {
         'step_number' => intval($_POST['step_number']),
         'step_name' => sanitize_text_field($_POST['step_name']),
         'days_offset' => intval($_POST['days_offset']),
+        'send_time' => sanitize_text_field($_POST['send_time']) . ':00',
         'email_enabled' => isset($_POST['email_enabled']) ? 1 : 0,
         'email_subject' => sanitize_text_field($_POST['email_subject']),
         'email_body' => wp_kses_post($_POST['email_body']),
@@ -227,6 +228,7 @@ $cron_status = $scheduler->get_cron_status();
                             <tr>
                                 <th style="width: 60px;">Step</th>
                                 <th style="width: 100px;">Timing</th>
+                                <th style="width: 80px;">⏰ Orario</th>
                                 <th>Nome</th>
                                 <th style="width: 80px; text-align: center;">📧 Email</th>
                                 <th style="width: 80px; text-align: center;">💬 WhatsApp</th>
@@ -241,6 +243,11 @@ $cron_status = $scheduler->get_cron_status();
                                 <td>
                                     <span style="background: #e9ecef; padding: 5px 10px; border-radius: 5px; font-weight: 600;">
                                         <?php echo $seq->days_offset >= 0 ? '+' : ''; ?><?php echo $seq->days_offset; ?> giorni
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="background: #fff3cd; padding: 5px 10px; border-radius: 5px; font-weight: 600; color: #856404;">
+                                        <?php echo $seq->send_time ? substr($seq->send_time, 0, 5) : '09:00'; ?>
                                     </span>
                                 </td>
                                 <td><?php echo esc_html($seq->step_name); ?></td>
@@ -442,6 +449,12 @@ $cron_status = $scheduler->get_cron_status();
                     <small>Esempio: 0 = subito, +2 = dopo 2 giorni, -10 = 10 giorni prima evento</small>
                 </div>
                 
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">⏰ Orario Invio *</label>
+                    <input type="time" name="send_time" id="edit-send-time" value="09:00" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
+                    <small>A che ora del giorno inviare l'email (es: 09:00, 14:30)</small>
+                </div>
+                
             </div>
             
             <div style="margin-bottom: 20px;">
@@ -564,6 +577,7 @@ function showAddStepModal(funnelType) {
     document.getElementById('edit-funnel-type').value = funnelType;
     document.getElementById('edit-step-number').value = '';
     document.getElementById('edit-days-offset').value = '';
+    document.getElementById('edit-send-time').value = '09:00';
     document.getElementById('edit-step-name').value = '';
     document.getElementById('edit-email-enabled').checked = true;
     document.getElementById('edit-email-subject').value = '';
@@ -576,8 +590,45 @@ function showAddStepModal(funnelType) {
 }
 
 function editSequence(sequenceId) {
-    // TODO: Carica dati via AJAX e precompila form
-    alert('Funzione in sviluppo. Per ora modifica manualmente dal database.');
+    console.log('✏️ Caricamento sequenza ID:', sequenceId);
+    
+    jQuery.ajax({
+        url: ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'disco747_get_funnel_sequence',
+            nonce: '<?php echo wp_create_nonce('disco747_funnel_nonce'); ?>',
+            sequence_id: sequenceId
+        },
+        success: function(response) {
+            if (response.success && response.data) {
+                const seq = response.data;
+                
+                // Precompila form
+                document.getElementById('modal-title').textContent = '✏️ Modifica Step #' + seq.step_number;
+                document.getElementById('edit-sequence-id').value = seq.id;
+                document.getElementById('edit-funnel-type').value = seq.funnel_type;
+                document.getElementById('edit-step-number').value = seq.step_number;
+                document.getElementById('edit-days-offset').value = seq.days_offset;
+                document.getElementById('edit-send-time').value = seq.send_time ? seq.send_time.substring(0, 5) : '09:00';
+                document.getElementById('edit-step-name').value = seq.step_name || '';
+                document.getElementById('edit-email-enabled').checked = seq.email_enabled == 1;
+                document.getElementById('edit-email-subject').value = seq.email_subject || '';
+                document.getElementById('edit-email-body').value = seq.email_body || '';
+                document.getElementById('edit-whatsapp-enabled').checked = seq.whatsapp_enabled == 1;
+                document.getElementById('edit-whatsapp-text').value = seq.whatsapp_text || '';
+                document.getElementById('edit-active').checked = seq.active == 1;
+                
+                // Mostra modal
+                document.getElementById('sequence-modal').style.display = 'block';
+            } else {
+                alert('❌ Errore: ' + (response.data || 'Impossibile caricare la sequenza'));
+            }
+        },
+        error: function() {
+            alert('❌ Errore di connessione al server');
+        }
+    });
 }
 
 function closeModal() {

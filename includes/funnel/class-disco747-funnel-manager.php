@@ -64,7 +64,26 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        $next_send_at = date('Y-m-d H:i:s', strtotime("+{$first_step->days_offset} days"));
+        // Calcola data+orario invio
+        $send_time = $first_step->send_time ?? '09:00:00';
+        
+        // Per funnel pre-evento usa la data evento del preventivo
+        if ($funnel_type === 'pre_evento') {
+            $preventivo = $wpdb->get_row($wpdb->prepare(
+                "SELECT data_evento FROM {$this->preventivi_table} WHERE id = %d",
+                $preventivo_id
+            ));
+            
+            if ($preventivo && $preventivo->data_evento) {
+                // Calcola giorni prima dell'evento (es: -10 giorni)
+                $next_send_at = date('Y-m-d', strtotime($preventivo->data_evento . ' ' . $first_step->days_offset . ' days')) . ' ' . $send_time;
+            } else {
+                $next_send_at = date('Y-m-d', strtotime("+{$first_step->days_offset} days")) . ' ' . $send_time;
+            }
+        } else {
+            // Per funnel pre-conferma usa data corrente + offset
+            $next_send_at = date('Y-m-d', strtotime("+{$first_step->days_offset} days")) . ' ' . $send_time;
+        }
         
         // Crea tracking
         $inserted = $wpdb->insert(
@@ -184,8 +203,16 @@ class Disco747_Funnel_Manager {
         
         $next_send_at = null;
         if ($next_step_data) {
-            $days_diff = $next_step_data->days_offset - $step->days_offset;
-            $next_send_at = date('Y-m-d H:i:s', strtotime("+{$days_diff} days"));
+            $send_time = $next_step_data->send_time ?? '09:00:00';
+            
+            if ($tracking->funnel_type === 'pre_evento') {
+                // Per pre-evento calcola dalla data evento
+                $next_send_at = date('Y-m-d', strtotime($preventivo->data_evento . ' ' . $next_step_data->days_offset . ' days')) . ' ' . $send_time;
+            } else {
+                // Per pre-conferma calcola differenza giorni
+                $days_diff = $next_step_data->days_offset - $step->days_offset;
+                $next_send_at = date('Y-m-d', strtotime("+{$days_diff} days")) . ' ' . $send_time;
+            }
         }
         
         // Aggiorna tracking

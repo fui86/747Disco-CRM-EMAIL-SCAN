@@ -43,6 +43,7 @@ class Disco747_Funnel_Database {
             step_number int(11) NOT NULL DEFAULT 1,
             step_name varchar(100) DEFAULT '',
             days_offset int(11) NOT NULL DEFAULT 0,
+            send_time time DEFAULT '09:00:00',
             email_enabled tinyint(1) NOT NULL DEFAULT 1,
             email_subject text DEFAULT NULL,
             email_body longtext DEFAULT NULL,
@@ -54,9 +55,12 @@ class Disco747_Funnel_Database {
             PRIMARY KEY (id),
             KEY funnel_type (funnel_type),
             KEY active (active)
-        ) {$this->charset_collate};";
+        ) {$this->charset_collate}";
         
         dbDelta($sql_sequences);
+        
+        // Verifica e aggiungi colonna send_time se manca
+        $this->maybe_add_send_time_column();
         
         // Tabella Tracking (Stato invii)
         $sql_tracking = "CREATE TABLE IF NOT EXISTS {$this->tracking_table} (
@@ -91,6 +95,24 @@ class Disco747_Funnel_Database {
     }
     
     /**
+     * Aggiunge colonna send_time se non esiste
+     */
+    private function maybe_add_send_time_column() {
+        global $wpdb;
+        
+        // Controlla se la colonna esiste
+        $column_exists = $wpdb->get_results($wpdb->prepare(
+            "SHOW COLUMNS FROM {$this->sequences_table} LIKE %s",
+            'send_time'
+        ));
+        
+        if (empty($column_exists)) {
+            $wpdb->query("ALTER TABLE {$this->sequences_table} ADD COLUMN send_time time DEFAULT '09:00:00' AFTER days_offset");
+            error_log('[747Disco-Funnel] ✅ Colonna send_time aggiunta');
+        }
+    }
+    
+    /**
      * Inserisce sequenze di default per iniziare
      */
     private function insert_default_sequences() {
@@ -109,6 +131,7 @@ class Disco747_Funnel_Database {
                 'step_number' => 1,
                 'step_name' => 'Invio Preventivo',
                 'days_offset' => 0,
+                'send_time' => '09:00:00',
                 'email_enabled' => 1,
                 'email_subject' => 'Il tuo preventivo per {{tipo_evento}} è pronto! 🎉',
                 'email_body' => 'Ciao {{nome_referente}},
@@ -147,6 +170,7 @@ Hai domande? Scrivici pure! 😊',
                 'step_number' => 2,
                 'step_name' => 'Follow-up',
                 'days_offset' => 2,
+                'send_time' => '14:00:00',
                 'email_enabled' => 1,
                 'email_subject' => 'Hai visto il preventivo? 🤔',
                 'email_body' => 'Ciao {{nome_referente}},
@@ -176,6 +200,7 @@ Se hai domande siamo qui! 😊',
                 'step_number' => 3,
                 'step_name' => 'Urgenza',
                 'days_offset' => 4,
+                'send_time' => '10:00:00',
                 'email_enabled' => 1,
                 'email_subject' => '⏰ Ultima possibilità per {{data_evento}}!',
                 'email_body' => 'Ciao {{nome_referente}},
@@ -218,6 +243,7 @@ Rispondimi subito! 🚨',
                 'step_number' => 1,
                 'step_name' => 'Upselling -10 giorni',
                 'days_offset' => -10,
+                'send_time' => '09:00:00',
                 'email_enabled' => 1,
                 'email_subject' => '🎁 Mancano 10 giorni! Pacchetti extra in sconto',
                 'email_body' => '[Da configurare]',
@@ -230,6 +256,7 @@ Rispondimi subito! 🚨',
                 'step_number' => 2,
                 'step_name' => 'Reminder -7 giorni',
                 'days_offset' => -7,
+                'send_time' => '09:00:00',
                 'email_enabled' => 1,
                 'email_subject' => '🎉 Una settimana al tuo evento!',
                 'email_body' => '[Da configurare]',
