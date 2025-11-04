@@ -1,0 +1,28 @@
+{
+    "name": "747disco/crm-plugin",
+    "description": "Sistema CRM completo per la gestione dei preventivi della location 747 Disco",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "747 Disco Team",
+            "email": "info@747disco.it"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "phpoffice/phpspreadsheet": "^1.29",
+        "dompdf/dompdf": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Disco747_CRM\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "7.4"
+        }
+    }
+}

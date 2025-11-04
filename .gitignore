@@ -1,0 +1,25 @@
+# Dipendenze Composer
+/vendor/
+composer.lock
+
+# File temporanei WordPress
+*.log
+.DS_Store
+Thumbs.db
+
+# File di configurazione locale
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Cache
+*.cache
+.sass-cache/
+
+# File temporanei upload
+/uploads/preventivi/temp/
+/uploads/disco747-temp/
