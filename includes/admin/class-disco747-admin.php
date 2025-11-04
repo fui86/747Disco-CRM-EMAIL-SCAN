@@ -112,6 +112,14 @@ class Disco747_Admin {
                 'disco747-view-preventivi',
                 array($this, 'render_view_preventivi_page')
             );
+            add_submenu_page(
+                'disco747-crm',
+                __('Analisi Finanziaria', 'disco747'),
+                __('💰 Analisi Finanziaria', 'disco747'),
+                $this->min_capability,
+                'disco747-financial',
+                array($this, 'render_financial_page')
+            );
             if (get_option('disco747_debug_mode', false)) {
                 add_submenu_page(
                     'disco747-crm',
@@ -296,6 +304,14 @@ class Disco747_Admin {
         }
         
         require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/view-preventivi-page.php';
+    }
+
+    public function render_financial_page() {
+        if (!current_user_can($this->min_capability)) {
+            wp_die('Non hai i permessi per accedere a questa pagina.');
+        }
+        
+        require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/financial-analytics-page.php';
     }
 
     public function render_debug_page() {
@@ -547,9 +563,6 @@ class Disco747_Admin {
             date('Y-m-d'),
             date('Y-m-d', strtotime('+14 days'))
         ), ARRAY_A);
-        
-        // KPI Finanziari
-        $kpi_finanziari = $this->get_financial_kpi();
         
         // Preventivi recenti (ultimi 10)
         $preventivi_recenti = $wpdb->get_results(

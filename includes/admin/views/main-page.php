@@ -61,81 +61,35 @@ $version = $system_status['plugin_version'];
     </div>
 
     <!-- ============================================================================ -->
-    <!-- SEZIONE INSIGHTS: KPI Finanziari + Eventi Imminenti -->
+    <!-- SEZIONE INSIGHTS: Link Analisi Finanziaria + Eventi Imminenti -->
     <!-- ============================================================================ -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
         
-        <!-- ============= KPI FINANZIARI ============= -->
+        <!-- ============= LINK ANALISI FINANZIARIA ============= -->
         <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px 30px;">
+            <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 25px 30px;">
                 <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
-                    💰 KPI Finanziari
+                    💰 Analisi Finanziaria
                 </h2>
                 <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
-                    Situazione economica corrente
+                    Dashboard completa per monitoraggio economico
                 </p>
             </div>
             
-            <div style="padding: 30px;">
-                <!-- Entrate Previste Mese -->
-                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #28a745;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #2e7d32; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                💵 Entrate Previste (<?php echo date('F'); ?>)
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #1b5e20;">
-                                €<?php echo number_format($kpi_finanziari['entrate_mese'], 2, ',', '.'); ?>
-                            </div>
-                        </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">📊</div>
-                    </div>
-                </div>
-                
-                <!-- Acconti Incassati -->
-                <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #ff9800;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #e65100; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                ✅ Acconti Incassati
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #e65100;">
-                                €<?php echo number_format($kpi_finanziari['acconti_mese'], 2, ',', '.'); ?>
-                            </div>
-                        </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">💳</div>
-                    </div>
-                </div>
-                
-                <!-- Saldo da Incassare -->
-                <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #2196f3;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #0d47a1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                ⏳ Saldo da Incassare
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #0d47a1;">
-                                €<?php echo number_format($kpi_finanziari['saldo_da_incassare'], 2, ',', '.'); ?>
-                            </div>
-                        </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">🕐</div>
-                    </div>
-                </div>
-                
-                <!-- Potenziale Attivi -->
-                <div style="background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%); padding: 20px; border-radius: 15px; border-left: 5px solid #fbc02d;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #f57f17; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                🎯 Potenziale Attivi
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #f57f17;">
-                                €<?php echo number_format($kpi_finanziari['valore_attivi'], 2, ',', '.'); ?>
-                            </div>
-                        </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">💡</div>
-                    </div>
-                </div>
+            <div style="padding: 40px; text-align: center;">
+                <div style="font-size: 5rem; margin-bottom: 20px; opacity: 0.8;">📊</div>
+                <h3 style="margin: 0 0 15px 0; font-size: 1.4rem; color: #1e3a8a;">
+                    Accedi all'Analisi Completa
+                </h3>
+                <p style="margin: 0 0 30px 0; color: #6c757d; font-size: 1rem;">
+                    KPI finanziari, trend, grafici e filtri temporali personalizzabili
+                </p>
+                <a href="<?php echo admin_url('admin.php?page=disco747-financial'); ?>" 
+                   style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: white; padding: 18px 40px; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 1.1rem; display: inline-block; box-shadow: 0 4px 20px rgba(30, 58, 138, 0.3); transition: all 0.3s ease;"
+                   onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 6px 30px rgba(30, 58, 138, 0.5)'"
+                   onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 20px rgba(30, 58, 138, 0.3)'">
+                    💰 Vai all'Analisi Finanziaria
+                </a>
             </div>
         </div>
         
