@@ -400,6 +400,42 @@ if (isset($_POST['save_gd_settings']) && wp_verify_nonce($_POST['_wpnonce'], 'di
 
 <!-- JavaScript per copia URL e interazioni -->
 <script>
+// ✅ GENERA URL AUTORIZZAZIONE GOOGLE (lato server)
+<?php
+// Genera l'URL di autorizzazione Google Drive
+$google_auth_url = '';
+$google_auth_error = '';
+try {
+    $disco747 = disco747_crm();
+    if ($disco747) {
+        $googledrive_handler = $disco747->get_googledrive_handler();
+        if ($googledrive_handler) {
+            $auth_result = $googledrive_handler->generate_auth_url();
+            if ($auth_result['success']) {
+                $google_auth_url = $auth_result['auth_url'];
+            } else {
+                $google_auth_error = $auth_result['message'];
+            }
+        } else {
+            $google_auth_error = 'GoogleDrive handler non disponibile';
+        }
+    } else {
+        $google_auth_error = 'Plugin non inizializzato';
+    }
+} catch (Exception $e) {
+    $google_auth_error = $e->getMessage();
+}
+
+// Output variabili JavaScript
+if (!empty($google_auth_url)) {
+    echo "var googleAuthUrl = '" . esc_js($google_auth_url) . "';\n";
+    echo "var googleAuthError = null;\n";
+} else {
+    echo "var googleAuthUrl = null;\n";
+    echo "var googleAuthError = '" . esc_js($google_auth_error) . "';\n";
+}
+?>
+
 function copyToClipboard(text) {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(function() {
@@ -419,33 +455,31 @@ function copyToClipboard(text) {
 
 // ✅ GESTIONE AUTORIZZAZIONE GOOGLE DRIVE
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔍 Debug: googleAuthUrl =', googleAuthUrl);
+    console.log('🔍 Debug: googleAuthError =', googleAuthError);
+    
     // Pulsante Autorizza Google Drive
     var btnAuthorize = document.querySelector('.btn-authorize-googledrive');
+    console.log('🔍 Debug: btnAuthorize trovato?', btnAuthorize ? 'SI' : 'NO');
+    
     if (btnAuthorize) {
         btnAuthorize.addEventListener('click', function() {
+            console.log('🔍 Debug: Click su Autorizza Google Drive');
+            
             var button = this;
             var originalText = button.innerHTML;
             
-            // Disabilita pulsante e mostra loading
-            button.disabled = true;
-            button.innerHTML = '⏳ Generazione URL...';
-            
-            // Genera URL di autorizzazione
-            <?php
-            $disco747 = disco747_crm();
-            $googledrive_handler = $disco747->get_googledrive_handler();
-            if ($googledrive_handler) {
-                $auth_result = $googledrive_handler->generate_auth_url();
-                if ($auth_result['success']) {
-                    $auth_url = $auth_result['auth_url'];
-                    echo "var authUrl = '" . esc_js($auth_url) . "';";
-                } else {
-                    echo "alert('❌ Errore: " . esc_js($auth_result['message']) . "'); button.disabled = false; button.innerHTML = originalText; return;";
-                }
-            } else {
-                echo "alert('❌ GoogleDrive handler non disponibile'); button.disabled = false; button.innerHTML = originalText; return;";
+            // Verifica URL autorizzazione
+            if (!googleAuthUrl) {
+                alert('❌ Errore: ' + (googleAuthError || 'Impossibile generare URL di autorizzazione. Verifica che Client ID e Client Secret siano salvati.'));
+                return;
             }
-            ?>
+            
+            // Disabilita pulsante
+            button.disabled = true;
+            button.innerHTML = '⏳ Apertura Google...';
+            
+            console.log('🔍 Debug: Apertura popup con URL:', googleAuthUrl);
             
             // Apri popup di autorizzazione
             var width = 600;
@@ -454,69 +488,62 @@ document.addEventListener('DOMContentLoaded', function() {
             var top = (screen.height - height) / 2;
             
             var authWindow = window.open(
-                authUrl,
+                googleAuthUrl,
                 'google_oauth',
                 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes'
             );
             
-            if (!authWindow) {
-                alert('❌ Popup bloccato! Abilita i popup per questo sito e riprova.');
+            if (!authWindow || authWindow.closed || typeof authWindow.closed == 'undefined') {
+                alert('❌ Popup bloccato!\n\nIl browser ha bloccato la popup.\nAbilita i popup per questo sito e riprova.');
                 button.disabled = false;
                 button.innerHTML = originalText;
                 return;
             }
             
+            console.log('🔍 Debug: Popup aperta, inizio polling...');
+            
             // Polling per controllare se la finestra si chiude
             var pollTimer = setInterval(function() {
-                if (authWindow.closed) {
-                    clearInterval(pollTimer);
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                    
-                    // Aspetta un attimo e ricarica la pagina per mostrare il nuovo stato
-                    setTimeout(function() {
-                        window.location.reload();
-                    }, 1000);
+                try {
+                    if (authWindow.closed) {
+                        console.log('🔍 Debug: Popup chiusa, ricarico pagina...');
+                        clearInterval(pollTimer);
+                        button.innerHTML = '✅ Completato!';
+                        
+                        // Ricarica la pagina per mostrare il nuovo stato
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    }
+                } catch (e) {
+                    console.error('Errore polling:', e);
                 }
             }, 500);
             
             // Reset button dopo 30 secondi (timeout)
             setTimeout(function() {
-                if (!authWindow.closed) {
+                try {
+                    if (!authWindow.closed) {
+                        clearInterval(pollTimer);
+                        button.disabled = false;
+                        button.innerHTML = originalText;
+                    }
+                } catch (e) {
                     clearInterval(pollTimer);
                     button.disabled = false;
                     button.innerHTML = originalText;
                 }
             }, 30000);
         });
+    } else {
+        console.error('❌ Pulsante .btn-authorize-googledrive NON trovato nel DOM!');
     }
     
     // Pulsante Test Connessione
     var btnTest = document.querySelector('.btn-test-googledrive');
     if (btnTest) {
         btnTest.addEventListener('click', function() {
-            var button = this;
-            var originalText = button.innerHTML;
-            
-            button.disabled = true;
-            button.innerHTML = '⏳ Test in corso...';
-            
-            // Test connessione
-            <?php
-            if ($googledrive_handler && $is_gd_configured) {
-                $test_result = $googledrive_handler->test_connection();
-                if ($test_result['success']) {
-                    echo "alert('✅ Connessione OK!\\n\\nUtente: " . esc_js($test_result['user_name'] ?? 'N/D') . "\\nEmail: " . esc_js($test_result['user_email'] ?? 'N/D') . "');";
-                } else {
-                    echo "alert('❌ Errore connessione:\\n" . esc_js($test_result['message']) . "');";
-                }
-            } else {
-                echo "alert('❌ Google Drive non configurato correttamente');";
-            }
-            ?>
-            
-            button.disabled = false;
-            button.innerHTML = originalText;
+            alert('Test connessione - funzionalità da implementare con AJAX');
         });
     }
     
