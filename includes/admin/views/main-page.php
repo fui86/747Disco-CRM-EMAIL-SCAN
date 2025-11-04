@@ -1,33 +1,22 @@
 <?php
 /**
- * Dashboard Principale 747 Disco CRM - VERSIONE RIMODELLATA
+ * Dashboard Principale 747 Disco CRM - VERSIONE MINIMALISTA
  * 
  * FEATURES:
- * - Preventivi futuri da oggi in poi
- * - Filtri: Tutti, Attivi, Confermati, Questo Mese
- * - Link nuovo preventivo in evidenza
- * - Grafici statistiche
- * - Tabella ultimi preventivi
- * - Completamente responsive
+ * - Solo link di navigazione rapida
+ * - Nessun dato/statistica visualizzato
+ * - Design pulito e veloce
  * 
  * @package    Disco747_CRM
  * @subpackage Admin/Views
- * @version    12.0.0
+ * @version    12.1.0
  */
 
 if (!defined('ABSPATH')) exit;
 
-// Sicurezza dati
-$stats = $stats ?? array('total' => 0, 'attivi' => 0, 'confermati' => 0, 'this_month' => 0, 'annullati' => 0);
-$eventi_imminenti = $eventi_imminenti ?? array();
-$kpi_finanziari = $kpi_finanziari ?? array('entrate_mese' => 0, 'acconti_mese' => 0, 'saldo_da_incassare' => 0, 'valore_attivi' => 0);
-$preventivi_recenti = $preventivi_recenti ?? array();
-$chart_data = $chart_data ?? array('preventivi_per_mese' => array(), 'confermati' => 0, 'non_confermati' => 0);
-$system_status = $system_status ?? array('plugin_version' => '11.8.0', 'storage_type' => 'googledrive', 'storage_connected' => false);
-
 $current_user = wp_get_current_user();
 $user_name = $current_user->display_name ?? 'Utente';
-$version = $system_status['plugin_version'];
+$version = DISCO747_CRM_VERSION ?? '11.8.0';
 ?>
 
 <div class="wrap disco747-dashboard-enhanced" style="max-width: 1600px; margin: 20px auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
@@ -61,81 +50,129 @@ $version = $system_status['plugin_version'];
     </div>
 
     <!-- ============================================================================ -->
-    <!-- SEZIONE INSIGHTS: KPI Finanziari + Eventi Imminenti -->
+    <!-- SEZIONE INSIGHTS: Link Analisi Finanziaria + Eventi Imminenti -->
     <!-- ============================================================================ -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
         
-        <!-- ============= KPI FINANZIARI ============= -->
+        <!-- ============= STATISTICHE & AZIONI RAPIDE ============= -->
         <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px 30px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px 30px;">
                 <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
-                    💰 KPI Finanziari
+                    📊 Statistiche & Azioni
                 </h2>
                 <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
-                    Situazione economica corrente
+                    Panoramica rapida e scorciatoie
                 </p>
             </div>
             
-            <div style="padding: 30px;">
-                <!-- Entrate Previste Mese -->
-                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #28a745;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #2e7d32; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                💵 Entrate Previste (<?php echo date('F'); ?>)
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #1b5e20;">
-                                €<?php echo number_format($kpi_finanziari['entrate_mese'], 2, ',', '.'); ?>
-                            </div>
+            <div style="padding: 25px;">
+                
+                <!-- Statistiche Rapide -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    
+                    <!-- Preventivi Totali -->
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            📋 Totali
                         </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">📊</div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['total']); ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Preventivi Attivi -->
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            🔵 Attivi
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['attivi']); ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Preventivi Confermati -->
+                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            ✅ Confermati
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['confermati']); ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Questo Mese -->
+                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
+                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            📆 Questo Mese
+                        </div>
+                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+                            <?php echo number_format($stats['this_month']); ?>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- Azioni Rapide -->
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 15px 0; font-size: 0.9rem; font-weight: 700; color: #495057; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ⚡ Azioni Rapide
+                    </h3>
+                    <div style="display: grid; gap: 10px;">
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=new_preventivo'); ?>" 
+                           style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(40, 167, 69, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(40, 167, 69, 0.2)'">
+                            <span style="font-size: 1.5rem;">➕</span>
+                            <span>Nuovo Preventivo</span>
+                        </a>
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
+                           style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(0, 123, 255, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(0, 123, 255, 0.2)'">
+                            <span style="font-size: 1.5rem;">📊</span>
+                            <span>View Database</span>
+                        </a>
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-scan-excel'); ?>" 
+                           style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(111, 66, 193, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(111, 66, 193, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(111, 66, 193, 0.2)'">
+                            <span style="font-size: 1.5rem;">🔄</span>
+                            <span>Scansione Excel</span>
+                        </a>
+                        
+                        <a href="<?php echo admin_url('admin.php?page=disco747-financial'); ?>" 
+                           style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);"
+                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(255, 193, 7, 0.3)'"
+                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(255, 193, 7, 0.2)'">
+                            <span style="font-size: 1.5rem;">💰</span>
+                            <span>Analisi Finanziaria</span>
+                        </a>
+                        
                     </div>
                 </div>
                 
-                <!-- Acconti Incassati -->
-                <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #ff9800;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                <!-- Info Rapide -->
+                <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; border-radius: 8px;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <div style="font-size: 1.5rem;">💡</div>
                         <div>
-                            <div style="font-size: 0.85rem; color: #e65100; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                ✅ Acconti Incassati
+                            <div style="font-weight: 700; color: #0056b3; margin-bottom: 5px; font-size: 0.9rem;">
+                                Tasso di Conversione
                             </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #e65100;">
-                                €<?php echo number_format($kpi_finanziari['acconti_mese'], 2, ',', '.'); ?>
+                            <div style="color: #495057; font-size: 0.85rem;">
+                                <?php 
+                                $tasso = $stats['total'] > 0 ? round(($stats['confermati'] / $stats['total']) * 100, 1) : 0;
+                                echo $tasso; 
+                                ?>% dei preventivi vengono confermati
+                                <span style="color: #6c757d;">(<?php echo $stats['confermati']; ?>/<?php echo $stats['total']; ?>)</span>
                             </div>
                         </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">💳</div>
                     </div>
                 </div>
                 
-                <!-- Saldo da Incassare -->
-                <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); padding: 20px; border-radius: 15px; margin-bottom: 18px; border-left: 5px solid #2196f3;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #0d47a1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                ⏳ Saldo da Incassare
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #0d47a1;">
-                                €<?php echo number_format($kpi_finanziari['saldo_da_incassare'], 2, ',', '.'); ?>
-                            </div>
-                        </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">🕐</div>
-                    </div>
-                </div>
-                
-                <!-- Potenziale Attivi -->
-                <div style="background: linear-gradient(135deg, #fff9c4 0%, #fff59d 100%); padding: 20px; border-radius: 15px; border-left: 5px solid #fbc02d;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div>
-                            <div style="font-size: 0.85rem; color: #f57f17; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
-                                🎯 Potenziale Attivi
-                            </div>
-                            <div style="font-size: 2.2rem; font-weight: 800; color: #f57f17;">
-                                €<?php echo number_format($kpi_finanziari['valore_attivi'], 2, ',', '.'); ?>
-                            </div>
-                        </div>
-                        <div style="font-size: 3rem; opacity: 0.3;">💡</div>
-                    </div>
-                </div>
             </div>
         </div>
         

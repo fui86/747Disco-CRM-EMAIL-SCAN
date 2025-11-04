@@ -14,22 +14,39 @@
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================
-// MODALITÃ€ MODIFICA: Carica dati esistenti se presente edit_id
+// MODALITÃ€ MODIFICA: Carica dati esistenti
 // ============================================================================
 $is_edit_mode = false;
 $edit_data = null;
 $edit_id = 0;
 
-if (!empty($_GET['edit_id'])) {
+// Priorità 1: Variabile $preventivo passata dalla classe admin
+if (isset($preventivo) && !empty($preventivo)) {
+    $is_edit_mode = true;
+    $edit_data = is_array($preventivo) ? $preventivo : (array) $preventivo;
+    $edit_id = intval($edit_data['id'] ?? 0);
+}
+// Priorità 2: Parametro GET 'id' (dalla view-preventivi)
+elseif (!empty($_GET['id'])) {
+    $is_edit_mode = true;
+    $edit_id = intval($_GET['id']);
+    
+    global $wpdb;
+    $table = $wpdb->prefix . 'disco747_preventivi';
+    $edit_data = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $edit_id), ARRAY_A);
+}
+// Priorità 3: Parametro GET 'edit_id' (compatibilità)
+elseif (!empty($_GET['edit_id'])) {
     $is_edit_mode = true;
     $edit_id = intval($_GET['edit_id']);
     
     global $wpdb;
     $table = $wpdb->prefix . 'disco747_preventivi';
-    
     $edit_data = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $edit_id), ARRAY_A);
-    
-    // Debug: log caricamento dati
+}
+
+// Debug e normalizzazione dati
+if ($is_edit_mode) {
     error_log('[747Disco-Form] Edit mode - ID: ' . $edit_id);
     error_log('[747Disco-Form] Edit data loaded: ' . ($edit_data ? 'SI' : 'NO'));
     
@@ -86,12 +103,26 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     
     <!-- Header -->
     <div style="background: linear-gradient(135deg, #2b1e1a 0%, #1a1310 100%); padding: 30px; border-radius: 15px 15px 0 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-        <h1 style="color: #c28a4d; margin: 0; font-size: 2.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">
-            🎉 <?php echo esc_html($page_title); ?>
-        </h1>
-        <p style="color: #a0a0a0; margin: 10px 0 0 0; font-size: 1rem;">
-            Compila tutti i campi per generare il preventivo personalizzato
-        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <div>
+                <h1 style="color: #c28a4d; margin: 0; font-size: 2.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">
+                    🎉 <?php echo esc_html($page_title); ?>
+                </h1>
+                <p style="color: #a0a0a0; margin: 10px 0 0 0; font-size: 1rem;">
+                    Compila tutti i campi per generare il preventivo personalizzato
+                </p>
+            </div>
+            <?php if ($is_edit_mode): ?>
+            <div>
+                <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
+                   style="background: rgba(255,255,255,0.1); color: white; padding: 12px 20px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; transition: all 0.3s ease; border: 2px solid rgba(255,255,255,0.2);"
+                   onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                   onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    ← Torna alla Lista
+                </a>
+            </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- Form principale -->
