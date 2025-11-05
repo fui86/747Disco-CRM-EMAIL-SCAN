@@ -371,6 +371,10 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("[747Disco-Scan] Eliminati {$deleted} record dal database");
             
+            // ✅ Reset AUTO_INCREMENT per ripartire da ID 1
+            $wpdb->query("ALTER TABLE {$this->table_name} AUTO_INCREMENT = 1");
+            error_log("[747Disco-Scan] ✅ AUTO_INCREMENT resettato a 1");
+            
             // ✅ NON chiamare handle_batch_scan_ajax (ha già il suo lock)
             // Invece, duplica la logica qui con lock condiviso
             
