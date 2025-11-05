@@ -45,6 +45,11 @@ define('DISCO747_CRM_DB_PREFIX', 'disco747_');
 define('DISCO747_CRM_DEBUG', true);
 
 // ========================================================================
+// CARICA LOGGER CENTRALIZZATO
+// ========================================================================
+require_once DISCO747_CRM_PLUGIN_DIR . 'includes/class-disco747-logger.php';
+
+// ========================================================================
 // CLASSE PRINCIPALE DEL PLUGIN - VERSIONE COMPLETA E CORRETTA
 // ========================================================================
 
@@ -88,6 +93,10 @@ final class Disco747_CRM_Plugin {
      * Costruttore privato per singleton
      */
     private function __construct() {
+        // Inizializza logger
+        Disco747_Logger::init();
+        Disco747_Logger::log_startup();
+        
         // Registra hook di attivazione/disattivazione
         register_activation_hook(__FILE__, array($this, 'activate_plugin'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate_plugin'));
@@ -97,6 +106,9 @@ final class Disco747_CRM_Plugin {
         
         // Hook per cleanup
         add_action('wp_scheduled_delete', array($this, 'cleanup_old_files'));
+        
+        // Hook per cleanup log
+        add_action('wp_scheduled_delete', array('Disco747_Logger', 'cleanup'));
     }
 
     /**
@@ -657,9 +669,7 @@ final class Disco747_CRM_Plugin {
      * Log pubblico visibile (sempre attivo)
      */
     public function public_log($message, $level = 'INFO') {
-        $timestamp = date('Y-m-d H:i:s');
-        $log_message = "[{$timestamp}] [747Disco-CRM] [{$level}] {$message}";
-        error_log($log_message);
+        Disco747_Logger::log($message, $level, 'CORE');
     }
 }
 
