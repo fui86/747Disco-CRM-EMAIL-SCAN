@@ -57,7 +57,9 @@ class Disco747_Admin {
             add_action('admin_notices', array($this, 'show_admin_notices'));
             add_filter('plugin_action_links_' . plugin_basename(DISCO747_CRM_PLUGIN_FILE), array($this, 'add_plugin_action_links'));
             
-            add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan'));
+            // ❌ DISABILITATO: Usa handler in class-disco747-excel-scan-handler.php con lock
+            // add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan'));
+            
             add_action('wp_ajax_disco747_get_preventivo', array($this, 'handle_get_preventivo'));
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
