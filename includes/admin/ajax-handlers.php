@@ -30,7 +30,10 @@ class Disco747_AJAX_Handlers {
         // Altri handler
         add_action('wp_ajax_analyze_excel_file', array(__CLASS__, 'handle_analyze_file'));
         
-        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, analyze_excel_file');
+        // ✅ NUOVO: Diagnostica date Excel
+        add_action('wp_ajax_disco747_diagnostic_excel_dates', array(__CLASS__, 'handle_diagnostic_excel_dates'));
+        
+        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, analyze_excel_file, diagnostic_excel_dates');
     }
 
     /**
@@ -460,6 +463,278 @@ class Disco747_AJAX_Handlers {
                 'message' => 'Errore analisi file: ' . $e->getMessage()
             ));
         }
+    }
+    
+    /**
+     * ✅ NUOVO: Handler diagnostica date Excel
+     * Analizza tutti i file Excel e verifica quali hanno la cella C6 (data_evento) vuota
+     */
+    public static function handle_diagnostic_excel_dates() {
+        error_log('[Diagnostic-AJAX] ========== AVVIO DIAGNOSTICA DATE EXCEL ==========');
+        
+        // Verifica nonce
+        if (!isset($_POST['nonce'])) {
+            wp_send_json_error(array('message' => 'Nonce mancante'));
+            return;
+        }
+        
+        if (!wp_verify_nonce($_POST['nonce'], 'disco747_diagnostic')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'));
+            return;
+        }
+        
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+        
+        try {
+            // Usa Excel Scan Handler per trovare file
+            $scan_handler = new \Disco747_CRM\Handlers\Disco747_Excel_Scan_Handler();
+            
+            // Ottieni lista file da Google Drive (riutilizza logica esistente)
+            $plugin = disco747_crm();
+            $storage_manager = $plugin->get_storage_manager();
+            $googledrive = $storage_manager->get_active_handler();
+            
+            if (!$googledrive) {
+                wp_send_json_error(array('message' => 'Google Drive non disponibile'));
+                return;
+            }
+            
+            // Trova cartella principale e file
+            $main_folder_id = self::find_main_folder_diagnostic($googledrive);
+            if (!$main_folder_id) {
+                wp_send_json_error(array('message' => 'Cartella 747-Preventivi non trovata'));
+                return;
+            }
+            
+            // Scansiona file Excel (anno 2025, tutti i mesi)
+            $excel_files = self::scan_files_with_metadata($googledrive, $main_folder_id, '2025');
+            
+            error_log('[Diagnostic-AJAX] Trovati ' . count($excel_files) . ' file Excel');
+            
+            // Analizza ogni file
+            $results = array();
+            $limit = 10; // Limite per test iniziale
+            $count = 0;
+            
+            foreach ($excel_files as $file) {
+                if ($count >= $limit) break; // Limite per performance
+                
+                $result = self::analyze_single_file_date($googledrive, $file);
+                $results[] = $result;
+                $count++;
+                
+                // Rate limiting
+                usleep(300000); // 300ms
+            }
+            
+            error_log('[Diagnostic-AJAX] Analizzati ' . count($results) . ' file');
+            
+            wp_send_json_success(array(
+                'files' => $results,
+                'total' => count($excel_files),
+                'analyzed' => count($results)
+            ));
+            
+        } catch (\Exception $e) {
+            error_log('[Diagnostic-AJAX] ERRORE: ' . $e->getMessage());
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
+        }
+    }
+    
+    /**
+     * Trova cartella principale per diagnostica
+     */
+    private static function find_main_folder_diagnostic($googledrive) {
+        $token = get_option('disco747_googledrive_access_token', '');
+        if (empty($token)) return null;
+        
+        $query = "name='747-Preventivi' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+            'q' => $query,
+            'fields' => 'files(id, name)',
+            'pageSize' => 1
+        ));
+        
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Bearer ' . $token),
+            'timeout' => 30
+        ));
+        
+        if (is_wp_error($response)) return null;
+        
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        return !empty($body['files']) ? $body['files'][0]['id'] : null;
+    }
+    
+    /**
+     * Scansiona file con metadati cartelle
+     */
+    private static function scan_files_with_metadata($googledrive, $folder_id, $year) {
+        $files = array();
+        $token = get_option('disco747_googledrive_access_token', '');
+        
+        // Trova cartella anno
+        $year_folder_id = self::find_subfolder($token, $folder_id, $year);
+        if (!$year_folder_id) return $files;
+        
+        // Trova cartelle mese
+        $month_folders = self::get_subfolders($token, $year_folder_id);
+        
+        foreach ($month_folders as $month_folder) {
+            // Trova file Excel nella cartella mese
+            $query = "(mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') and trashed=false and '{$month_folder['id']}' in parents";
+            $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+                'q' => $query,
+                'fields' => 'files(id, name)',
+                'pageSize' => 100
+            ));
+            
+            $response = wp_remote_get($url, array(
+                'headers' => array('Authorization' => 'Bearer ' . $token),
+                'timeout' => 30
+            ));
+            
+            if (!is_wp_error($response)) {
+                $body = json_decode(wp_remote_retrieve_body($response), true);
+                foreach ($body['files'] ?? [] as $file) {
+                    $files[] = array(
+                        'id' => $file['id'],
+                        'name' => $file['name'],
+                        'year_folder' => $year,
+                        'month_folder' => $month_folder['name']
+                    );
+                }
+            }
+        }
+        
+        return $files;
+    }
+    
+    /**
+     * Trova sottocartella
+     */
+    private static function find_subfolder($token, $parent_id, $name) {
+        $query = "name='{$name}' and mimeType='application/vnd.google-apps.folder' and trashed=false and '{$parent_id}' in parents";
+        $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+            'q' => $query,
+            'fields' => 'files(id)',
+            'pageSize' => 1
+        ));
+        
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Bearer ' . $token),
+            'timeout' => 30
+        ));
+        
+        if (is_wp_error($response)) return null;
+        
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        return !empty($body['files']) ? $body['files'][0]['id'] : null;
+    }
+    
+    /**
+     * Ottieni sottocartelle
+     */
+    private static function get_subfolders($token, $parent_id) {
+        $query = "mimeType='application/vnd.google-apps.folder' and trashed=false and '{$parent_id}' in parents";
+        $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
+            'q' => $query,
+            'fields' => 'files(id, name)',
+            'pageSize' => 50
+        ));
+        
+        $response = wp_remote_get($url, array(
+            'headers' => array('Authorization' => 'Bearer ' . $token),
+            'timeout' => 30
+        ));
+        
+        if (is_wp_error($response)) return array();
+        
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        return $body['files'] ?? array();
+    }
+    
+    /**
+     * Analizza singolo file per data evento
+     */
+    private static function analyze_single_file_date($googledrive, $file_info) {
+        $result = array(
+            'name' => $file_info['name'],
+            'year_folder' => $file_info['year_folder'],
+            'month_folder' => $file_info['month_folder'],
+            'date_value' => null,
+            'status' => 'error'
+        );
+        
+        try {
+            // Download temporaneo
+            $upload_dir = wp_upload_dir();
+            $temp_dir = $upload_dir['basedir'] . '/preventivi/temp/';
+            
+            if (!is_dir($temp_dir)) {
+                wp_mkdir_p($temp_dir);
+            }
+            
+            $temp_file = $temp_dir . 'diagnostic_' . $file_info['id'] . '.xlsx';
+            
+            // Download file
+            $download_result = $googledrive->download_file($file_info['id'], $temp_file);
+            
+            if (!$download_result['success'] || !file_exists($temp_file)) {
+                $result['status'] = 'error';
+                $result['date_value'] = 'Download fallito';
+                return $result;
+            }
+            
+            // Carica con PhpSpreadsheet
+            if (!class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
+                $composer_autoload = DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php';
+                if (file_exists($composer_autoload)) {
+                    require_once $composer_autoload;
+                }
+            }
+            
+            try {
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp_file);
+                $worksheet = $spreadsheet->getActiveSheet();
+                
+                // Leggi cella C6 (data evento)
+                $cell_value = $worksheet->getCell('C6')->getValue();
+                
+                if (empty($cell_value)) {
+                    $result['date_value'] = 'NULL';
+                    $result['status'] = 'empty';
+                } else {
+                    // Parsing data
+                    if (is_numeric($cell_value)) {
+                        $unix_date = ($cell_value - 25569) * 86400;
+                        $result['date_value'] = date('Y-m-d', $unix_date);
+                    } else {
+                        $result['date_value'] = $cell_value;
+                    }
+                    $result['status'] = 'ok';
+                }
+                
+            } catch (\Exception $e) {
+                $result['date_value'] = 'Errore lettura: ' . $e->getMessage();
+                $result['status'] = 'error';
+            }
+            
+            // Pulizia
+            if (file_exists($temp_file)) {
+                unlink($temp_file);
+            }
+            
+        } catch (\Exception $e) {
+            $result['date_value'] = 'Errore: ' . $e->getMessage();
+            $result['status'] = 'error';
+        }
+        
+        return $result;
     }
 }
 
