@@ -164,15 +164,26 @@ Se cambi il limite file a 3, riduci il lock a 180s (3 minuti).
 
 ### Problema: "Scansione già in corso" anche se non lo è
 
-**Causa**: Lock bloccato da crash precedente.
+**Causa**: Lock bloccato da crash precedente o timeout server.
 
-**Soluzione Manuale**:
+**Soluzione 1: Pulsante "Sblocca Scansione" (CONSIGLIATO)**
+
+1. Nella pagina "Scansione File Excel", sotto i pulsanti "Analizza Ora" e "Svuota e Rianalizza", trovi il pulsante **🔓 Sblocca Scansione (Emergenza)**
+2. Clicca il pulsante
+3. Conferma l'operazione
+4. Il lock verrà rilasciato immediatamente
+5. Riprova la scansione
+
+**Soluzione 2: Attesa Automatica**
+
+Il lock scade automaticamente dopo **5 minuti**.
+
+**Soluzione 3: Manuale (per sviluppatori)**
+
 ```php
-// Aggiungi temporaneamente in wp-config.php
+// Aggiungi temporaneamente in wp-config.php o wp-admin/admin-ajax.php
 delete_transient('disco747_scan_lock');
 ```
-
-**Soluzione Automatica**: Il lock scade automaticamente dopo 5 minuti.
 
 ### Problema: Errore 503 persiste
 

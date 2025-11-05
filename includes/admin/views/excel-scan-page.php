@@ -92,6 +92,16 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
                             Svuota e Rianalizza
                         </button>
                     </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <button id="unlock-scan-btn" class="button button-secondary" style="width: 100%; padding: 8px; border-color: #ff6b6b; color: #ff6b6b;">
+                            <span class="dashicons dashicons-unlock" style="color: #ff6b6b;"></span>
+                            🔓 Sblocca Scansione (Emergenza)
+                        </button>
+                        <p style="font-size: 12px; color: #666; margin-top: 5px; text-align: center;">
+                            ⚠️ Usa solo se vedi "Scansione già in corso" senza scansione attiva
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Progress Bar -->

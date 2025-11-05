@@ -62,6 +62,7 @@ class Disco747_Admin {
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
             add_action('wp_ajax_disco747_get_funnel_sequence', array($this, 'handle_get_funnel_sequence'));
+            add_action('wp_ajax_disco747_unlock_scan', array($this, 'handle_unlock_scan'));
             
             $this->hooks_registered = true;
             $this->log('Hook WordPress registrati (incluso batch scan)');
@@ -397,6 +398,24 @@ class Disco747_Admin {
 
         } catch (\Exception $e) {
             $this->log('Errore handle_batch_scan: ' . $e->getMessage(), 'error');
+            wp_send_json_error(array('message' => $e->getMessage()));
+        }
+    }
+    
+    public function handle_unlock_scan() {
+        try {
+            if (!current_user_can($this->min_capability)) {
+                throw new \Exception('Permessi insufficienti');
+            }
+            
+            // Rilascia il lock
+            delete_transient('disco747_scan_lock');
+            error_log('[747Disco-Admin] 🔓 LOCK forzatamente rilasciato da utente');
+            
+            wp_send_json_success(array('message' => '✅ Lock rilasciato con successo!'));
+            
+        } catch (\Exception $e) {
+            $this->log('Errore handle_unlock_scan: ' . $e->getMessage(), 'error');
             wp_send_json_error(array('message' => $e->getMessage()));
         }
     }

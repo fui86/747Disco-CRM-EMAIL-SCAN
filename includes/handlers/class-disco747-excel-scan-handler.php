@@ -304,6 +304,23 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
+     * ✅ Handler AJAX per sbloccare manualmente il lock (emergenza)
+     */
+    public function handle_unlock_scan_ajax() {
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+        
+        $lock_key = 'disco747_scan_lock';
+        delete_transient($lock_key);
+        error_log('[747Disco-Scan] 🔓 LOCK forzatamente rilasciato da utente');
+        
+        wp_send_json_success(array('message' => '✅ Lock rilasciato con successo!'));
+    }
+    
+    /**
      * Handler AJAX per reset e scan completo
      */
     public function handle_reset_and_scan_ajax() {

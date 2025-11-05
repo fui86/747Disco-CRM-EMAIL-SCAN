@@ -55,6 +55,11 @@ jQuery(document).ready(function($) {
                 self.handleResetScan(e);
             });
             
+            $('#unlock-scan-btn').on('click', function(e) {
+                console.log('[Excel-Scan] Click su unlock-scan-btn rilevato');
+                self.handleUnlockScan(e);
+            });
+            
             console.log('[Excel-Scan] Eventi collegati correttamente');
         },
         
@@ -381,6 +386,15 @@ jQuery(document).ready(function($) {
             console.error('[Excel-Scan] === ERRORE AJAX ===');
             console.error('[Excel-Scan] Status:', status);
             console.error('[Excel-Scan] Error:', error);
+            
+            // ✅ Gestione xhr null (quando success: false)
+            if (!xhr || xhr === null) {
+                $('#progress-status').text('❌ Errore server');
+                $('#debug-log').text('❌ ERRORE SERVER:\n' + error);
+                alert('❌ ' + error);
+                return;
+            }
+            
             console.error('[Excel-Scan] Response:', xhr.responseText);
             
             // ✅ Gestione errore 503 Service Unavailable
@@ -455,6 +469,44 @@ jQuery(document).ready(function($) {
             }, 300);
             
             console.log('[Excel-Scan] Tabella popolata con successo');
+        },
+        
+        handleUnlockScan: function(e) {
+            e.preventDefault();
+            const self = this;
+            
+            if (!confirm('⚠️ ATTENZIONE!\n\nStai per forzare lo sblocco della scansione.\n\nUsa questa funzione SOLO se:\n- Vedi "Scansione già in corso"\n- Ma NON c\'è alcuna scansione attiva\n\nContinuare?')) {
+                return;
+            }
+            
+            console.log('[Excel-Scan] 🔓 Richiesta sblocco lock...');
+            
+            $.ajax({
+                url: self.config.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'disco747_unlock_scan',
+                    nonce: self.config.nonce
+                },
+                timeout: 10000, // 10 secondi
+                success: function(response) {
+                    console.log('[Excel-Scan] ✅ Risposta sblocco:', response);
+                    
+                    if (response.success) {
+                        alert('✅ Lock rilasciato con successo!\n\nPuoi ora avviare una nuova scansione.');
+                        $('#progress-status').text('🔓 Lock rilasciato');
+                        $('#debug-log').text('✅ Lock rilasciato con successo!\n\nPuoi ora avviare una nuova scansione.');
+                    } else {
+                        alert('❌ Errore: ' + (response.data?.message || 'Impossibile sbloccare'));
+                        $('#debug-log').text('❌ ERRORE SBLOCCO:\n' + (response.data?.message || 'Sconosciuto'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('[Excel-Scan] ❌ Errore sblocco:', {xhr: xhr, status: status, error: error});
+                    alert('❌ Errore durante lo sblocco: ' + error);
+                    $('#debug-log').text('❌ ERRORE SBLOCCO AJAX:\n' + error);
+                }
+            });
         }
     };
 
