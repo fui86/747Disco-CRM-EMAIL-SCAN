@@ -101,9 +101,9 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_test_storage', array($this, 'handle_storage_test'));
         add_action('wp_ajax_disco747_update_setting', array($this, 'handle_update_setting'));
         
-        // Batch scan Excel da Google Drive
-        add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan'));
-        add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan'));
+        // ❌ DISABILITATO: Batch scan Excel ora gestito da class-disco747-excel-scan-handler.php con lock
+        // add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan'));
+        // add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan'));
         
         // Template messaggi
         add_action('wp_ajax_disco747_get_templates', array($this, 'handle_get_templates'));
@@ -111,7 +111,7 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_send_email_template', array($this, 'handle_send_email_template'));
         add_action('wp_ajax_disco747_send_whatsapp_template', array($this, 'handle_send_whatsapp_template'));
         
-        $this->log('Hook AJAX registrati (incluso batch scan + templates + send email + whatsapp)');
+        $this->log('Hook AJAX registrati (templates + send email + whatsapp)');
     }
 
     /**

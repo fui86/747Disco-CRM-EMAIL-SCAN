@@ -22,6 +22,13 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
         </h1>
         <p class="page-subtitle">Importa automaticamente i preventivi da Google Drive</p>
     </div>
+    
+    <?php 
+    // ✅ Mostra info timeout
+    if (function_exists('disco747_render_timeout_info')) {
+        echo disco747_render_timeout_info();
+    }
+    ?>
 
     <?php if (!$is_drive_configured): ?>
         <div class="disco747-notice disco747-notice-warning">
@@ -84,6 +91,16 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
                             <span class="dashicons dashicons-trash"></span>
                             Svuota e Rianalizza
                         </button>
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <button id="unlock-scan-btn" class="button button-secondary" style="width: 100%; padding: 8px; border-color: #ff6b6b; color: #ff6b6b;">
+                            <span class="dashicons dashicons-unlock" style="color: #ff6b6b;"></span>
+                            🔓 Sblocca Scansione (Emergenza)
+                        </button>
+                        <p style="font-size: 12px; color: #666; margin-top: 5px; text-align: center;">
+                            ⚠️ Usa solo se vedi "Scansione già in corso" senza scansione attiva
+                        </p>
                     </div>
                 </div>
 
