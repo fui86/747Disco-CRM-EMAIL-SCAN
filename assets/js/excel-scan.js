@@ -383,10 +383,27 @@ jQuery(document).ready(function($) {
             console.error('[Excel-Scan] Error:', error);
             console.error('[Excel-Scan] Response:', xhr.responseText);
             
+            // ✅ Gestione errore 503 Service Unavailable
+            if (xhr.status === 503) {
+                $('#progress-status').text('❌ Server sovraccarico (503)');
+                $('#debug-log').text('❌ ERRORE 503: SERVER SOVRACCARICO\n\n' +
+                    'Il server ha troppe richieste simultanee.\n\n' +
+                    '✅ SOLUZIONE:\n' +
+                    '1. Aspetta 2-3 minuti\n' +
+                    '2. Ricarica la pagina (F5)\n' +
+                    '3. Riprova la scansione\n\n' +
+                    '⚠️ NON cliccare più volte il pulsante!');
+                alert('❌ Server sovraccarico (503)\n\n' +
+                      'Aspetta 2-3 minuti e ricarica la pagina.\n\n' +
+                      '⚠️ NON cliccare più volte il pulsante di scansione!');
+                return;
+            }
+            
             $('#progress-status').text('❌ Errore connessione');
             $('#debug-log').text('❌ ERRORE AJAX:\n' +
                 'Status: ' + status + '\n' +
                 'Error: ' + error + '\n' +
+                'HTTP Code: ' + xhr.status + '\n' +
                 'Response: ' + (xhr.responseText || 'Nessuna risposta'));
             alert('❌ Errore di connessione: ' + error);
         },

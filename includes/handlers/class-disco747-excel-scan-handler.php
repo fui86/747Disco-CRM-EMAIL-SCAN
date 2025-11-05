@@ -74,6 +74,22 @@ class Disco747_Excel_Scan_Handler {
      * Handler AJAX per scansione batch PROGRESSIVA
      */
     public function handle_batch_scan_ajax() {
+        // ✅ LOCK: Previeni esecuzioni multiple simultanee (causa 503)
+        $lock_key = 'disco747_scan_lock';
+        $is_locked = get_transient($lock_key);
+        
+        if ($is_locked) {
+            error_log('[747Disco-Scan] ⚠️ LOCK ATTIVO: Scansione già in corso, richiesta rifiutata');
+            wp_send_json_error(array(
+                'message' => '⚠️ Scansione già in corso! Attendere il completamento (lock attivo).'
+            ));
+            return;
+        }
+        
+        // ✅ Acquisici LOCK per 5 minuti
+        set_transient($lock_key, time(), 300);
+        error_log('[747Disco-Scan] 🔒 LOCK acquisito');
+        
         // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
         if (function_exists('disco747_set_scan_timeout')) {
             disco747_set_scan_timeout();
@@ -84,12 +100,14 @@ class Disco747_Excel_Scan_Handler {
         
         // Verifica nonce
         if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+            delete_transient($lock_key); // Rilascia lock
             wp_send_json_error(array('message' => 'Nonce non valido'));
             return;
         }
         
         // Verifica permessi
         if (!current_user_can('manage_options')) {
+            delete_transient($lock_key); // Rilascia lock
             wp_send_json_error(array('message' => 'Permessi insufficienti'));
             return;
         }
@@ -266,11 +284,21 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("[747Disco-Scan] 🚀 Invio risposta JSON success...");
             error_log("[747Disco-Scan] 📊 Has more: " . ($response_data['has_more'] ? 'SI' : 'NO') . ", Next offset: {$response_data['next_offset']}");
+            
+            // ✅ Rilascia LOCK prima di inviare risposta
+            delete_transient($lock_key);
+            error_log('[747Disco-Scan] 🔓 LOCK rilasciato');
+            
             wp_send_json_success($response_data);
             error_log("[747Disco-Scan] ✅ Risposta JSON inviata!");
             
         } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore scansione batch: ' . $e->getMessage());
+            
+            // ✅ Rilascia LOCK in caso di errore
+            delete_transient($lock_key);
+            error_log('[747Disco-Scan] 🔓 LOCK rilasciato (errore)');
+            
             wp_send_json_error(array('message' => 'Errore interno: ' . $e->getMessage()));
         }
     }
@@ -279,6 +307,22 @@ class Disco747_Excel_Scan_Handler {
      * Handler AJAX per reset e scan completo
      */
     public function handle_reset_and_scan_ajax() {
+        // ✅ LOCK: Previeni esecuzioni multiple simultanee
+        $lock_key = 'disco747_scan_lock';
+        $is_locked = get_transient($lock_key);
+        
+        if ($is_locked) {
+            error_log('[747Disco-Scan] ⚠️ LOCK ATTIVO: Reset già in corso, richiesta rifiutata');
+            wp_send_json_error(array(
+                'message' => '⚠️ Reset già in corso! Attendere il completamento.'
+            ));
+            return;
+        }
+        
+        // ✅ Acquisici LOCK per 5 minuti
+        set_transient($lock_key, time(), 300);
+        error_log('[747Disco-Scan] 🔒 LOCK acquisito (reset)');
+        
         // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
         if (function_exists('disco747_set_scan_timeout')) {
             disco747_set_scan_timeout();
@@ -289,12 +333,14 @@ class Disco747_Excel_Scan_Handler {
         
         // Verifica nonce
         if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+            delete_transient($lock_key); // Rilascia lock
             wp_send_json_error(array('message' => 'Nonce non valido'));
             return;
         }
         
         // Verifica permessi
         if (!current_user_can('manage_options')) {
+            delete_transient($lock_key); // Rilascia lock
             wp_send_json_error(array('message' => 'Permessi insufficienti'));
             return;
         }
@@ -308,12 +354,23 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("[747Disco-Scan] Eliminati {$deleted} record dal database");
             
-            // Esegui batch scan normale
+            // ✅ NON chiamare handle_batch_scan_ajax (ha già il suo lock)
+            // Invece, duplica la logica qui con lock condiviso
+            
+            // Rilascia lock temporaneamente per permettere alla scan di acquisirlo
+            delete_transient($lock_key);
+            
+            // Esegui batch scan normale (che acquisirà il suo lock)
             $this->handle_batch_scan_ajax();
             
         } catch (\Throwable $e) {
             error_log('[747Disco-Scan] ❌ Errore reset and scan: ' . $e->getMessage());
             error_log('[747Disco-Scan] ❌ Tipo errore: ' . get_class($e));
+            
+            // ✅ Rilascia LOCK in caso di errore
+            delete_transient($lock_key);
+            error_log('[747Disco-Scan] 🔓 LOCK rilasciato (errore reset)');
+            
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
         }
     }
