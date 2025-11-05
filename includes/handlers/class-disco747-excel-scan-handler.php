@@ -945,6 +945,27 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
+            // ✅ Pattern formato italiano testuale: "sabato 13 dicembre 2025"
+            if (preg_match('/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})/i', $value, $matches)) {
+                $day = intval($matches[1]);
+                $month_name = strtolower($matches[2]);
+                $year = intval($matches[3]);
+                
+                // Mappa mesi italiani
+                $mesi = array(
+                    'gennaio' => 1, 'febbraio' => 2, 'marzo' => 3, 'aprile' => 4,
+                    'maggio' => 5, 'giugno' => 6, 'luglio' => 7, 'agosto' => 8,
+                    'settembre' => 9, 'ottobre' => 10, 'novembre' => 11, 'dicembre' => 12
+                );
+                
+                if (isset($mesi[$month_name])) {
+                    $month = $mesi[$month_name];
+                    if (checkdate($month, $day, $year)) {
+                        return sprintf('%04d-%02d-%02d', $year, $month, $day);
+                    }
+                }
+            }
+            
             // ✅ Fallback: prova strtotime() per altri formati
             $timestamp = strtotime($value);
             if ($timestamp) {
