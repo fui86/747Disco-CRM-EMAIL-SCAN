@@ -71,7 +71,7 @@ class Disco747_Excel_Scan_Handler {
     }
     
     /**
-     * Handler AJAX per scansione batch
+     * Handler AJAX per scansione batch PROGRESSIVA
      */
     public function handle_batch_scan_ajax() {
         // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
@@ -97,7 +97,12 @@ class Disco747_Excel_Scan_Handler {
         try {
             $dry_run = isset($_POST['dry_run']) ? intval($_POST['dry_run']) === 1 : false;
             
-            error_log("[747Disco-Scan] Avvio scansione batch (timeout: 15min)");
+            // ✅ NUOVO: Supporto batch progressivi
+            $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+            $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 0; // 0 = tutti
+            $is_first_batch = isset($_POST['is_first_batch']) ? boolval($_POST['is_first_batch']) : true;
+            
+            error_log("[747Disco-Scan] 🚀 Batch progressivo - Offset: {$offset}, Limit: {$limit}, First: " . ($is_first_batch ? 'SI' : 'NO'));
             
             // Inizializza contatori
             $counters = array(
@@ -112,24 +117,41 @@ class Disco747_Excel_Scan_Handler {
             $results = array();
             
             // ✅ REALE: Trova file Excel da Google Drive
-            $excel_files = $this->get_excel_files_from_googledrive();
-            $counters['listed'] = count($excel_files);
+            $all_excel_files = $this->get_excel_files_from_googledrive();
+            $total_files_count = count($all_excel_files);
             
-            error_log("[747Disco-Scan] Trovati {$counters['listed']} file Excel da Google Drive");
+            error_log("[747Disco-Scan] Trovati {$total_files_count} file Excel TOTALI da Google Drive");
             
-            if (empty($excel_files)) {
+            if (empty($all_excel_files)) {
                 wp_send_json_success(array(
                     'total_files' => 0,
                     'processed' => 0,
                     'new_records' => 0,
                     'updated_records' => 0,
                     'errors' => 0,
+                    'has_more' => false,
+                    'next_offset' => 0,
                     'messages' => array('Nessun file Excel trovato con i filtri specificati')
                 ));
                 return;
             }
             
-            // ✅ REALE: Processa ogni file Excel
+            // ✅ BATCH PROGRESSIVO: Applica offset e limit
+            if ($limit > 0) {
+                $excel_files = array_slice($all_excel_files, $offset, $limit);
+                $has_more = ($offset + $limit) < $total_files_count;
+                $next_offset = $offset + $limit;
+                error_log("[747Disco-Scan] 📦 Batch {$offset}-" . ($offset + count($excel_files)) . " di {$total_files_count} file");
+            } else {
+                // Modalità compatibilità: processa tutti i file in 1 colpo
+                $excel_files = $all_excel_files;
+                $has_more = false;
+                $next_offset = 0;
+            }
+            
+            $counters['listed'] = count($excel_files);
+            
+            // ✅ REALE: Processa ogni file Excel del batch corrente
             foreach ($excel_files as $i => $file) {
                 try {
                     error_log("[747Disco-Scan] Processando file: {$file['name']}");
@@ -220,15 +242,20 @@ class Disco747_Excel_Scan_Handler {
             error_log("[747Disco-Scan] 📝 Messages count: " . count($messages));
             
             $response_data = array(
-                'total_files' => $counters['listed'],
+                'total_files' => isset($total_files_count) ? $total_files_count : $counters['listed'],
+                'batch_size' => $counters['listed'],
                 'processed' => $counters['parsed_ok'],
                 'new_records' => $counters['saved_ok'],
                 'updated_records' => 0,
                 'errors' => $counters['errors'],
+                'has_more' => isset($has_more) ? $has_more : false,
+                'next_offset' => isset($next_offset) ? $next_offset : 0,
+                'current_offset' => $offset,
                 'messages' => $messages
             );
             
             error_log("[747Disco-Scan] 🚀 Invio risposta JSON success...");
+            error_log("[747Disco-Scan] 📊 Has more: " . ($response_data['has_more'] ? 'SI' : 'NO') . ", Next offset: {$response_data['next_offset']}");
             wp_send_json_success($response_data);
             error_log("[747Disco-Scan] ✅ Risposta JSON inviata!");
             

@@ -9,11 +9,19 @@ jQuery(document).ready(function($) {
     const ExcelScan = {
         config: {
             ajaxurl: typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php',
-            nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : ''
+            nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : '',
+            batchSize: 8 // ✅ Processa 8 file alla volta per evitare timeout server
         },
         
         // ✅ Flag per prevenire scansioni multiple simultanee
         isScanning: false,
+        
+        // ✅ Accumulatori per batch progressivi
+        totalFilesFound: 0,
+        totalProcessed: 0,
+        totalSaved: 0,
+        totalErrors: 0,
+        allMessages: [],
         
         init: function() {
             console.log('[Excel-Scan] Inizializzazione...');
@@ -52,7 +60,7 @@ jQuery(document).ready(function($) {
         
         handleScan: function(e) {
             e.preventDefault();
-            console.log('[Excel-Scan] === AVVIO SCANSIONE ===');
+            console.log('[Excel-Scan] === AVVIO SCANSIONE PROGRESSIVA ===');
             
             // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE
             if (this.isScanning) {
@@ -69,52 +77,146 @@ jQuery(document).ready(function($) {
             const btn = $('#start-scan-btn');
             const resetBtn = $('#reset-scan-btn');
 
-            console.log('[Excel-Scan] Parametri:', {year: year, month: month});
+            console.log('[Excel-Scan] Parametri:', {year: year, month: month, batchSize: this.config.batchSize});
+
+            // Reset accumulatori
+            this.totalFilesFound = 0;
+            this.totalProcessed = 0;
+            this.totalSaved = 0;
+            this.totalErrors = 0;
+            this.allMessages = [];
 
             $('#progress-section').show();
             $('#progress-bar-fill').css('width', '0%');
             $('#progress-percent').text('0%');
-            $('#progress-status').text('Connessione a Google Drive...');
+            $('#progress-status').text('🔍 Ricerca file su Google Drive...');
             $('#results-section').hide();
             $('#new-files-box').hide();
-            $('#debug-log').text('Avvio scansione...\n');
+            $('#debug-log').text('🚀 Avvio scansione progressiva (8 file/batch)...\n');
 
             btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
             resetBtn.prop('disabled', true);
 
+            // ✅ Avvia batch progressivo da offset 0
+            this.processBatch(year, month, 0, true, btn, resetBtn);
+        },
+        
+        // ✅ NUOVO: Processa un batch di file
+        processBatch: function(year, month, offset, isFirstBatch, btn, resetBtn) {
+            const self = this;
+            
             const ajaxData = {
                 action: 'batch_scan_excel',
                 nonce: this.config.nonce,
                 year: year,
-                month: month
+                month: month,
+                offset: offset,
+                limit: this.config.batchSize,
+                is_first_batch: isFirstBatch
             };
 
-            console.log('[Excel-Scan] Invio richiesta AJAX a:', this.config.ajaxurl);
-            console.log('[Excel-Scan] Dati AJAX:', ajaxData);
+            console.log('[Excel-Scan] 📦 Batch offset ' + offset + ', limit ' + this.config.batchSize);
 
             $.ajax({
                 url: this.config.ajaxurl,
                 type: 'POST',
                 data: ajaxData,
-                timeout: 900000, // ✅ 15 minuti timeout (per scansioni con centinaia di file)
+                timeout: 60000, // ✅ 60 secondi per batch (sotto timeout server)
                 success: function(response) {
-                    console.log('[Excel-Scan] Risposta AJAX ricevuta:', response);
-                    ExcelScan.handleScanSuccess(response);
+                    console.log('[Excel-Scan] ✅ Batch completato:', response);
+                    
+                    if (response.success && response.data) {
+                        const d = response.data;
+                        
+                        // Aggiorna accumulatori
+                        if (isFirstBatch) {
+                            self.totalFilesFound = d.total_files || 0;
+                        }
+                        self.totalProcessed += d.processed || 0;
+                        self.totalSaved += d.new_records || 0;
+                        self.totalErrors += d.errors || 0;
+                        self.allMessages = self.allMessages.concat(d.messages || []);
+                        
+                        // Aggiorna progress bar
+                        const progress = self.totalFilesFound > 0 ? Math.round((offset + d.batch_size) / self.totalFilesFound * 100) : 0;
+                        $('#progress-bar-fill').css('width', progress + '%');
+                        $('#progress-percent').text(progress + '%');
+                        $('#progress-status').text('📦 Batch ' + Math.ceil((offset + d.batch_size) / self.config.batchSize) + ' completato - ' + (offset + d.batch_size) + '/' + self.totalFilesFound + ' file');
+                        
+                        $('#debug-log').append('✅ Batch ' + offset + '-' + (offset + d.batch_size) + ': ' + d.processed + ' processati, ' + d.errors + ' errori\n');
+                        
+                        // Se ci sono altri file, processa il prossimo batch
+                        if (d.has_more) {
+                            console.log('[Excel-Scan] 🔄 Altri file da processare, avvio prossimo batch...');
+                            setTimeout(function() {
+                                self.processBatch(year, month, d.next_offset, false, btn, resetBtn);
+                            }, 500); // 500ms pausa tra batch
+                        } else {
+                            // Scansione completata!
+                            console.log('[Excel-Scan] 🎉 Scansione completa!');
+                            self.showFinalResults(btn, resetBtn);
+                        }
+                    } else {
+                        console.error('[Excel-Scan] Risposta non valida:', response);
+                        self.handleScanError(null, 'error', response.data?.message || 'Risposta non valida');
+                        self.unlockUI(btn, resetBtn);
+                    }
                 },
                 error: function(xhr, status, error) {
-                    console.error('[Excel-Scan] Errore AJAX:', {xhr: xhr, status: status, error: error});
-                    ExcelScan.handleScanError(xhr, status, error);
-                },
-                complete: function() {
-                    console.log('[Excel-Scan] Richiesta AJAX completata');
-                    // ✅ Rilascia il lock
-                    ExcelScan.isScanning = false;
-                    console.log('[Excel-Scan] 🔓 Flag isScanning impostato a FALSE');
-                    
-                    btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
-                    resetBtn.prop('disabled', false);
+                    console.error('[Excel-Scan] ❌ Errore batch:', {xhr: xhr, status: status, error: error});
+                    self.handleScanError(xhr, status, error);
+                    self.unlockUI(btn, resetBtn);
                 }
             });
+        },
+        
+        // ✅ NUOVO: Mostra risultati finali
+        showFinalResults: function(btn, resetBtn) {
+            console.log('[Excel-Scan] === MOSTRA RISULTATI FINALI ===');
+            
+            $('#progress-bar-fill').css('width', '100%');
+            $('#progress-percent').text('100%');
+            $('#progress-status').text('✅ Scansione completata!');
+            
+            $('#stat-total').text(this.totalFilesFound);
+            $('#stat-processed').text(this.totalProcessed);
+            $('#stat-new').text(this.totalSaved);
+            $('#stat-updated').text(0);
+            $('#stat-errors').text(this.totalErrors);
+            
+            $('#summary-total').text(this.totalFilesFound);
+            $('#summary-new').text(this.totalSaved);
+            $('#summary-updated').text(0);
+            $('#summary-errors').text(this.totalErrors);
+            
+            $('#results-section').show();
+            
+            const messagesList = $('#messages-list');
+            messagesList.empty();
+            
+            if (this.allMessages.length > 0) {
+                this.allMessages.forEach(function(msg) {
+                    messagesList.append('<li>' + msg + '</li>');
+                });
+            } else {
+                messagesList.append('<li>Nessun messaggio disponibile</li>');
+            }
+            
+            $('#debug-log').append('\n🎉 COMPLETATO!\n');
+            $('#debug-log').append('📊 Totale: ' + this.totalFilesFound + ' file\n');
+            $('#debug-log').append('✅ Processati: ' + this.totalProcessed + '\n');
+            $('#debug-log').append('💾 Salvati: ' + this.totalSaved + '\n');
+            $('#debug-log').append('❌ Errori: ' + this.totalErrors + '\n');
+            
+            this.unlockUI(btn, resetBtn);
+        },
+        
+        // ✅ NUOVO: Sblocca UI
+        unlockUI: function(btn, resetBtn) {
+            this.isScanning = false;
+            console.log('[Excel-Scan] 🔓 Flag isScanning impostato a FALSE');
+            btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
+            resetBtn.prop('disabled', false);
         },
         
         handleResetScan: function(e) {
