@@ -553,8 +553,12 @@ class Disco747_AJAX_Handlers {
      * Trova cartella principale per diagnostica
      */
     private static function find_main_folder_diagnostic($googledrive) {
-        $token = get_option('disco747_googledrive_access_token', '');
-        if (empty($token)) return null;
+        // ✅ USA il metodo pubblico di GoogleDrive per ottenere token refreshato
+        $token = self::get_refreshed_token($googledrive);
+        if (empty($token)) {
+            error_log('[Debug-Tool] Token non disponibile');
+            return null;
+        }
         
         $query = "name='747-Preventivi' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         $url = 'https://www.googleapis.com/drive/v3/files?' . http_build_query(array(
@@ -568,10 +572,82 @@ class Disco747_AJAX_Handlers {
             'timeout' => 30
         ));
         
-        if (is_wp_error($response)) return null;
+        if (is_wp_error($response)) {
+            error_log('[Debug-Tool] Errore API: ' . $response->get_error_message());
+            return null;
+        }
         
+        $http_code = wp_remote_retrieve_response_code($response);
         $body = json_decode(wp_remote_retrieve_body($response), true);
+        
+        error_log('[Debug-Tool] Risposta API (HTTP ' . $http_code . '): ' . json_encode($body));
+        
         return !empty($body['files']) ? $body['files'][0]['id'] : null;
+    }
+    
+    /**
+     * ✅ NUOVO: Ottiene token refreshato usando GoogleDrive handler
+     */
+    private static function get_refreshed_token($googledrive) {
+        try {
+            // Verifica se token è scaduto
+            $access_token = get_option('disco747_googledrive_access_token', '');
+            $expires = get_option('disco747_googledrive_token_expires', 0);
+            
+            // Se valido, usa quello
+            if (!empty($access_token) && time() < ($expires - 300)) {
+                error_log('[Debug-Tool] Token valido, scade in ' . ($expires - time()) . 's');
+                return $access_token;
+            }
+            
+            error_log('[Debug-Tool] Token scaduto o mancante, refresh necessario');
+            
+            // Altrimenti refresha
+            $credentials = $googledrive->get_oauth_credentials();
+            
+            if (empty($credentials['refresh_token'])) {
+                error_log('[Debug-Tool] Refresh token mancante');
+                return null;
+            }
+            
+            $response = wp_remote_post('https://oauth2.googleapis.com/token', array(
+                'body' => array(
+                    'client_id' => $credentials['client_id'],
+                    'client_secret' => $credentials['client_secret'],
+                    'refresh_token' => $credentials['refresh_token'],
+                    'grant_type' => 'refresh_token'
+                ),
+                'timeout' => 30
+            ));
+            
+            if (is_wp_error($response)) {
+                error_log('[Debug-Tool] Errore refresh: ' . $response->get_error_message());
+                return null;
+            }
+            
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            $http_code = wp_remote_retrieve_response_code($response);
+            
+            if ($http_code !== 200 || !isset($body['access_token'])) {
+                error_log('[Debug-Tool] Refresh fallito (HTTP ' . $http_code . ')');
+                return null;
+            }
+            
+            // Salva nuovo token
+            $new_token = $body['access_token'];
+            $expires_in = $body['expires_in'] ?? 3600;
+            
+            update_option('disco747_googledrive_access_token', $new_token);
+            update_option('disco747_googledrive_token_expires', time() + $expires_in);
+            
+            error_log('[Debug-Tool] ✅ Token refreshato con successo');
+            
+            return $new_token;
+            
+        } catch (\Exception $e) {
+            error_log('[Debug-Tool] Errore get_refreshed_token: ' . $e->getMessage());
+            return null;
+        }
     }
     
     /**
@@ -579,7 +655,7 @@ class Disco747_AJAX_Handlers {
      */
     private static function scan_files_with_metadata($googledrive, $folder_id, $year) {
         $files = array();
-        $token = get_option('disco747_googledrive_access_token', '');
+        $token = self::get_refreshed_token($googledrive); // ✅ USA token refreshato
         
         // Trova cartella anno
         $year_folder_id = self::find_subfolder($token, $folder_id, $year);
