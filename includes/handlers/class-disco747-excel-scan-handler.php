@@ -169,8 +169,8 @@ class Disco747_Excel_Scan_Handler {
             
             $counters['listed'] = count($excel_files);
             
-            // ✅ SAFETY: Limite RIDOTTO a 4 file per evitare timeout (batch sicuro ~40-50s)
-            $max_files_per_request = 4;
+            // ✅ SAFETY: Limite RIDOTTO a 2 file per garantire risposta JSON rapida (~20s)
+            $max_files_per_request = 2;
             if ($limit == 0 && count($excel_files) > $max_files_per_request) {
                 error_log("[747Disco-Scan] ⚠️ SAFETY LIMIT: Riducendo da " . count($excel_files) . " a {$max_files_per_request} file per evitare timeout server");
                 $excel_files = array_slice($excel_files, 0, $max_files_per_request);
@@ -289,8 +289,28 @@ class Disco747_Excel_Scan_Handler {
             delete_transient($lock_key);
             error_log('[747Disco-Scan] 🔓 LOCK rilasciato');
             
+            // ✅ FLUSH buffer PHP per evitare problemi con FastCGI/Nginx
+            if (ob_get_level()) {
+                ob_end_clean(); // Pulisci buffer esistenti
+            }
+            
+            // ✅ Disabilita output buffering per questa risposta
+            @ini_set('output_buffering', 'off');
+            @ini_set('zlib.output_compression', 'off');
+            
+            // ✅ Invia header espliciti
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                header('Cache-Control: no-cache, must-revalidate');
+                header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+            }
+            
+            error_log('[747Disco-Scan] 📤 Header e buffer configurati, invio JSON...');
+            
             wp_send_json_success($response_data);
-            error_log("[747Disco-Scan] ✅ Risposta JSON inviata!");
+            
+            // Questa riga non verrà mai eseguita (wp_send_json_success chiama wp_die)
+            error_log("[747Disco-Scan] ✅ Dopo wp_send_json_success (non dovrebbe apparire)");
             
         } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore scansione batch: ' . $e->getMessage());
