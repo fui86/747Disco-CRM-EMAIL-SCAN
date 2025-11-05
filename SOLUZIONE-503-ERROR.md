@@ -46,20 +46,20 @@ set_transient($lock_key, time(), 300); // Lock per 5 minuti
 
 **Risultato**: Solo 1 scansione alla volta, anche se arrivano 10 richieste simultanee.
 
-### 2. **Safety Limit** (5 file max)
+### 2. **Safety Limit** (4 file max)
 
-Limita automaticamente ogni richiesta a max 5 file:
+Limita automaticamente ogni richiesta a max 4 file:
 
 ```php
-$max_files_per_request = 5;
+$max_files_per_request = 4;
 if (count($excel_files) > $max_files_per_request) {
-    $excel_files = array_slice($excel_files, 0, 5);
+    $excel_files = array_slice($excel_files, 0, 4);
     $has_more = true; // Segnala che ci sono altri file
 }
 ```
 
 **Risultato**: 
-- 5 file = ~25-30 secondi (ben sotto timeout 60s)
+- 4 file = ~20-40 secondi (ben sotto timeout 150s)
 - Risposta JSON `has_more: true` indica file rimanenti
 
 ### 3. **Cache Bypass JavaScript**
@@ -86,17 +86,17 @@ if (xhr.status === 503) {
 
 ## 🎯 Come Funziona Ora
 
-### Scenario 1: Scansione Normale (5 file)
+### Scenario 1: Scansione Normale (4 file per batch)
 
 ```
 Utente clicca "Analizza Ora"
-  → Frontend: AJAX con offset=0, limit=8
+  → Frontend: AJAX con offset=0, limit=4
   → Backend: LOCK acquisito
-  → Backend: Safety limit riduce da 43 a 5 file
-  → Backend: Processa 5 file in ~25s
+  → Backend: Processa 4 file in ~20-40s
   → Backend: Rilascia LOCK
-  → Backend: Risposta JSON con has_more=true, next_offset=5
-  → Frontend: Mostra alert "Processati 5/43, ricarica pagina"
+  → Backend: Risposta JSON con has_more=true, next_offset=4
+  → Frontend: Avvia automaticamente batch successivo (offset=4)
+  → (Ripete finché has_more=false)
 ```
 
 ### Scenario 2: Doppio Click (Prevenuto)
@@ -119,36 +119,44 @@ Tab C: Clicca "Analizza Ora" → LOCK rifiutato ❌
 
 ## 📊 Workflow Completo (43 file)
 
-Con il nuovo sistema a 5 file/batch:
+Con il nuovo sistema a 4 file/batch **AUTOMATICO**:
 
 ```
-Batch 1:  File 0-4   (5 file)  → 25s → has_more: true ✅
-  ↓ Utente ricarica pagina (F5)
-Batch 2:  File 5-9   (5 file)  → 25s → has_more: true ✅
-  ↓ Utente ricarica pagina (F5)
-Batch 3:  File 10-14 (5 file)  → 25s → has_more: true ✅
-  ↓ (continua...)
-Batch 9:  File 40-42 (3 file)  → 15s → has_more: false ✅ COMPLETO!
+Batch 1:  File 0-3   (4 file)  → 30s → has_more: true ✅ (auto-continua)
+Batch 2:  File 4-7   (4 file)  → 35s → has_more: true ✅ (auto-continua)
+Batch 3:  File 8-11  (4 file)  → 30s → has_more: true ✅ (auto-continua)
+Batch 4:  File 12-15 (4 file)  → 40s → has_more: true ✅ (auto-continua)
+... (continua automaticamente)
+Batch 11: File 40-42 (3 file)  → 20s → has_more: false ✅ COMPLETO!
 ```
 
-**Totale: 9 click + 9 refresh** per 43 file
+**Totale: 1 click iniziale, 0 interventi manuali** per 43 file (~6-8 minuti totali)
+
+Il frontend gestisce **automaticamente** tutti i batch in sequenza!
 
 ## ⚙️ Configurazione
 
 ### Modificare Limite File per Batch
 
+In `/workspace/assets/js/excel-scan.js`:
+
+```javascript
+// Linea ~13
+batchSize: 4 // ← Cambia qui (frontend)
+```
+
 In `/workspace/includes/handlers/class-disco747-excel-scan-handler.php`:
 
 ```php
-// Linea ~155
-$max_files_per_request = 5; // ← Cambia qui (3-10 consigliato)
+// Linea ~173
+$max_files_per_request = 4; // ← Cambia qui (safety backend)
 ```
 
 **Raccomandazioni basate su performance server:**
-- **3 file**: Server molto lenti o sovraccarichi (15-20s/batch)
-- **5 file**: Default - bilanciamento sicurezza/velocità ⭐ **CONSIGLIATO**
-- **8 file**: Server veloci (40-50s/batch, rischio timeout)
-- **10 file**: Solo per server dedicati con timeout >90s
+- **2-3 file**: Server molto lenti o sovraccarichi (15-30s/batch)
+- **4 file**: Default - bilanciamento sicurezza/velocità ⭐ **CONSIGLIATO**
+- **5-6 file**: Server veloci con timeout 150s+ (40-60s/batch)
+- **8+ file**: Solo per server dedicati con timeout >180s (rischio timeout)
 
 ### Durata Lock
 

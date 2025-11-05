@@ -169,8 +169,8 @@ class Disco747_Excel_Scan_Handler {
             
             $counters['listed'] = count($excel_files);
             
-            // ✅ SAFETY: Limite RIDOTTO a 5 file per evitare timeout server (60s)
-            $max_files_per_request = 5;
+            // ✅ SAFETY: Limite RIDOTTO a 4 file per evitare timeout (batch sicuro ~40-50s)
+            $max_files_per_request = 4;
             if ($limit == 0 && count($excel_files) > $max_files_per_request) {
                 error_log("[747Disco-Scan] ⚠️ SAFETY LIMIT: Riducendo da " . count($excel_files) . " a {$max_files_per_request} file per evitare timeout server");
                 $excel_files = array_slice($excel_files, 0, $max_files_per_request);

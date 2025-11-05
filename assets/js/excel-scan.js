@@ -10,7 +10,7 @@ jQuery(document).ready(function($) {
         config: {
             ajaxurl: typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php',
             nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : '',
-            batchSize: 8 // ✅ Processa 8 file alla volta per evitare timeout server
+            batchSize: 4 // ✅ Processa 4 file alla volta (batch più sicuro)
         },
         
         // ✅ Flag per prevenire scansioni multiple simultanee
@@ -126,7 +126,7 @@ jQuery(document).ready(function($) {
                 url: this.config.ajaxurl,
                 type: 'POST',
                 data: ajaxData,
-                timeout: 60000, // ✅ 60 secondi per batch (sotto timeout server)
+                timeout: 150000, // ✅ 150 secondi (2.5 min) per batch con margine di sicurezza
                 success: function(response) {
                     console.log('[Excel-Scan] ✅ Batch completato:', response);
                     
