@@ -161,11 +161,14 @@ class Disco747_Excel_Scan_Handler {
                         usleep(200000); // 200ms
                     }
                     
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     $error_msg = "Errore processando {$file['name']}: " . $e->getMessage();
                     $errors[] = $error_msg;
                     error_log("[747Disco-Scan] {$error_msg}");
                     $counters['errors']++;
+                    
+                    // ✅ NON bloccare l'intera scansione, continua con file successivo
+                    continue;
                 }
             }
             
@@ -698,9 +701,14 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
-            // Carica il file Excel
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
-            $worksheet = $spreadsheet->getActiveSheet();
+            // ✅ FIX: Carica il file Excel con gestione errori per file corrotti
+            try {
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
+                $worksheet = $spreadsheet->getActiveSheet();
+            } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
+                error_log('[747Disco-Scan] File Excel corrotto o con hyperlink nulli: ' . $e->getMessage());
+                throw new \Exception('File Excel corrotto: ' . $e->getMessage());
+            }
             
             // ✅ Mapping secondo le specifiche richieste
             $data = array();
@@ -711,6 +719,19 @@ class Disco747_Excel_Scan_Handler {
             // Parsing celle specifiche (specifiche richieste)
             $data['tipo_menu'] = $this->clean_cell_value($worksheet->getCell('B1')->getValue());
             $data['data_evento'] = $this->parse_date_from_cell($worksheet->getCell('C6')->getValue());
+            
+            // ✅ FIX CRITICO: Se data_evento è NULL, prova a estrarre dal filename
+            if (empty($data['data_evento'])) {
+                $data['data_evento'] = $this->extract_date_from_filename($filename);
+                error_log('[747Disco-Scan] ⚠️ Data evento estratta da filename: ' . $data['data_evento']);
+            }
+            
+            // ✅ ULTIMO FALLBACK: Se ancora NULL, usa data corrente
+            if (empty($data['data_evento'])) {
+                $data['data_evento'] = date('Y-m-d');
+                error_log('[747Disco-Scan] ⚠️ Data evento fallback: ' . $data['data_evento']);
+            }
+            
             $data['tipo_evento'] = $this->clean_cell_value($worksheet->getCell('C7')->getValue());
             $data['orario_evento'] = $this->clean_cell_value($worksheet->getCell('C8')->getValue());
             $data['numero_invitati'] = $this->parse_number_from_cell($worksheet->getCell('C9')->getValue());
@@ -931,6 +952,46 @@ class Disco747_Excel_Scan_Handler {
         // Rimuovi simboli valuta e converti
         $cleaned = preg_replace('/[€$£,]/', '', strval($value));
         return floatval($cleaned);
+    }
+    
+    /**
+     * ✅ NUOVO: Estrae data evento dal nome file
+     * Formati supportati:
+     * - "13_11 18 Anni di..." -> "2025-11-13"
+     * - "CONF 13_11 18 Anni..." -> "2025-11-13"
+     * - "14_12 Festa..." -> "2025-12-14"
+     * 
+     * @param string $filename Nome file
+     * @return string|null Data in formato Y-m-d
+     */
+    private function extract_date_from_filename($filename) {
+        try {
+            // Pattern: cattura DD_MM all'inizio o dopo prefisso CONF/NO
+            if (preg_match('/(CONF |NO )?(\d{1,2})_(\d{1,2})/', $filename, $matches)) {
+                $day = intval($matches[2]);
+                $month = intval($matches[3]);
+                
+                // Anno corrente o prossimo anno se mese già passato
+                $year = date('Y');
+                $current_month = intval(date('m'));
+                
+                // Se il mese è minore del mese corrente, probabile che sia anno prossimo
+                if ($month < $current_month) {
+                    $year++;
+                }
+                
+                // Valida data
+                if (checkdate($month, $day, $year)) {
+                    return sprintf('%04d-%02d-%02d', $year, $month, $day);
+                }
+            }
+            
+            return null;
+            
+        } catch (\Exception $e) {
+            error_log('[747Disco-Scan] Errore estrazione data da filename: ' . $e->getMessage());
+            return null;
+        }
     }
 }
 
