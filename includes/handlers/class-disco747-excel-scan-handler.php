@@ -74,6 +74,14 @@ class Disco747_Excel_Scan_Handler {
      * Handler AJAX per scansione batch
      */
     public function handle_batch_scan_ajax() {
+        // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
+        if (function_exists('disco747_set_scan_timeout')) {
+            disco747_set_scan_timeout();
+        } else {
+            @set_time_limit(900);
+            @ini_set('max_execution_time', 900);
+        }
+        
         // Verifica nonce
         if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
             wp_send_json_error(array('message' => 'Nonce non valido'));
@@ -89,7 +97,7 @@ class Disco747_Excel_Scan_Handler {
         try {
             $dry_run = isset($_POST['dry_run']) ? intval($_POST['dry_run']) === 1 : false;
             
-            error_log("[747Disco-Scan] Avvio scansione batch");
+            error_log("[747Disco-Scan] Avvio scansione batch (timeout: 15min)");
             
             // Inizializza contatori
             $counters = array(
@@ -156,9 +164,9 @@ class Disco747_Excel_Scan_Handler {
                         $counters['saved_ok']++;
                     }
                     
-                    // Rate limiting per non sovraccaricare Google Drive
+                    // ✅ Rate limiting ridotto per velocizzare (100ms invece di 200ms)
                     if ($i < count($excel_files) - 1) {
-                        usleep(200000); // 200ms
+                        usleep(100000); // 100ms
                     }
                     
                 } catch (\Exception $e) {
@@ -202,6 +210,14 @@ class Disco747_Excel_Scan_Handler {
      * Handler AJAX per reset e scan completo
      */
     public function handle_reset_and_scan_ajax() {
+        // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
+        if (function_exists('disco747_set_scan_timeout')) {
+            disco747_set_scan_timeout();
+        } else {
+            @set_time_limit(900);
+            @ini_set('max_execution_time', 900);
+        }
+        
         // Verifica nonce
         if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
             wp_send_json_error(array('message' => 'Nonce non valido'));
@@ -215,7 +231,7 @@ class Disco747_Excel_Scan_Handler {
         }
         
         try {
-            error_log('[747Disco-Scan] Svuotamento database...');
+            error_log('[747Disco-Scan] Svuotamento database (timeout: 15min)...');
             
             // Svuota tabella preventivi
             global $wpdb;
@@ -302,7 +318,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -386,7 +402,7 @@ class Disco747_Excel_Scan_Handler {
                     'refresh_token' => $credentials['refresh_token'],
                     'grant_type' => 'refresh_token'
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per refresh token
             ));
             
             if (is_wp_error($response)) {
@@ -477,7 +493,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -517,7 +533,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -557,7 +573,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -616,7 +632,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (!is_wp_error($response)) {

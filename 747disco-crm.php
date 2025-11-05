@@ -140,6 +140,9 @@ final class Disco747_CRM_Plugin {
      * Carica autoloader SAFE - FIXED con storage dependencies + AJAX handlers + Excel Scan
      */
     private function load_autoloader() {
+        // ✅ Carica configurazione timeout centralizzata
+        require_once DISCO747_CRM_PLUGIN_DIR . 'includes/config-timeouts.php';
+        
         // Carica le classi principali manualmente per sicurezza
         $core_files = array(
             'includes/core/class-disco747-config.php',

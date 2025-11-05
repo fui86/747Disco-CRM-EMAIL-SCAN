@@ -22,6 +22,13 @@ $is_drive_configured = isset($is_googledrive_configured) && $is_googledrive_conf
         </h1>
         <p class="page-subtitle">Importa automaticamente i preventivi da Google Drive</p>
     </div>
+    
+    <?php 
+    // ✅ Mostra info timeout
+    if (function_exists('disco747_render_timeout_info')) {
+        echo disco747_render_timeout_info();
+    }
+    ?>
 
     <?php if (!$is_drive_configured): ?>
         <div class="disco747-notice disco747-notice-warning">

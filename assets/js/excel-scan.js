@@ -83,7 +83,7 @@ jQuery(document).ready(function($) {
                 url: this.config.ajaxurl,
                 type: 'POST',
                 data: ajaxData,
-                timeout: 300000, // ✅ 5 minuti timeout (per scansioni lunghe)
+                timeout: 900000, // ✅ 15 minuti timeout (per scansioni con centinaia di file)
                 success: function(response) {
                     console.log('[Excel-Scan] Risposta AJAX ricevuta:', response);
                     ExcelScan.handleScanSuccess(response);
@@ -141,7 +141,7 @@ jQuery(document).ready(function($) {
                 url: this.config.ajaxurl,
                 type: 'POST',
                 data: ajaxData,
-                timeout: 300000, // ✅ 5 minuti timeout (per scansioni lunghe)
+                timeout: 900000, // ✅ 15 minuti timeout (per scansioni con centinaia di file)
                 success: function(response) {
                     console.log('[Excel-Scan] Risposta AJAX reset ricevuta:', response);
                     ExcelScan.handleScanSuccess(response);

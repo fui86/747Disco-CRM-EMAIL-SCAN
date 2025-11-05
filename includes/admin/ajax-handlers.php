@@ -44,7 +44,15 @@ class Disco747_AJAX_Handlers {
      * Handler principale per batch scan
      */
     public static function handle_batch_scan() {
-        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN ==========');
+        // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
+        if (function_exists('disco747_set_scan_timeout')) {
+            disco747_set_scan_timeout();
+        } else {
+            @set_time_limit(900);
+            @ini_set('max_execution_time', 900);
+        }
+        
+        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN (timeout: 15min) ==========');
         
         // Verifica nonce
         if (!isset($_POST['nonce']) && !isset($_POST['_wpnonce'])) {
@@ -569,7 +577,7 @@ class Disco747_AJAX_Handlers {
         
         $response = wp_remote_get($url, array(
             'headers' => array('Authorization' => 'Bearer ' . $token),
-            'timeout' => 30
+            'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
         ));
         
         if (is_wp_error($response)) {
@@ -617,7 +625,7 @@ class Disco747_AJAX_Handlers {
                     'refresh_token' => $credentials['refresh_token'],
                     'grant_type' => 'refresh_token'
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
             ));
             
             if (is_wp_error($response)) {
@@ -675,7 +683,7 @@ class Disco747_AJAX_Handlers {
             
             $response = wp_remote_get($url, array(
                 'headers' => array('Authorization' => 'Bearer ' . $token),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
             ));
             
             if (!is_wp_error($response)) {
@@ -707,7 +715,7 @@ class Disco747_AJAX_Handlers {
         
         $response = wp_remote_get($url, array(
             'headers' => array('Authorization' => 'Bearer ' . $token),
-            'timeout' => 30
+            'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
         ));
         
         if (is_wp_error($response)) return null;
@@ -729,7 +737,7 @@ class Disco747_AJAX_Handlers {
         
         $response = wp_remote_get($url, array(
             'headers' => array('Authorization' => 'Bearer ' . $token),
-            'timeout' => 30
+            'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
         ));
         
         if (is_wp_error($response)) return array();
