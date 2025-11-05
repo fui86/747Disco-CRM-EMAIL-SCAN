@@ -915,22 +915,47 @@ class Disco747_Excel_Scan_Handler {
     
     /**
      * Helper: Parsing data da cella
+     * ✅ AGGIORNATO: Supporta formato italiano dd/mm/yyyy
      */
     private function parse_date_from_cell($value) {
         if (empty($value)) return null;
         
         try {
-            // Prova parsing diretto
+            // Se è numerico = Excel date serial
             if (is_numeric($value)) {
-                // Excel date serial
                 $unix_date = ($value - 25569) * 86400;
                 return date('Y-m-d', $unix_date);
-            } else {
-                // Stringa data
-                $timestamp = strtotime($value);
-                return $timestamp ? date('Y-m-d', $timestamp) : null;
             }
-        } catch (Exception $e) {
+            
+            // Se è stringa, gestisci formati italiani
+            $value = trim($value);
+            
+            // ✅ Pattern formato italiano: dd/mm/yyyy o dd-mm-yyyy o dd.mm.yyyy
+            if (preg_match('/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/', $value, $matches)) {
+                $day = intval($matches[1]);
+                $month = intval($matches[2]);
+                $year = intval($matches[3]);
+                
+                // Valida la data
+                if (checkdate($month, $day, $year)) {
+                    return sprintf('%04d-%02d-%02d', $year, $month, $day);
+                } else {
+                    error_log("[747Disco-Scan] ⚠️ Data non valida: {$value} (giorno={$day}, mese={$month}, anno={$year})");
+                    return null;
+                }
+            }
+            
+            // ✅ Fallback: prova strtotime() per altri formati
+            $timestamp = strtotime($value);
+            if ($timestamp) {
+                return date('Y-m-d', $timestamp);
+            }
+            
+            error_log("[747Disco-Scan] ⚠️ Impossibile parsare data: {$value}");
+            return null;
+            
+        } catch (\Exception $e) {
+            error_log("[747Disco-Scan] ❌ Errore parsing data: " . $e->getMessage());
             return null;
         }
     }
