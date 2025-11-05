@@ -65,7 +65,7 @@ class Disco747_Excel_Scan_Handler {
                 $this->googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
             }
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('Disco747 Excel Scan - Errore init Google Drive: ' . $e->getMessage());
         }
     }
@@ -169,10 +169,11 @@ class Disco747_Excel_Scan_Handler {
                         usleep(100000); // 100ms
                     }
                     
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $error_msg = "Errore processando {$file['name']}: " . $e->getMessage();
                     $errors[] = $error_msg;
-                    error_log("[747Disco-Scan] {$error_msg}");
+                    error_log("[747Disco-Scan] ❌ {$error_msg}");
+                    error_log("[747Disco-Scan] ❌ Tipo errore: " . get_class($e));
                     $counters['errors']++;
                     
                     // ✅ NON bloccare l'intera scansione, continua con file successivo
@@ -180,15 +181,34 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
-            error_log("[747Disco-Scan] Completata - Parsed: {$counters['parsed_ok']}, Saved: {$counters['saved_ok']}, Errors: {$counters['errors']}");
+            error_log("[747Disco-Scan] ✅ Completata - Parsed: {$counters['parsed_ok']}, Saved: {$counters['saved_ok']}, Errors: {$counters['errors']}");
+            
+            // ✅ Log completo errori per debug
+            if (!empty($errors)) {
+                error_log("[747Disco-Scan] ========== FILE CON ERRORI ==========");
+                foreach ($errors as $error) {
+                    error_log("[747Disco-Scan] ❌ " . $error);
+                }
+                error_log("[747Disco-Scan] =====================================");
+            }
             
             // Prepara messaggi per il frontend
             $messages = array();
-            foreach ($results as $result) {
-                $messages[] = "✅ Processato: {$result['filename']} - {$result['data']['nome_cliente']}";
+            
+            // Mostra errori per primi (più visibili)
+            if (!empty($errors)) {
+                $messages[] = "⚠️ File con errori: " . count($errors);
+                foreach (array_slice($errors, 0, 10) as $error) {
+                    $messages[] = "❌ {$error}";
+                }
+                if (count($errors) > 10) {
+                    $messages[] = "... e altri " . (count($errors) - 10) . " errori (vedi log debug)";
+                }
             }
-            foreach (array_slice($errors, 0, 5) as $error) {
-                $messages[] = "❌ Errore: {$error}";
+            
+            // Poi i successi (ultimi 5)
+            foreach (array_slice($results, -5) as $result) {
+                $messages[] = "✅ {$result['filename']} - {$result['data']['nome_cliente']}";
             }
             
             wp_send_json_success(array(
@@ -200,7 +220,7 @@ class Disco747_Excel_Scan_Handler {
                 'messages' => $messages
             ));
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore scansione batch: ' . $e->getMessage());
             wp_send_json_error(array('message' => 'Errore interno: ' . $e->getMessage()));
         }
@@ -242,8 +262,9 @@ class Disco747_Excel_Scan_Handler {
             // Esegui batch scan normale
             $this->handle_batch_scan_ajax();
             
-        } catch (Exception $e) {
-            error_log('[747Disco-Scan] Errore reset and scan: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('[747Disco-Scan] ❌ Errore reset and scan: ' . $e->getMessage());
+            error_log('[747Disco-Scan] ❌ Tipo errore: ' . get_class($e));
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
         }
     }
@@ -280,7 +301,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $all_files;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('Disco747 Excel Scan - Errore ricerca file: ' . $e->getMessage());
             return array();
         }
@@ -368,7 +389,7 @@ class Disco747_Excel_Scan_Handler {
             error_log('[747Disco-Scan] Cartella 747-Preventivi non trovata');
             return null;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore ricerca cartella principale: ' . $e->getMessage());
             return null;
         }
@@ -429,7 +450,7 @@ class Disco747_Excel_Scan_Handler {
             error_log('[747Disco-Scan] Token refreshed con successo');
             return $access_token;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore ottenimento token: ' . $e->getMessage());
             return null;
         }
@@ -465,7 +486,7 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("[747Disco-Scan] Filtri applicati - Anno: " . ($year ?: 'tutti') . ", Mese: " . ($month ?: 'tutti'));
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore scansione con filtri: " . $e->getMessage());
         }
         
@@ -506,7 +527,7 @@ class Disco747_Excel_Scan_Handler {
             
             return !empty($body['files']) ? $body['files'][0]['id'] : null;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore ricerca anno: " . $e->getMessage());
             return null;
         }
@@ -546,7 +567,7 @@ class Disco747_Excel_Scan_Handler {
             
             return !empty($body['files']) ? $body['files'][0]['id'] : null;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore ricerca mese: " . $e->getMessage());
             return null;
         }
@@ -600,7 +621,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $excel_files;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore scansione cartella: " . $e->getMessage());
             return array();
         }
@@ -647,7 +668,7 @@ class Disco747_Excel_Scan_Handler {
                     $all_files = array_merge($all_files, $subfolder_files);
                 }
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore scansione sottocartelle: " . $e->getMessage());
         }
         
@@ -694,8 +715,9 @@ class Disco747_Excel_Scan_Handler {
             
             return $parsed_data;
             
-        } catch (Exception $e) {
-            error_log('[747Disco-Scan] Errore download/parsing: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('[747Disco-Scan] ❌ Errore download/parsing: ' . $e->getMessage());
+            error_log('[747Disco-Scan] ❌ Tipo errore: ' . get_class($e));
             return false;
         }
     }
@@ -717,13 +739,15 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
-            // ✅ FIX: Carica il file Excel con gestione errori per file corrotti
+            // ✅ FIX DEFINITIVO: Carica il file Excel con gestione errori per file corrotti
+            // Usa \Throwable per catturare ANCHE TypeError (non solo Exception)
             try {
                 $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
                 $worksheet = $spreadsheet->getActiveSheet();
-            } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
-                error_log('[747Disco-Scan] File Excel corrotto o con hyperlink nulli: ' . $e->getMessage());
-                throw new \Exception('File Excel corrotto: ' . $e->getMessage());
+            } catch (\Throwable $e) {
+                error_log('[747Disco-Scan] ❌ File Excel corrotto (TypeError/Exception): ' . $e->getMessage());
+                error_log('[747Disco-Scan] ❌ File problematico: ' . basename($file_path));
+                throw new \Exception('File Excel corrotto o con hyperlink nulli: ' . $e->getMessage());
             }
             
             // ✅ Mapping secondo le specifiche richieste
@@ -811,7 +835,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $data;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore parsing PhpSpreadsheet: ' . $e->getMessage());
             return false;
         }
@@ -915,7 +939,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $insert_id;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore salvataggio preventivo: ' . $e->getMessage());
             return false;
         }
@@ -991,7 +1015,7 @@ class Disco747_Excel_Scan_Handler {
             error_log("[747Disco-Scan] ⚠️ Impossibile parsare data: {$value}");
             return null;
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] ❌ Errore parsing data: " . $e->getMessage());
             return null;
         }
@@ -1050,8 +1074,8 @@ class Disco747_Excel_Scan_Handler {
             
             return null;
             
-        } catch (\Exception $e) {
-            error_log('[747Disco-Scan] Errore estrazione data da filename: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('[747Disco-Scan] ❌ Errore estrazione data da filename: ' . $e->getMessage());
             return null;
         }
     }
