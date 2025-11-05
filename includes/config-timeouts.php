@@ -37,7 +37,7 @@ define('DISCO747_GDRIVE_API_TIMEOUT', 120); // 2 minuti per singola richiesta
  * Rate limiting tra file (microsecondi)
  * Riduci per velocizzare, aumenta se Google Drive restituisce errori rate-limit
  */
-define('DISCO747_RATE_LIMIT_USLEEP', 100000); // 100ms (default)
+define('DISCO747_RATE_LIMIT_USLEEP', 50000); // 50ms (ottimizzato per evitare timeout server)
 
 /**
  * Timeout refresh token OAuth

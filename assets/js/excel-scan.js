@@ -12,6 +12,9 @@ jQuery(document).ready(function($) {
             nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : ''
         },
         
+        // ✅ Flag per prevenire scansioni multiple simultanee
+        isScanning: false,
+        
         init: function() {
             console.log('[Excel-Scan] Inizializzazione...');
             console.log('[Excel-Scan] Config:', this.config);
@@ -50,6 +53,16 @@ jQuery(document).ready(function($) {
         handleScan: function(e) {
             e.preventDefault();
             console.log('[Excel-Scan] === AVVIO SCANSIONE ===');
+            
+            // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE
+            if (this.isScanning) {
+                console.warn('[Excel-Scan] ⚠️ Scansione già in corso, richiesta ignorata');
+                alert('⚠️ Scansione già in corso! Attendere il completamento.');
+                return;
+            }
+            
+            this.isScanning = true;
+            console.log('[Excel-Scan] 🔒 Flag isScanning impostato a TRUE');
             
             const year = $('#scan-year').val();
             const month = $('#scan-month').val();
@@ -94,6 +107,10 @@ jQuery(document).ready(function($) {
                 },
                 complete: function() {
                     console.log('[Excel-Scan] Richiesta AJAX completata');
+                    // ✅ Rilascia il lock
+                    ExcelScan.isScanning = false;
+                    console.log('[Excel-Scan] 🔓 Flag isScanning impostato a FALSE');
+                    
                     btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> Analizza Ora');
                     resetBtn.prop('disabled', false);
                 }
@@ -104,10 +121,20 @@ jQuery(document).ready(function($) {
             e.preventDefault();
             console.log('[Excel-Scan] === AVVIO RESET & SCAN ===');
             
+            // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE
+            if (this.isScanning) {
+                console.warn('[Excel-Scan] ⚠️ Scansione già in corso, richiesta ignorata');
+                alert('⚠️ Scansione già in corso! Attendere il completamento.');
+                return;
+            }
+            
             if (!confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i record dalla tabella e rifarà la scansione completa.\n\nSei sicuro di voler procedere?')) {
                 console.log('[Excel-Scan] Reset annullato dall\'utente');
                 return;
             }
+            
+            this.isScanning = true;
+            console.log('[Excel-Scan] 🔒 Flag isScanning impostato a TRUE (reset)');
             
             const year = $('#scan-year').val();
             const month = $('#scan-month').val();
@@ -152,6 +179,10 @@ jQuery(document).ready(function($) {
                 },
                 complete: function() {
                     console.log('[Excel-Scan] Richiesta AJAX reset completata');
+                    // ✅ Rilascia il lock
+                    ExcelScan.isScanning = false;
+                    console.log('[Excel-Scan] 🔓 Flag isScanning impostato a FALSE (reset)');
+                    
                     btn.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Svuota e Rianalizza');
                     scanBtn.prop('disabled', false);
                 }

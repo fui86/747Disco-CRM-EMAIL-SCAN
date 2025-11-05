@@ -164,9 +164,9 @@ class Disco747_Excel_Scan_Handler {
                         $counters['saved_ok']++;
                     }
                     
-                    // ✅ Rate limiting ridotto per velocizzare (100ms invece di 200ms)
+                    // ✅ Rate limiting ridotto per velocizzare (50ms)
                     if ($i < count($excel_files) - 1) {
-                        usleep(100000); // 100ms
+                        usleep(50000); // 50ms (per completare prima del timeout server)
                     }
                     
                 } catch (\Throwable $e) {
@@ -211,14 +211,26 @@ class Disco747_Excel_Scan_Handler {
                 $messages[] = "✅ {$result['filename']} - {$result['data']['nome_cliente']}";
             }
             
-            wp_send_json_success(array(
+            // ✅ Log prima di inviare risposta
+            error_log("[747Disco-Scan] ========== PREPARAZIONE RISPOSTA FINALE ==========");
+            error_log("[747Disco-Scan] 📊 Total files: {$counters['listed']}");
+            error_log("[747Disco-Scan] ✅ Processed: {$counters['parsed_ok']}");
+            error_log("[747Disco-Scan] 💾 Saved: {$counters['saved_ok']}");
+            error_log("[747Disco-Scan] ❌ Errors: {$counters['errors']}");
+            error_log("[747Disco-Scan] 📝 Messages count: " . count($messages));
+            
+            $response_data = array(
                 'total_files' => $counters['listed'],
                 'processed' => $counters['parsed_ok'],
                 'new_records' => $counters['saved_ok'],
                 'updated_records' => 0,
                 'errors' => $counters['errors'],
                 'messages' => $messages
-            ));
+            );
+            
+            error_log("[747Disco-Scan] 🚀 Invio risposta JSON success...");
+            wp_send_json_success($response_data);
+            error_log("[747Disco-Scan] ✅ Risposta JSON inviata!");
             
         } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore scansione batch: ' . $e->getMessage());
