@@ -7,11 +7,11 @@ jQuery(document).ready(function($) {
     console.log('[Excel-Scan] disco747ExcelScanData:', typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData : 'NON DEFINITO');
 
     const ExcelScan = {
-        config: {
-            ajaxurl: typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php',
-            nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : '',
-            batchSize: 4 // ✅ Processa 4 file alla volta (batch più sicuro)
-        },
+    config: {
+        ajaxurl: typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php',
+        nonce: typeof disco747ExcelScanData !== 'undefined' ? disco747ExcelScanData.nonce : '',
+        batchSize: 2 // ✅ Processa 2 file alla volta (batch ultra-rapido ~20s)
+    },
         
         // ✅ Flag per prevenire scansioni multiple simultanee
         isScanning: false,
