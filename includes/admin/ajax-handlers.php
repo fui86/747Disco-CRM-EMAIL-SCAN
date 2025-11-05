@@ -33,7 +33,11 @@ class Disco747_AJAX_Handlers {
         // ✅ NUOVO: Diagnostica date Excel
         add_action('wp_ajax_disco747_diagnostic_excel_dates', array(__CLASS__, 'handle_diagnostic_excel_dates'));
         
-        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, analyze_excel_file, diagnostic_excel_dates');
+        // ✅ NUOVO: Debug struttura Excel
+        add_action('wp_ajax_disco747_get_excel_files_list', array(__CLASS__, 'handle_get_excel_files_list'));
+        add_action('wp_ajax_disco747_analyze_excel_structure', array(__CLASS__, 'handle_analyze_excel_structure'));
+        
+        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, analyze_excel_file, diagnostic_excel_dates, debug_structure');
     }
 
     /**
@@ -735,6 +739,211 @@ class Disco747_AJAX_Handlers {
         }
         
         return $result;
+    }
+    
+    /**
+     * ✅ NUOVO: Ottieni lista file Excel per debug
+     */
+    public static function handle_get_excel_files_list() {
+        // Verifica nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'disco747_debug')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'));
+            return;
+        }
+        
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+        
+        try {
+            $plugin = disco747_crm();
+            $storage_manager = $plugin->get_storage_manager();
+            $googledrive = $storage_manager->get_active_handler();
+            
+            if (!$googledrive) {
+                wp_send_json_error(array('message' => 'Google Drive non disponibile'));
+                return;
+            }
+            
+            // Trova cartella principale
+            $main_folder_id = self::find_main_folder_diagnostic($googledrive);
+            if (!$main_folder_id) {
+                wp_send_json_error(array('message' => 'Cartella 747-Preventivi non trovata'));
+                return;
+            }
+            
+            // Scansiona file Excel
+            $files = self::scan_files_with_metadata($googledrive, $main_folder_id, '2025');
+            
+            wp_send_json_success(array(
+                'files' => $files,
+                'total' => count($files)
+            ));
+            
+        } catch (\Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
+        }
+    }
+    
+    /**
+     * ✅ NUOVO: Analizza struttura Excel completa
+     */
+    public static function handle_analyze_excel_structure() {
+        error_log('[Debug-Structure] ========== ANALISI STRUTTURA EXCEL ==========');
+        
+        // Verifica nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'disco747_debug')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'));
+            return;
+        }
+        
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+        
+        $file_id = isset($_POST['file_id']) ? sanitize_text_field($_POST['file_id']) : '';
+        
+        if (empty($file_id)) {
+            wp_send_json_error(array('message' => 'File ID mancante'));
+            return;
+        }
+        
+        try {
+            $plugin = disco747_crm();
+            $storage_manager = $plugin->get_storage_manager();
+            $googledrive = $storage_manager->get_active_handler();
+            
+            if (!$googledrive) {
+                wp_send_json_error(array('message' => 'Google Drive non disponibile'));
+                return;
+            }
+            
+            // Download file temporaneo
+            $upload_dir = wp_upload_dir();
+            $temp_dir = $upload_dir['basedir'] . '/preventivi/temp/';
+            
+            if (!is_dir($temp_dir)) {
+                wp_mkdir_p($temp_dir);
+            }
+            
+            $temp_file = $temp_dir . 'debug_structure_' . $file_id . '.xlsx';
+            
+            error_log('[Debug-Structure] Download file: ' . $file_id);
+            
+            $download_result = $googledrive->download_file($file_id, $temp_file);
+            
+            if (!$download_result['success'] || !file_exists($temp_file)) {
+                wp_send_json_error(array('message' => 'Download fallito'));
+                return;
+            }
+            
+            error_log('[Debug-Structure] File scaricato: ' . $temp_file);
+            
+            // Analizza con PhpSpreadsheet
+            if (!class_exists('PhpOffice\\PhpSpreadsheet\\IOFactory')) {
+                $composer_autoload = DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php';
+                if (file_exists($composer_autoload)) {
+                    require_once $composer_autoload;
+                }
+            }
+            
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($temp_file);
+            
+            // Info fogli
+            $sheets = array();
+            foreach ($spreadsheet->getAllSheets() as $sheet) {
+                $sheets[] = $sheet->getTitle();
+            }
+            
+            $active_sheet = $spreadsheet->getActiveSheet();
+            $active_sheet_name = $active_sheet->getTitle();
+            
+            error_log('[Debug-Structure] Foglio attivo: ' . $active_sheet_name);
+            
+            // Estrai tutte le celle (prime 30 righe, colonne A-J)
+            $cells = array();
+            $cols = range('A', 'J');
+            
+            for ($row = 1; $row <= 30; $row++) {
+                foreach ($cols as $col) {
+                    $cellRef = $col . $row;
+                    
+                    try {
+                        $cell = $active_sheet->getCell($cellRef);
+                        $value = $cell->getValue();
+                        
+                        if ($value !== null && $value !== '') {
+                            $cells[$cellRef] = array(
+                                'raw' => $value,
+                                'display' => (string) $cell->getFormattedValue(),
+                                'type' => self::detect_cell_type($cell),
+                                'formula' => $cell->isFormula() ? $cell->getValue() : null
+                            );
+                            
+                            // Se è data, parsala
+                            if ($cells[$cellRef]['type'] === 'date' && is_numeric($value)) {
+                                $unix_date = ($value - 25569) * 86400;
+                                $cells[$cellRef]['parsed_date'] = date('Y-m-d', $unix_date);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Ignora errori su celle singole
+                    }
+                }
+            }
+            
+            // Pulizia
+            if (file_exists($temp_file)) {
+                unlink($temp_file);
+            }
+            
+            error_log('[Debug-Structure] Celle estratte: ' . count($cells));
+            
+            wp_send_json_success(array(
+                'sheets' => $sheets,
+                'active_sheet' => $active_sheet_name,
+                'cells' => $cells,
+                'total_cells' => count($cells)
+            ));
+            
+        } catch (\Exception $e) {
+            error_log('[Debug-Structure] ERRORE: ' . $e->getMessage());
+            wp_send_json_error(array('message' => 'Errore analisi: ' . $e->getMessage()));
+        }
+    }
+    
+    /**
+     * Rileva tipo di cella
+     */
+    private static function detect_cell_type($cell) {
+        if ($cell->isFormula()) {
+            return 'formula';
+        }
+        
+        $dataType = $cell->getDataType();
+        
+        if ($dataType === \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC) {
+            // Verifica se è data
+            $value = $cell->getValue();
+            if (is_numeric($value) && $value > 25569 && $value < 50000) {
+                return 'date';
+            }
+            return 'number';
+        }
+        
+        if ($dataType === \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING) {
+            return 'string';
+        }
+        
+        if ($dataType === \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_BOOL) {
+            return 'boolean';
+        }
+        
+        return 'unknown';
     }
 }
 
