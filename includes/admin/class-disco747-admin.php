@@ -173,11 +173,14 @@ class Disco747_Admin {
             if (strpos($hook_suffix, 'disco747-scan-excel') !== false) {
                 $this->log('EXCEL SCAN RILEVATO!');
                 
+                // ✅ FORZA REFRESH CACHE: Usa timestamp invece di versione
+                $js_version = $this->asset_version . '.' . time();
+                
                 wp_enqueue_script(
                     'disco747-excel-scan-js',
                     DISCO747_CRM_PLUGIN_URL . 'assets/js/excel-scan.js',
                     array('jquery'),
-                    $this->asset_version,
+                    $js_version, // Timestamp dinamico per forzare refresh
                     true
                 );
                 

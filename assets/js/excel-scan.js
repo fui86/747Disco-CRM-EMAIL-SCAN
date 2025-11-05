@@ -299,6 +299,34 @@ jQuery(document).ready(function($) {
                 console.log('[Excel-Scan] Risposta positiva, elaborazione dati...');
                 const d = response.data;
                 
+                // ✅ RETROCOMPATIBILITÀ: Controlla se ci sono altri file da processare
+                if (d.has_more && d.next_offset !== undefined) {
+                    console.log('[Excel-Scan] ⚠️ SAFETY LIMIT attivo - Altri file da processare!');
+                    console.log('[Excel-Scan] ⏱️ Attendi 2 secondi e ricarica la pagina per continuare...');
+                    
+                    alert('⚠️ ATTENZIONE!\n\n' +
+                          'Il server ha un limite di timeout.\n\n' +
+                          '✅ Processati: ' + d.processed + '/' + d.total_files + ' file\n' +
+                          '🔄 Rimanenti: ' + (d.total_files - d.next_offset) + ' file\n\n' +
+                          'COSA FARE:\n' +
+                          '1. Clicca OK\n' +
+                          '2. Ricarica la pagina (F5)\n' +
+                          '3. Clicca di nuovo "Analizza Ora"\n\n' +
+                          'Il sistema continuerà automaticamente!');
+                    
+                    $('#progress-status').text('⚠️ Completato parziale - Ricaricare pagina');
+                    $('#debug-log').text('⚠️ SAFETY LIMIT RAGGIUNTO\n' +
+                                        '='.repeat(50) + '\n\n' +
+                                        '📊 Batch ' + d.current_offset + '-' + d.next_offset + ' completato\n' +
+                                        '   Processati:      ' + d.processed + '/' + d.total_files + '\n' +
+                                        '   Salvati:         ' + (d.new_records || 0) + '\n' +
+                                        '   Errori:          ' + (d.errors || 0) + '\n\n' +
+                                        '🔄 RICARICA LA PAGINA (F5) e clicca "Analizza Ora" per continuare!\n\n' +
+                                        '='.repeat(50));
+                    return; // Non mostrare risultati finali
+                }
+                
+                // ✅ Scansione completata al 100%
                 $('#progress-bar-fill').css('width', '100%');
                 $('#progress-percent').text('100%');
                 $('#progress-status').text('✅ Completato!');
