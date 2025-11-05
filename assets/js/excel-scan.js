@@ -65,22 +65,29 @@ jQuery(document).ready(function($) {
         
         handleScan: function(e) {
             e.preventDefault();
+            e.stopImmediatePropagation(); // ✅ Blocca altri handler sullo stesso elemento
+            
             console.log('[Excel-Scan] === AVVIO SCANSIONE PROGRESSIVA ===');
             
-            // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE
+            // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE (CHECK IMMEDIATO)
             if (this.isScanning) {
                 console.warn('[Excel-Scan] ⚠️ Scansione già in corso, richiesta ignorata');
                 alert('⚠️ Scansione già in corso! Attendere il completamento.');
                 return;
             }
             
+            // ✅ IMPOSTA FLAG IMMEDIATAMENTE (prima di tutto)
             this.isScanning = true;
             console.log('[Excel-Scan] 🔒 Flag isScanning impostato a TRUE');
             
-            const year = $('#scan-year').val();
-            const month = $('#scan-month').val();
+            // ✅ DISABILITA PULSANTI IMMEDIATAMENTE
             const btn = $('#start-scan-btn');
             const resetBtn = $('#reset-scan-btn');
+            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
+            resetBtn.prop('disabled', true);
+            
+            const year = $('#scan-year').val();
+            const month = $('#scan-month').val();
 
             console.log('[Excel-Scan] Parametri:', {year: year, month: month, batchSize: this.config.batchSize});
 
@@ -97,10 +104,7 @@ jQuery(document).ready(function($) {
             $('#progress-status').text('🔍 Ricerca file su Google Drive...');
             $('#results-section').hide();
             $('#new-files-box').hide();
-            $('#debug-log').text('🚀 Avvio scansione progressiva (8 file/batch)...\n');
-
-            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Scansione...');
-            resetBtn.prop('disabled', true);
+            $('#debug-log').text('🚀 Avvio scansione progressiva (4 file/batch)...\n');
 
             // ✅ Avvia batch progressivo da offset 0
             this.processBatch(year, month, 0, true, btn, resetBtn);
@@ -226,9 +230,11 @@ jQuery(document).ready(function($) {
         
         handleResetScan: function(e) {
             e.preventDefault();
+            e.stopImmediatePropagation(); // ✅ Blocca altri handler
+            
             console.log('[Excel-Scan] === AVVIO RESET & SCAN ===');
             
-            // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE
+            // ✅ PREVIENI SCANSIONI MULTIPLE SIMULTANEE (CHECK IMMEDIATO)
             if (this.isScanning) {
                 console.warn('[Excel-Scan] ⚠️ Scansione già in corso, richiesta ignorata');
                 alert('⚠️ Scansione già in corso! Attendere il completamento.');
@@ -240,13 +246,18 @@ jQuery(document).ready(function($) {
                 return;
             }
             
+            // ✅ IMPOSTA FLAG IMMEDIATAMENTE dopo il confirm
             this.isScanning = true;
             console.log('[Excel-Scan] 🔒 Flag isScanning impostato a TRUE (reset)');
             
-            const year = $('#scan-year').val();
-            const month = $('#scan-month').val();
+            // ✅ DISABILITA PULSANTI IMMEDIATAMENTE
             const btn = $('#reset-scan-btn');
             const scanBtn = $('#start-scan-btn');
+            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Elaborazione...');
+            scanBtn.prop('disabled', true);
+            
+            const year = $('#scan-year').val();
+            const month = $('#scan-month').val();
 
             console.log('[Excel-Scan] Parametri reset:', {year: year, month: month});
 
@@ -257,9 +268,6 @@ jQuery(document).ready(function($) {
             $('#results-section').hide();
             $('#new-files-box').hide();
             $('#debug-log').text('🗑️ Svuotamento database in corso...\n');
-
-            btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Elaborazione...');
-            scanBtn.prop('disabled', true);
 
             const ajaxData = {
                 action: 'reset_and_scan_excel',
