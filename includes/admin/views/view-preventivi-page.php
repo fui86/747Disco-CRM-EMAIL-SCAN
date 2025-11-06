@@ -298,8 +298,30 @@ $stats = array(
 
     <!-- Tabella Preventivi -->
     <div class="disco747-card">
-        <div class="disco747-card-header">
-            📋 Preventivi (<?php echo number_format($total_preventivi); ?> risultati)
+        <div class="disco747-card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>📋 Preventivi (<?php echo number_format($total_preventivi); ?> risultati)</div>
+            <?php if ($filters['order_by'] !== 'created_at' || $filters['order'] !== 'DESC'): ?>
+            <div style="font-size: 13px; color: #666; font-weight: normal;">
+                🔄 Ordinamento: 
+                <strong style="color: #2271b1;">
+                    <?php 
+                    $labels = array(
+                        'data_evento' => 'Data Evento',
+                        'nome_cliente' => 'Cliente',
+                        'tipo_evento' => 'Tipo Evento',
+                        'tipo_menu' => 'Menu',
+                        'numero_invitati' => 'Invitati',
+                        'importo_totale' => 'Importo',
+                        'acconto' => 'Acconto',
+                        'stato' => 'Stato',
+                        'created_at' => 'Data Creazione'
+                    );
+                    echo $labels[$filters['order_by']] ?? $filters['order_by'];
+                    ?>
+                </strong>
+                <?php echo $filters['order'] === 'ASC' ? '↑ Crescente' : '↓ Decrescente'; ?>
+            </div>
+            <?php endif; ?>
         </div>
         <div class="disco747-card-content" style="padding: 0;">
             
@@ -318,16 +340,30 @@ $stats = array(
                             <tr>
                                 <?php
                                 // Helper per generare link ordinamento
-                                $sort_link = function($column, $label, $width = '') {
+                                $sort_link = function($column, $label, $width = '', $align = '') {
                                     global $filters;
                                     
-                                    // Determina ordine nuovo
-                                    if ($filters['order_by'] === $column) {
-                                        $new_order = $filters['order'] === 'ASC' ? 'DESC' : 'ASC';
-                                        $icon = $filters['order'] === 'ASC' ? '▲' : '▼';
+                                    $is_active = $filters['order_by'] === $column;
+                                    
+                                    // Determina ordine nuovo e icone
+                                    if ($is_active) {
+                                        // Colonna già attiva: alterna ASC/DESC
+                                        $current_order = $filters['order'];
+                                        $new_order = $current_order === 'ASC' ? 'DESC' : 'ASC';
+                                        
+                                        // Frecce grandi e colorate
+                                        if ($current_order === 'ASC') {
+                                            $icon = '<span style="color: #2271b1; font-size: 16px; font-weight: bold;">↑</span>';
+                                            $tooltip = 'Click per ordinare decrescente (Z→A, 9→1, recente→vecchio)';
+                                        } else {
+                                            $icon = '<span style="color: #2271b1; font-size: 16px; font-weight: bold;">↓</span>';
+                                            $tooltip = 'Click per ordinare crescente (A→Z, 1→9, vecchio→recente)';
+                                        }
                                     } else {
-                                        $new_order = 'ASC';
-                                        $icon = '';
+                                        // Colonna non attiva: mostra frecce grigie
+                                        $new_order = 'ASC'; // Primo click sempre crescente
+                                        $icon = '<span style="color: #ccc; font-size: 14px;">⇅</span>';
+                                        $tooltip = 'Click per ordinare per ' . $label;
                                     }
                                     
                                     // Mantieni parametri filtri esistenti
@@ -338,29 +374,41 @@ $stats = array(
                                     
                                     $url = add_query_arg($url_params, admin_url('admin.php'));
                                     
-                                    $style = 'width: ' . $width . '; cursor: pointer; user-select: none;';
-                                    $is_active = $filters['order_by'] === $column;
+                                    // Style colonna
+                                    $th_style = array();
+                                    if ($width) $th_style[] = 'width: ' . $width;
+                                    if ($align) $th_style[] = 'text-align: ' . $align;
+                                    $th_style[] = 'cursor: pointer';
+                                    $th_style[] = 'user-select: none';
+                                    $th_style = implode('; ', $th_style);
+                                    
+                                    // Style link
+                                    $link_style = 'text-decoration: none; color: inherit; display: flex; align-items: center; gap: 6px; padding: 8px 10px; margin: -8px -10px; border-radius: 4px; transition: all 0.2s;';
+                                    if ($is_active) {
+                                        $link_style .= ' font-weight: 700; color: #2271b1; background: rgba(33, 113, 177, 0.08);';
+                                    }
                                     
                                     return sprintf(
-                                        '<th style="%s"><a href="%s" style="text-decoration: none; color: inherit; display: block; %s">%s %s</a></th>',
-                                        $style,
+                                        '<th style="%s"><a href="%s" style="%s" title="%s"><span>%s</span> %s</a></th>',
+                                        $th_style,
                                         esc_url($url),
-                                        $is_active ? 'font-weight: 700; color: #2271b1;' : '',
+                                        $link_style,
+                                        esc_attr($tooltip),
                                         esc_html($label),
                                         $icon
                                     );
                                 };
                                 ?>
                                 
-                                <?php echo $sort_link('data_evento', 'Data Evento', '100px'); ?>
+                                <?php echo $sort_link('data_evento', 'Data Evento', '120px'); ?>
                                 <?php echo $sort_link('nome_cliente', 'Cliente', ''); ?>
                                 <th style="width: 60px; text-align: center;">WhatsApp</th>
                                 <?php echo $sort_link('tipo_evento', 'Tipo Evento', ''); ?>
                                 <?php echo $sort_link('tipo_menu', 'Menu', '100px'); ?>
-                                <?php echo $sort_link('numero_invitati', 'Invitati', '70px'); ?>
-                                <?php echo $sort_link('importo_totale', 'Importo', '100px'); ?>
-                                <?php echo $sort_link('acconto', 'Acconto', '90px'); ?>
-                                <?php echo $sort_link('stato', 'Stato', '80px'); ?>
+                                <?php echo $sort_link('numero_invitati', 'Invitati', '80px', 'center'); ?>
+                                <?php echo $sort_link('importo_totale', 'Importo', '120px', 'right'); ?>
+                                <?php echo $sort_link('acconto', 'Acconto', '110px', 'right'); ?>
+                                <?php echo $sort_link('stato', 'Stato', '100px', 'center'); ?>
                                 <th style="width: 180px;">Azioni</th>
                             </tr>
                         </thead>
@@ -693,18 +741,30 @@ $stats = array(
 /* ============================================================================ */
 .wp-list-table thead th a {
     transition: all 0.2s ease;
-    padding: 8px 10px;
-    margin: -8px -10px;
-    border-radius: 4px;
 }
 
 .wp-list-table thead th a:hover {
-    background: rgba(33, 113, 177, 0.1);
+    background: rgba(33, 113, 177, 0.15) !important;
+    color: #2271b1 !important;
+}
+
+.wp-list-table thead th a:hover span {
     color: #2271b1 !important;
 }
 
 .wp-list-table thead th a:active {
     transform: scale(0.98);
+}
+
+/* Frecce ordinamento sempre visibili */
+.wp-list-table thead th a span[style*="color: #ccc"] {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.wp-list-table thead th a:hover span[style*="color: #ccc"] {
+    opacity: 1;
+    color: #2271b1 !important;
 }
 
 /* ============================================================================ */
