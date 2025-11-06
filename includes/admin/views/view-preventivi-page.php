@@ -304,6 +304,20 @@ $stats = array(
         </div>
     </div>
 
+    <!-- ⚠️ DEBUG BOX SEMPRE VISIBILE -->
+    <div style="background: #fff3cd; border: 3px solid #ff9800; border-radius: 8px; padding: 15px; margin: 20px 0; font-family: monospace; font-size: 13px;">
+        <strong style="color: #ff6b00; font-size: 16px;">🔍 DEBUG ORDINAMENTO (Rimuovere dopo test)</strong><br><br>
+        <strong>URL $_GET['order_by']:</strong> <?php echo esc_html($_GET['order_by'] ?? 'NON IMPOSTATO'); ?><br>
+        <strong>URL $_GET['order']:</strong> <?php echo esc_html($_GET['order'] ?? 'NON IMPOSTATO'); ?><br><br>
+        <strong>$filters['order_by']:</strong> <?php echo esc_html($filters['order_by']); ?><br>
+        <strong>$filters['order']:</strong> <span style="background: yellow; padding: 2px 8px; font-size: 16px; font-weight: bold;"><?php echo esc_html($filters['order']); ?></span><br><br>
+        <strong>$order_direction (usato in SQL):</strong> <span style="background: lime; padding: 2px 8px; font-size: 16px; font-weight: bold;"><?php echo esc_html($order_direction); ?></span><br><br>
+        <strong>URL Completo:</strong><br>
+        <div style="background: white; padding: 10px; overflow-x: auto; word-break: break-all;">
+            <?php echo esc_html($_SERVER['REQUEST_URI']); ?>
+        </div>
+    </div>
+    
     <!-- Tabella Preventivi -->
     <div class="disco747-card">
         <div class="disco747-card-header" style="display: flex; justify-content: space-between; align-items: center;">
