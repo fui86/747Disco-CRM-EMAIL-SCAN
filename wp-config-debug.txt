@@ -1,0 +1,25 @@
+// ========================================
+// ✅ SOSTITUISCI QUESTA SEZIONE IN wp-config.php
+// ========================================
+// TROVA QUESTE RIGHE (circa riga 90):
+
+if ( ! defined( 'WP_DEBUG' ) ) {
+	define( 'WP_DEBUG', false );
+}
+
+// ========================================
+// ✅ SOSTITUISCILE CON QUESTO:
+// ========================================
+
+// ✅ DEBUG ABILITATO - 747 Disco CRM
+define( 'WP_DEBUG', true );
+define( 'WP_DEBUG_LOG', true );
+define( 'WP_DEBUG_DISPLAY', false );
+define( 'SCRIPT_DEBUG', true );
+@ini_set( 'display_errors', 0 );
+@ini_set( 'log_errors', 1 );
+@ini_set( 'error_log', WP_CONTENT_DIR . '/debug.log' );
+
+// ========================================
+// FINE MODIFICA
+// ========================================

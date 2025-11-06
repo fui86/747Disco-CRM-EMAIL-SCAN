@@ -45,6 +45,11 @@ define('DISCO747_CRM_DB_PREFIX', 'disco747_');
 define('DISCO747_CRM_DEBUG', true);
 
 // ========================================================================
+// CARICA LOGGER CENTRALIZZATO
+// ========================================================================
+require_once DISCO747_CRM_PLUGIN_DIR . 'includes/class-disco747-logger.php';
+
+// ========================================================================
 // CLASSE PRINCIPALE DEL PLUGIN - VERSIONE COMPLETA E CORRETTA
 // ========================================================================
 
@@ -70,6 +75,8 @@ final class Disco747_CRM_Plugin {
     private $admin = null;
     private $frontend = null;
     private $storage_manager = null;
+    private $googledrive_handler = null;
+    private $dropbox_handler = null;
     private $email_manager = null;
     private $pdf_generator = null;
     private $excel_generator = null;
@@ -86,6 +93,10 @@ final class Disco747_CRM_Plugin {
      * Costruttore privato per singleton
      */
     private function __construct() {
+        // Inizializza logger
+        Disco747_Logger::init();
+        Disco747_Logger::log_startup();
+        
         // Registra hook di attivazione/disattivazione
         register_activation_hook(__FILE__, array($this, 'activate_plugin'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate_plugin'));
@@ -95,6 +106,9 @@ final class Disco747_CRM_Plugin {
         
         // Hook per cleanup
         add_action('wp_scheduled_delete', array($this, 'cleanup_old_files'));
+        
+        // Hook per cleanup log
+        add_action('wp_scheduled_delete', array('Disco747_Logger', 'cleanup'));
     }
 
     /**
@@ -243,6 +257,18 @@ final class Disco747_CRM_Plugin {
             } else {
                 $this->storage_manager = new Disco747_CRM\Storage\Disco747_Storage_Manager();
             }
+        }
+        
+        // ✅ GoogleDrive Handler (necessario per OAuth)
+        if (class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive')) {
+            $this->googledrive_handler = new Disco747_CRM\Storage\Disco747_GoogleDrive();
+            $this->public_log('✅ GoogleDrive Handler inizializzato');
+        }
+        
+        // ✅ Dropbox Handler
+        if (class_exists('Disco747_CRM\\Storage\\Disco747_Dropbox')) {
+            $this->dropbox_handler = new Disco747_CRM\Storage\Disco747_Dropbox();
+            $this->public_log('✅ Dropbox Handler inizializzato');
         }
         
         $this->public_log('ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Componenti core inizializzati');
@@ -509,6 +535,20 @@ final class Disco747_CRM_Plugin {
     }
 
     /**
+     * ✅ Ottieni GoogleDrive Handler (per OAuth)
+     */
+    public function get_googledrive_handler() {
+        return $this->googledrive_handler;
+    }
+
+    /**
+     * ✅ Ottieni Dropbox Handler (per OAuth)
+     */
+    public function get_dropbox_handler() {
+        return $this->dropbox_handler;
+    }
+
+    /**
      * Ottieni componente Forms Handler
      */
     public function get_forms_handler() {
@@ -629,9 +669,7 @@ final class Disco747_CRM_Plugin {
      * Log pubblico visibile (sempre attivo)
      */
     public function public_log($message, $level = 'INFO') {
-        $timestamp = date('Y-m-d H:i:s');
-        $log_message = "[{$timestamp}] [747Disco-CRM] [{$level}] {$message}";
-        error_log($log_message);
+        Disco747_Logger::log($message, $level, 'CORE');
     }
 }
 
