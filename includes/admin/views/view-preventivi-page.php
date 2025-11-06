@@ -76,11 +76,32 @@ if (!empty($where_values)) {
 $total_preventivi = $wpdb->get_var($count_query);
 $total_pages = ceil($total_preventivi / $per_page);
 
-// Query preventivi
-$order_clause = sprintf('ORDER BY %s %s', 
-    sanitize_key($filters['order_by']), 
-    $filters['order'] === 'ASC' ? 'ASC' : 'DESC'
+// ✅ Whitelist colonne ordinabili per sicurezza
+$allowed_order_columns = array(
+    'created_at', 'data_evento', 'nome_cliente', 'importo_totale', 
+    'acconto', 'stato', 'numero_invitati', 'tipo_evento', 'tipo_menu'
 );
+
+// Verifica che la colonna sia valida
+if (!in_array($filters['order_by'], $allowed_order_columns)) {
+    $filters['order_by'] = 'created_at'; // Default sicuro
+}
+
+$order_direction = $filters['order'] === 'ASC' ? 'ASC' : 'DESC';
+
+// ✅ Gestione speciale per data_evento: metti NULL/invalide alla fine
+if ($filters['order_by'] === 'data_evento') {
+    // Le date NULL o '0000-00-00' vanno sempre alla fine
+    $order_clause = "ORDER BY 
+        CASE 
+            WHEN data_evento IS NULL OR data_evento = '0000-00-00' THEN 1 
+            ELSE 0 
+        END ASC,
+        data_evento {$order_direction}";
+} else {
+    // Ordinamento normale per altre colonne
+    $order_clause = "ORDER BY {$filters['order_by']} {$order_direction}";
+}
 
 if (!empty($where_values)) {
     $query = $wpdb->prepare(
@@ -96,6 +117,16 @@ if (!empty($where_values)) {
 }
 
 $preventivi = $wpdb->get_results($query);
+
+// ✅ DEBUG: Mostra query SQL agli admin (rimuovi dopo test)
+if (current_user_can('manage_options') && isset($_GET['debug_sql'])) {
+    echo '<div style="background: #f0f0f0; padding: 15px; margin: 20px 0; border: 2px solid #333; font-family: monospace; font-size: 12px;">';
+    echo '<strong>DEBUG SQL Query:</strong><br>';
+    echo nl2br(esc_html($query));
+    echo '<br><br><strong>ORDER BY:</strong> ' . esc_html($filters['order_by']) . ' ' . esc_html($order_direction);
+    echo '<br><strong>Total Results:</strong> ' . count($preventivi);
+    echo '</div>';
+}
 
 // Statistiche
 $stats = array(
