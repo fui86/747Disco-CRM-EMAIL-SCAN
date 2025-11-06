@@ -64,7 +64,8 @@ class Disco747_Admin {
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
             add_action('wp_ajax_disco747_get_funnel_sequence', array($this, 'handle_get_funnel_sequence'));
-            add_action('wp_ajax_disco747_unlock_scan', array($this, 'handle_unlock_scan'));
+            // ❌ DISABILITATO: Usa handler in class-disco747-excel-scan-handler.php
+            // add_action('wp_ajax_disco747_unlock_scan', array($this, 'handle_unlock_scan'));
             
             $this->hooks_registered = true;
             $this->log('Hook WordPress registrati (incluso batch scan)');
