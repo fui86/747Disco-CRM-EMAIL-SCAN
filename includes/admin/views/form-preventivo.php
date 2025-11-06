@@ -413,6 +413,28 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                            placeholder="0.00">
                 </div>
                 
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2b1e1a;">
+                        📊 Stato Preventivo
+                    </label>
+                    <select name="stato" id="stato"
+                            style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
+                        <option value="attivo" <?php echo get_field_value('stato', 'attivo', $edit_data) == 'attivo' ? 'selected' : ''; ?>>
+                            ✅ Attivo
+                        </option>
+                        <option value="confermato" <?php echo get_field_value('stato', '', $edit_data) == 'confermato' ? 'selected' : ''; ?>>
+                            💰 Confermato (con acconto)
+                        </option>
+                        <option value="annullato" <?php echo get_field_value('stato', '', $edit_data) == 'annullato' ? 'selected' : ''; ?>>
+                            ❌ Annullato
+                        </option>
+                    </select>
+                    <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                        ℹ️ <strong>Annullato</strong> aggiunge "NO" al nome file Excel<br>
+                        💡 <strong>Confermato</strong> o acconto > 0 aggiunge "CONF"
+                    </p>
+                </div>
+                
             </div>
             
             <!-- Display Calcoli Automatici -->

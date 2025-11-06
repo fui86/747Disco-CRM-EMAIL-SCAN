@@ -149,10 +149,22 @@ class Disco747_Forms {
                 
                 // Upload Excel
                 if ($excel_path && file_exists($excel_path)) {
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
+                    $upload_result = $this->storage->upload_file($excel_path, $drive_folder);
+                    
+                    // ✅ Gestisci risposta (può essere array o stringa per compatibilità)
+                    if ($upload_result) {
+                        $excel_url = is_array($upload_result) ? $upload_result['url'] : $upload_result;
+                        $file_id = is_array($upload_result) ? ($upload_result['file_id'] ?? '') : '';
+                        
                         $cloud_url = $excel_url;
                         $data['googledrive_url'] = $excel_url;
+                        
+                        // ✅ Salva anche il file_id per poterlo eliminare in futuro
+                        if (!empty($file_id)) {
+                            $data['googledrive_file_id'] = $file_id;
+                            $this->log('[Forms] 📎 File ID salvato: ' . $file_id);
+                        }
+                        
                         $this->log('[Forms] âœ… Excel caricato su Drive: ' . basename($excel_path));
                     }
                 }
@@ -316,11 +328,22 @@ class Disco747_Forms {
         if ($excel_path && file_exists($excel_path)) {
             $this->log('[Forms] âœ… Excel rigenerato: ' . basename($excel_path));
             
-            // Upload su Google Drive (sovrascrive il vecchio)
+            // Upload su Google Drive (elimina vecchio, carica nuovo)
             if ($this->storage) {
                 $this->log('[Forms] â˜ï¸ Upload Excel aggiornato su Google Drive...');
                 
                 try {
+                    // ✅ ELIMINA vecchio file da Google Drive (evita duplicati con nome diverso)
+                    if (!empty($preventivo['googledrive_file_id'])) {
+                        $this->log('[Forms] 🗑️ Eliminazione vecchio file da Drive (ID: ' . $preventivo['googledrive_file_id'] . ')...');
+                        try {
+                            $this->storage->get_handler()->delete_file($preventivo['googledrive_file_id']);
+                            $this->log('[Forms] ✅ Vecchio file eliminato da Google Drive');
+                        } catch (\Exception $e) {
+                            $this->log('[Forms] ⚠️ Impossibile eliminare vecchio file: ' . $e->getMessage(), 'WARNING');
+                        }
+                    }
+                    
                     // Usa data_evento per determinare il percorso corretto
                     $date_parts = explode('-', $preventivo['data_evento']);
                     $year = $date_parts[0];
@@ -340,15 +363,26 @@ class Disco747_Forms {
                     
                     $this->log('[Forms] ðŸ" Percorso Google Drive: ' . $drive_folder);
                     
-                    // Upload Excel
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
-                        // Aggiorna URL nel database
+                    // ✅ Upload nuovo Excel con nome aggiornato (include prefisso NO/CONF)
+                    $upload_result = $this->storage->upload_file($excel_path, $drive_folder);
+                    
+                    // ✅ Gestisci risposta (può essere array o stringa per compatibilità)
+                    if ($upload_result) {
+                        $excel_url = is_array($upload_result) ? $upload_result['url'] : $upload_result;
+                        $file_id = is_array($upload_result) ? ($upload_result['file_id'] ?? '') : '';
+                        
+                        // Aggiorna URL e file_id nel database
+                        $update_data = array('googledrive_url' => $excel_url);
+                        if (!empty($file_id)) {
+                            $update_data['googledrive_file_id'] = $file_id;
+                            $this->log('[Forms] 📎 File ID salvato: ' . $file_id);
+                        }
+                        
                         $wpdb->update(
                             $this->table_name,
-                            array('googledrive_url' => $excel_url),
+                            $update_data,
                             array('id' => $edit_id),
-                            array('%s'),
+                            array_fill(0, count($update_data), '%s'),
                             array('%d')
                         );
                         $this->log('[Forms] âœ… Excel aggiornato su Drive: ' . basename($excel_path));
@@ -839,7 +873,7 @@ class Disco747_Forms {
         $data['note_interne'] = sanitize_textarea_field($post_data['note_interne'] ?? '');
         
         // METADATA
-        $data['stato'] = 'attivo';
+        $data['stato'] = sanitize_text_field($post_data['stato'] ?? 'attivo'); // ✅ Legge dal form
         $data['created_by'] = get_current_user_id();
         $data['created_at'] = current_time('mysql');
         
@@ -982,6 +1016,7 @@ class Disco747_Forms {
             // Stato e URLs
             'stato' => $data['stato'] ?? 'attivo',
             'googledrive_url' => $data['googledrive_url'] ?? '',
+            'googledrive_file_id' => $data['googledrive_file_id'] ?? '', // ✅ Salva file_id per eliminazioni future
             'excel_url' => $data['googledrive_url'] ?? '',
             'pdf_url' => '',
             
