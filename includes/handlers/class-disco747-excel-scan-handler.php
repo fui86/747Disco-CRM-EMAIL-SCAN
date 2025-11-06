@@ -42,6 +42,7 @@ class Disco747_Excel_Scan_Handler {
         // Registra hooks AJAX
         add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
         add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan_ajax'));
+        add_action('wp_ajax_disco747_unlock_scan', array($this, 'handle_unlock_scan_ajax')); // ✅ FIX: Unlock manuale
         
         // Inizializza Google Drive
         $this->init_googledrive();
