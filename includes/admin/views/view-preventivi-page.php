@@ -232,12 +232,26 @@ $stats = array(
 
                     <!-- Ordina per -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">🔢 Ordina per</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
+                            🔢 Ordina per <?php echo $filters['order'] === 'ASC' ? '▲' : '▼'; ?>
+                        </label>
                         <select name="order_by" style="width: 100%; padding: 8px;">
                             <option value="created_at" <?php selected($filters['order_by'], 'created_at'); ?>>Data Creazione</option>
                             <option value="data_evento" <?php selected($filters['order_by'], 'data_evento'); ?>>Data Evento</option>
                             <option value="nome_cliente" <?php selected($filters['order_by'], 'nome_cliente'); ?>>Cliente</option>
                             <option value="importo_totale" <?php selected($filters['order_by'], 'importo_totale'); ?>>Importo</option>
+                            <option value="acconto" <?php selected($filters['order_by'], 'acconto'); ?>>Acconto</option>
+                            <option value="stato" <?php selected($filters['order_by'], 'stato'); ?>>Stato</option>
+                            <option value="numero_invitati" <?php selected($filters['order_by'], 'numero_invitati'); ?>>Invitati</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Direzione ordinamento -->
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">↕️ Direzione</label>
+                        <select name="order" style="width: 100%; padding: 8px;">
+                            <option value="DESC" <?php selected($filters['order'], 'DESC'); ?>>Decrescente (9→1)</option>
+                            <option value="ASC" <?php selected($filters['order'], 'ASC'); ?>>Crescente (1→9)</option>
                         </select>
                     </div>
                 </div>
@@ -271,15 +285,51 @@ $stats = array(
                     <table class="wp-list-table widefat fixed striped" style="margin: 0;">
                         <thead>
                             <tr>
-                                <th style="width: 100px;">Data Evento</th>
-                                <th>Cliente</th>
+                                <?php
+                                // Helper per generare link ordinamento
+                                $sort_link = function($column, $label, $width = '') {
+                                    global $filters;
+                                    
+                                    // Determina ordine nuovo
+                                    if ($filters['order_by'] === $column) {
+                                        $new_order = $filters['order'] === 'ASC' ? 'DESC' : 'ASC';
+                                        $icon = $filters['order'] === 'ASC' ? '▲' : '▼';
+                                    } else {
+                                        $new_order = 'ASC';
+                                        $icon = '';
+                                    }
+                                    
+                                    // Mantieni parametri filtri esistenti
+                                    $url_params = array_merge($_GET, array(
+                                        'order_by' => $column,
+                                        'order' => $new_order
+                                    ));
+                                    
+                                    $url = add_query_arg($url_params, admin_url('admin.php'));
+                                    
+                                    $style = 'width: ' . $width . '; cursor: pointer; user-select: none;';
+                                    $is_active = $filters['order_by'] === $column;
+                                    
+                                    return sprintf(
+                                        '<th style="%s"><a href="%s" style="text-decoration: none; color: inherit; display: block; %s">%s %s</a></th>',
+                                        $style,
+                                        esc_url($url),
+                                        $is_active ? 'font-weight: 700; color: #2271b1;' : '',
+                                        esc_html($label),
+                                        $icon
+                                    );
+                                };
+                                ?>
+                                
+                                <?php echo $sort_link('data_evento', 'Data Evento', '100px'); ?>
+                                <?php echo $sort_link('nome_cliente', 'Cliente', ''); ?>
                                 <th style="width: 60px; text-align: center;">WhatsApp</th>
-                                <th>Tipo Evento</th>
-                                <th style="width: 100px;">Menu</th>
-                                <th style="width: 70px;">Invitati</th>
-                                <th style="width: 100px;">Importo</th>
-                                <th style="width: 90px;">Acconto</th>
-                                <th style="width: 80px;">Stato</th>
+                                <?php echo $sort_link('tipo_evento', 'Tipo Evento', ''); ?>
+                                <?php echo $sort_link('tipo_menu', 'Menu', '100px'); ?>
+                                <?php echo $sort_link('numero_invitati', 'Invitati', '70px'); ?>
+                                <?php echo $sort_link('importo_totale', 'Importo', '100px'); ?>
+                                <?php echo $sort_link('acconto', 'Acconto', '90px'); ?>
+                                <?php echo $sort_link('stato', 'Stato', '80px'); ?>
                                 <th style="width: 180px;">Azioni</th>
                             </tr>
                         </thead>
@@ -605,6 +655,25 @@ $stats = array(
 }
 .btn-delete-preventivo:hover {
     background: #a00;
+}
+
+/* ============================================================================ */
+/* ORDINAMENTO COLONNE */
+/* ============================================================================ */
+.wp-list-table thead th a {
+    transition: all 0.2s ease;
+    padding: 8px 10px;
+    margin: -8px -10px;
+    border-radius: 4px;
+}
+
+.wp-list-table thead th a:hover {
+    background: rgba(33, 113, 177, 0.1);
+    color: #2271b1 !important;
+}
+
+.wp-list-table thead th a:active {
+    transform: scale(0.98);
 }
 
 /* ============================================================================ */
