@@ -185,6 +185,12 @@ class Disco747_Forms {
         $this->log('[Forms] âœ… Preventivo salvato con ID database: ' . $db_id);
         $this->log('[Forms] ========== âœ…âœ…âœ… PREVENTIVO COMPLETATO ==========');
         
+        // ✅ REGISTRA CREAZIONE NEL LOG AUDIT
+        if ($this->database) {
+            $this->database->log_preventivo_change($db_id, 'create');
+            $this->log('[Forms] 📝 Creazione registrata nel log audit');
+        }
+        
         wp_send_json_success(array(
             'message' => 'Preventivo creato con successo!',
             'preventivo_id' => $data['preventivo_id'],
@@ -229,6 +235,12 @@ class Disco747_Forms {
         
         global $wpdb;
         
+        // ✅ Carica dati precedenti per confronto
+        $old_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE id = %d",
+            $edit_id
+        ), ARRAY_A);
+        
         // Calcola extra totale
         $extra_totale = floatval($data['extra1_importo']) + floatval($data['extra2_importo']) + floatval($data['extra3_importo']);
         
@@ -267,13 +279,14 @@ class Disco747_Forms {
                 'note_aggiuntive' => $data['note_aggiuntive'],
                 'note_interne' => $data['note_interne'],
                 'stato' => $data['stato'],
-                'updated_at' => current_time('mysql')
+                'updated_at' => current_time('mysql'),
+                'updated_by' => get_current_user_id() // ✅ Traccia chi ha modificato
             ),
             array('id' => $edit_id),
             array(
                 '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d',
                 '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f',
-                '%s', '%f', '%f', '%f', '%f', '%f', '%s', '%s', '%s', '%s'
+                '%s', '%f', '%f', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%d'
             ),
             array('%d')
         );
@@ -285,6 +298,15 @@ class Disco747_Forms {
         }
         
         $this->log('[Forms] âœ… Preventivo aggiornato con successo');
+        
+        // ✅ REGISTRA MODIFICHE NEL LOG AUDIT
+        if ($old_data && $this->database) {
+            $changes = $this->detect_changes($old_data, $data);
+            if (!empty($changes)) {
+                $this->database->log_preventivo_change($edit_id, 'update', $changes);
+                $this->log('[Forms] 📝 ' . count($changes) . ' modifiche registrate nel log audit');
+            }
+        }
         
         // Rileggi preventivo aggiornato dal database per avere tutti i dati
         $preventivo = $wpdb->get_row($wpdb->prepare(
@@ -1085,6 +1107,52 @@ class Disco747_Forms {
                 }
             }
         }
+    }
+    
+    /**
+     * ========================================================================
+     * HELPER: Rileva modifiche tra vecchi e nuovi dati
+     * ========================================================================
+     */
+    private function detect_changes($old_data, $new_data) {
+        $changes = array();
+        
+        // Campi da monitorare
+        $monitored_fields = array(
+            'nome_referente' => 'Nome',
+            'cognome_referente' => 'Cognome',
+            'telefono' => 'Telefono',
+            'email' => 'Email',
+            'data_evento' => 'Data Evento',
+            'tipo_evento' => 'Tipo Evento',
+            'tipo_menu' => 'Menu',
+            'numero_invitati' => 'Numero Invitati',
+            'importo_totale' => 'Importo Totale',
+            'acconto' => 'Acconto',
+            'stato' => 'Stato',
+            'note_aggiuntive' => 'Note',
+            'orario_inizio' => 'Orario Inizio',
+            'orario_fine' => 'Orario Fine'
+        );
+        
+        foreach ($monitored_fields as $field => $label) {
+            $old_value = $old_data[$field] ?? '';
+            $new_value = $new_data[$field] ?? '';
+            
+            // Converti a stringa per confronto
+            $old_str = strval($old_value);
+            $new_str = strval($new_value);
+            
+            if ($old_str !== $new_str) {
+                $changes[$field] = array(
+                    'label' => $label,
+                    'old' => $old_str,
+                    'new' => $new_str
+                );
+            }
+        }
+        
+        return $changes;
     }
     
     /**
