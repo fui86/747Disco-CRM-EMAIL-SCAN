@@ -120,10 +120,18 @@ $preventivi = $wpdb->get_results($query);
 
 // ✅ DEBUG: Mostra query SQL agli admin (rimuovi dopo test)
 if (current_user_can('manage_options') && isset($_GET['debug_sql'])) {
-    echo '<div style="background: #f0f0f0; padding: 15px; margin: 20px 0; border: 2px solid #333; font-family: monospace; font-size: 12px;">';
-    echo '<strong>DEBUG SQL Query:</strong><br>';
-    echo nl2br(esc_html($query));
-    echo '<br><br><strong>ORDER BY:</strong> ' . esc_html($filters['order_by']) . ' ' . esc_html($order_direction);
+    echo '<div style="background: #fff3cd; padding: 20px; margin: 20px; border: 3px solid #ff9800; font-family: monospace; font-size: 13px; border-radius: 8px;">';
+    echo '<strong style="font-size: 16px; color: #ff6b00;">🔍 DEBUG ORDINAMENTO</strong><br><br>';
+    echo '<strong>$_GET Parameters:</strong><br>';
+    echo 'order_by = ' . esc_html($_GET['order_by'] ?? 'NOT SET') . '<br>';
+    echo 'order = ' . esc_html($_GET['order'] ?? 'NOT SET') . '<br><br>';
+    echo '<strong>$filters Array:</strong><br>';
+    echo 'order_by = ' . esc_html($filters['order_by']) . '<br>';
+    echo 'order = ' . esc_html($filters['order']) . '<br><br>';
+    echo '<strong>$order_direction:</strong> ' . esc_html($order_direction) . '<br><br>';
+    echo '<strong>SQL ORDER BY Clause:</strong><br>' . nl2br(esc_html($order_clause)) . '<br><br>';
+    echo '<strong>Full Query:</strong><br>';
+    echo '<div style="background: white; padding: 10px; overflow-x: auto;">' . nl2br(esc_html($query)) . '</div>';
     echo '<br><strong>Total Results:</strong> ' . count($preventivi);
     echo '</div>';
 }
@@ -366,11 +374,20 @@ $stats = array(
                                         $tooltip = 'Click per ordinare per ' . $label;
                                     }
                                     
-                                    // Mantieni parametri filtri esistenti
-                                    $url_params = array_merge($_GET, array(
+                                    // ✅ Mantieni parametri filtri esistenti, sovrascrivendo order_by e order
+                                    $url_params = array(
+                                        'page' => 'disco747-view-preventivi',
                                         'order_by' => $column,
                                         'order' => $new_order
-                                    ));
+                                    );
+                                    
+                                    // Mantieni i filtri di ricerca se esistono
+                                    if (!empty($filters['search'])) $url_params['search'] = $filters['search'];
+                                    if (!empty($filters['stato'])) $url_params['stato'] = $filters['stato'];
+                                    if (!empty($filters['menu'])) $url_params['menu'] = $filters['menu'];
+                                    if ($filters['anno'] > 0) $url_params['anno'] = $filters['anno'];
+                                    if ($filters['mese'] > 0) $url_params['mese'] = $filters['mese'];
+                                    if (isset($_GET['paged']) && $_GET['paged'] > 1) $url_params['paged'] = $_GET['paged'];
                                     
                                     $url = add_query_arg($url_params, admin_url('admin.php'));
                                     
@@ -388,9 +405,19 @@ $stats = array(
                                         $link_style .= ' font-weight: 700; color: #2271b1; background: rgba(33, 113, 177, 0.08);';
                                     }
                                     
+                                    // DEBUG: Mostra info nell'HTML (visibile con inspector)
+                                    $debug_attr = sprintf(
+                                        'data-column="%s" data-is-active="%s" data-current-order="%s" data-new-order="%s"',
+                                        $column,
+                                        $is_active ? 'true' : 'false',
+                                        $is_active ? $filters['order'] : 'N/A',
+                                        $new_order
+                                    );
+                                    
                                     return sprintf(
-                                        '<th style="%s"><a href="%s" style="%s" title="%s"><span>%s</span> %s</a></th>',
+                                        '<th style="%s" %s><a href="%s" style="%s" title="%s"><span>%s</span> %s</a></th>',
                                         $th_style,
+                                        $debug_attr,
                                         esc_url($url),
                                         $link_style,
                                         esc_attr($tooltip),
