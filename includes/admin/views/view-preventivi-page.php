@@ -23,7 +23,7 @@ $filters = array(
     'anno' => intval($_GET['anno'] ?? 0),
     'mese' => intval($_GET['mese'] ?? 0),
     'order_by' => sanitize_key($_GET['order_by'] ?? 'created_at'),
-    'order' => sanitize_key($_GET['order'] ?? 'DESC')
+    'order' => strtoupper(sanitize_key($_GET['order'] ?? 'DESC')) // ✅ FIX: Converti in maiuscolo dopo sanitize
 );
 
 // Paginazione
