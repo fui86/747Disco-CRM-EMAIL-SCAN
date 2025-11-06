@@ -38,7 +38,7 @@ class Disco747_Email {
             'password' => $this->config->get('smtp_password', ''),
             'encryption' => $this->config->get('smtp_encryption', 'tls'),
             'from_name' => $this->config->get('email_from_name', '747 Disco'),
-            'from_email' => $this->config->get('email_from_address', 'info@747disco.it')
+            'from_email' => $this->config->get('email_from_address', 'info@gestionale.747disco.it')
         );
         
         $this->setup_hooks();
@@ -204,7 +204,7 @@ class Disco747_Email {
         
         <!-- Logo -->
         <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 160px;">
+            <img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 160px;">
         </div>
         
         <!-- Header con gradiente -->
@@ -350,8 +350,8 @@ class Disco747_Email {
                 <em style="color: #999;">La tua festa, la nostra passione</em>
             </p>
             <p style="margin: 15px 0 5px;">
-                📧 info@747disco.it | 📞 +39 333 123 4567<br>
-                🌐 <a href="https://www.747disco.it" style="color: #c28a4d; text-decoration: none;">www.747disco.it</a>
+                📧 info@gestionale.747disco.it | 📞 +39 333 123 4567<br>
+                🌐 <a href="https://www.gestionale.747disco.it" style="color: #c28a4d; text-decoration: none;">www.gestionale.747disco.it</a>
             </p>
             <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                 <p style="margin: 0; font-size: 11px; color: #999; line-height: 1.4;">

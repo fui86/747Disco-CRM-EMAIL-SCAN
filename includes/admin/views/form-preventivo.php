@@ -616,7 +616,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 25px;">
                 <p style="margin: 0; color: #004085; font-size: 0.9rem;">
-                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
+                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@gestionale.747disco.it</strong> con copia a <strong>info@gestionale.747disco.it</strong>
                 </p>
             </div>
             

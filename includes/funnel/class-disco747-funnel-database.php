@@ -153,7 +153,7 @@ Restiamo a disposizione per qualsiasi domanda!
 A presto,
 Team 747 Disco
 📞 {{telefono_sede}}
-📧 info@747disco.it',
+📧 info@gestionale.747disco.it',
                 'whatsapp_enabled' => 1,
                 'whatsapp_text' => 'Ciao {{nome_referente}}! 👋
 
@@ -219,7 +219,7 @@ Cosa ne dici? Confermiamo? 🎉
 
 Team 747 Disco
 📞 {{telefono_sede}}
-📧 info@747disco.it',
+📧 info@gestionale.747disco.it',
                 'whatsapp_enabled' => 1,
                 'whatsapp_text' => '⏰ {{nome_referente}}, ULTIMA CHIAMATA!
 

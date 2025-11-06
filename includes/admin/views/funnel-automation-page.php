@@ -364,7 +364,7 @@ $cron_status = $scheduler->get_cron_status();
             <div class="disco747-card-content">
                 
                 <h3>📮 Email Notifiche WhatsApp</h3>
-                <p>Le notifiche per inviare WhatsApp vengono inviate a: <strong>info@747disco.it</strong></p>
+                <p>Le notifiche per inviare WhatsApp vengono inviate a: <strong>info@gestionale.747disco.it</strong></p>
                 
                 <hr>
                 
@@ -413,7 +413,7 @@ $cron_status = $scheduler->get_cron_status();
                     <li><code>{{importo_totale}}</code> - Importo totale (es: 3.500,00)</li>
                     <li><code>{{acconto}}</code> - Importo acconto</li>
                     <li><code>{{telefono_sede}}</code> - Telefono 747 Disco</li>
-                    <li><code>{{email_sede}}</code> - Email info@747disco.it</li>
+                    <li><code>{{email_sede}}</code> - Email info@gestionale.747disco.it</li>
                 </ul>
                 
             </div>

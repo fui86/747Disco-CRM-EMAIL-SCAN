@@ -252,8 +252,8 @@ class Disco747_Funnel_Manager {
         // Headers
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
-            'From: 747 Disco <info@747disco.it>',
-            'Reply-To: info@747disco.it'
+            'From: 747 Disco <info@gestionale.747disco.it>',
+            'Reply-To: info@gestionale.747disco.it'
         );
         
         // Converti newline in <br>
@@ -271,10 +271,10 @@ class Disco747_Funnel_Manager {
     }
     
     /**
-     * Invia email notifica WhatsApp a info@747disco.it
+     * Invia email notifica WhatsApp a info@gestionale.747disco.it
      */
     private function send_whatsapp_notification($preventivo, $step, $tracking_id) {
-        $to = 'info@747disco.it';
+        $to = 'info@gestionale.747disco.it';
         
         $telefono = $preventivo->telefono;
         
@@ -352,7 +352,7 @@ class Disco747_Funnel_Manager {
         
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
-            'From: 747 Disco Funnel <noreply@747disco.it>'
+            'From: 747 Disco Funnel <noreply@gestionale.747disco.it>'
         );
         
         $sent = wp_mail($to, $subject, $body, $headers);
@@ -381,7 +381,7 @@ class Disco747_Funnel_Manager {
             '{{importo_totale}}' => number_format($preventivo->importo_totale, 2, ',', '.'),
             '{{acconto}}' => number_format($preventivo->acconto, 2, ',', '.'),
             '{{telefono_sede}}' => '06 123456789', // Sostituisci con numero reale
-            '{{email_sede}}' => 'info@747disco.it'
+            '{{email_sede}}' => 'info@gestionale.747disco.it'
         );
         
         return str_replace(array_keys($variables), array_values($variables), $text);

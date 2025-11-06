@@ -38,7 +38,7 @@ class Disco747_Settings_Helper {
     private static $defaults = array(
         // Impostazioni generali
         'company_name' => '747 Disco',
-        'company_email' => 'info@747disco.it',
+        'company_email' => 'info@gestionale.747disco.it',
         'company_phone' => '06 123456789',
         'debug_mode' => false,
 
@@ -1016,7 +1016,7 @@ class Disco747_Settings_Helper {
                 <p>Ti contatteremo a breve per finalizzare tutti i dettagli!</p>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="https://747disco.it" style="background: #c28a4d; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: 600;">Visita il nostro sito</a>
+                    <a href="https://gestionale.747disco.it" style="background: #c28a4d; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: 600;">Visita il nostro sito</a>
                 </div>
                 
                 <p style="text-align: center; color: #666; font-size: 14px;">

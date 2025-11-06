@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: 747 Disco CRM - PreventiviParty Enhanced
- * Plugin URI: https://747disco.it
+ * Plugin URI: https://gestionale.747disco.it
  * Description: Sistema CRM completo per la gestione dei preventivi della location 747 Disco. Replica del vecchio PreventiviParty con funzionalitÃƒÆ'Ã‚Â  avanzate.
  * Version: 11.8.0
  * Author: 747 Disco Team
- * Author URI: https://747disco.it
+ * Author URI: https://gestionale.747disco.it
  * Text Domain: disco747
  * Domain Path: /languages/
  * Requires at least: 5.8

@@ -76,9 +76,9 @@ class Disco747_Config {
         
         // === COMPANY INFO ===
         'company_name' => '747 Disco',
-        'company_email' => 'info@747disco.it',
+        'company_email' => 'info@gestionale.747disco.it',
         'company_phone' => '06 123456789',
-        'company_website' => 'https://747disco.it',
+        'company_website' => 'https://gestionale.747disco.it',
         'company_address' => 'Via Example 123, Roma',
         'company_vat' => 'IT12345678901',
 
@@ -99,7 +99,7 @@ class Disco747_Config {
 
         // === EMAIL SETTINGS ===
         'email_from_name' => '747 Disco',
-        'email_from_address' => 'no-reply@747disco.it',
+        'email_from_address' => 'no-reply@gestionale.747disco.it',
         'email_subject' => 'Il tuo preventivo è pronto - {{nome_referente}}',
         'email_template' => 'Ciao {{nome_referente}}, il tuo preventivo per il {{data_evento}} è pronto!',
         'smtp_enabled' => false,

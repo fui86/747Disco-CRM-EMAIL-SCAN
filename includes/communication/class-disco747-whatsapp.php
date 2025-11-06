@@ -196,7 +196,7 @@ class Disco747_WhatsApp {
             
             $template .= "\nPer qualsiasi informazione contattaci!\n";
             $template .= "📞 06 123456789\n";
-            $template .= "📧 info@747disco.it";
+            $template .= "📧 info@gestionale.747disco.it";
         }
         
         // Sostituisci placeholder

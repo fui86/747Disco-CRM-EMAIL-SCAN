@@ -173,9 +173,9 @@ class Disco747_Templates {
     private function init_global_vars() {
         $this->global_vars = [
             'company_name' => $this->config->get('company_name', '747 Disco'),
-            'company_email' => $this->config->get('company_email', 'info@747disco.it'),
+            'company_email' => $this->config->get('company_email', 'info@gestionale.747disco.it'),
             'company_phone' => $this->config->get('company_phone', '06 123456789'),
-            'company_website' => $this->config->get('company_website', 'https://747disco.it'),
+            'company_website' => $this->config->get('company_website', 'https://gestionale.747disco.it'),
             'current_date' => date('d/m/Y'),
             'current_year' => date('Y'),
             'plugin_version' => defined('DISCO747_CRM_VERSION') ? DISCO747_CRM_VERSION : '1.0.0'
@@ -615,7 +615,7 @@ class Disco747_Templates {
         <div class="logo">{{company_name}}</div>
         <div class="company-info">
             Email: {{company_email}} | Tel: {{company_phone}}<br>
-            www.747disco.it
+            www.gestionale.747disco.it
         </div>
     </div>
     
@@ -727,7 +727,7 @@ class Disco747_Templates {
         
         <div style="text-align: center; color: #666; font-size: 12px; margin-top: 30px;">
             <p>{{company_name}} - {{company_email}} - {{company_phone}}</p>
-            <p>www.747disco.it</p>
+            <p>www.gestionale.747disco.it</p>
         </div>
     </div>
 </body>

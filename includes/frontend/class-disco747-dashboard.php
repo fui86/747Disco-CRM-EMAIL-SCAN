@@ -205,7 +205,7 @@ class Disco747_Dashboard {
         // Logo e titolo
         echo '<div class="disco747-header-brand">';
         echo '<div class="disco747-logo">';
-        echo '<img src="https://747disco.it/wp-content/uploads/2025/06/images.png" alt="' . esc_attr($company_name) . '" />';
+        echo '<img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="' . esc_attr($company_name) . '" />';
         echo '</div>';
         echo '<div class="disco747-header-text">';
         echo '<h1>' . esc_html($company_name) . ' CRM</h1>';
