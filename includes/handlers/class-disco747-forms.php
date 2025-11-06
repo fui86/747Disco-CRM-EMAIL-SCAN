@@ -337,8 +337,13 @@ class Disco747_Forms {
                     if (!empty($preventivo['googledrive_file_id'])) {
                         $this->log('[Forms] 🗑️ Eliminazione vecchio file da Drive (ID: ' . $preventivo['googledrive_file_id'] . ')...');
                         try {
-                            $this->storage->get_handler()->delete_file($preventivo['googledrive_file_id']);
-                            $this->log('[Forms] ✅ Vecchio file eliminato da Google Drive');
+                            $handler = $this->storage->get_active_handler();
+                            if ($handler && method_exists($handler, 'delete_file')) {
+                                $handler->delete_file($preventivo['googledrive_file_id']);
+                                $this->log('[Forms] ✅ Vecchio file eliminato da Google Drive');
+                            } else {
+                                $this->log('[Forms] ⚠️ Handler non supporta delete_file', 'WARNING');
+                            }
                         } catch (\Exception $e) {
                             $this->log('[Forms] ⚠️ Impossibile eliminare vecchio file: ' . $e->getMessage(), 'WARNING');
                         }
