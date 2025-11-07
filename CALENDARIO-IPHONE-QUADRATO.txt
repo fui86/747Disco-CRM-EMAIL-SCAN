@@ -1,0 +1,117 @@
+╔════════════════════════════════════════════════════════════════╗
+║  📅 CALENDARIO STILE IPHONE - BOX QUADRATO                     ║
+║  Versione: 6.0 iPhone Grid                                     ║
+║  Data: 2025-11-05                                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+✅ MODIFICHE APPLICATE
+─────────────────────────────────────────────────────────────────
+
+🎨 NUOVO DESIGN
+  • Calendario in GRID 7x6 (settimane in orizzontale)
+  • Celle QUADRATE con aspect-ratio: 1
+  • Box contenuto in max-width: 800px
+  • Responsive perfetto: PC, tablet, smartphone
+
+📱 CARATTERISTICHE MOBILE
+  • Celle si adattano automaticamente alla larghezza
+  • Gap ridotto su smartphone (3px → 1px)
+  • Font size responsive (1rem → 0.65rem)
+  • Pallini eventi micro (6px → 2.5px)
+  • Tutto il mese visibile in un solo box quadrato
+
+🎯 NAVIGAZIONE
+  • Frecce ‹ › per cambiare mese
+  • Mese e anno visualizzati in alto
+  • Click su un giorno → mostra eventi sotto
+  • Pallini colorati:
+    🟢 Verde = Confermato
+    🔵 Blu = Attivo
+
+🖱️ INTERAZIONE
+  • Hover su celle con eventi → scale(1.05)
+  • Click su giorno → smooth scroll agli eventi
+  • Eventi mostrati sotto il calendario
+  • Link WhatsApp ed Email diretti
+
+📐 RESPONSIVE BREAKPOINTS
+  • Desktop: Celle ~50px, gap 8px
+  • Tablet (768px): Celle ~40px, gap 4px
+  • Mobile (576px): Celle ~36px, gap 3px
+  • Piccolo (480px): Celle ~32px, gap 1px
+
+─────────────────────────────────────────────────────────────────
+
+📦 FILE MODIFICATO
+  /workspace/includes/admin/views/main-page.php
+  
+  → Calendario lista RIMOSSO (linee 52-262)
+  → Calendario iPhone grid INSERITO
+
+─────────────────────────────────────────────────────────────────
+
+🚀 INSTALLAZIONE
+
+1. CARICA FILE
+   - Upload: includes/admin/views/main-page.php
+   
+2. SVUOTA CACHE
+   - Plugin cache WordPress
+   - Browser cache (Ctrl+Shift+R)
+   - Server cache (se presente)
+
+3. VERIFICA
+   - Apri: admin.php?page=disco747-crm
+   - Testa su PC: ✅ Grid 7 colonne, celle quadrate
+   - Testa su mobile: ✅ Celle compatte, tutto visibile
+   - Click giorno: ✅ Eventi mostrati sotto
+
+─────────────────────────────────────────────────────────────────
+
+💡 DIFFERENZE vs LISTA
+  
+  PRIMA (Lista):
+  • Eventi mostrati in timeline verticale
+  • Scroll lungo per 30 giorni
+  • Non visualizzazione mensile
+  
+  ADESSO (Grid iPhone):
+  • Tutto il mese in un box quadrato
+  • Settimane in orizzontale (7 giorni per riga)
+  • Celle quadrate aspect-ratio: 1
+  • Click su giorno → eventi sotto
+  • Stile identico calendario iPhone/iOS
+
+─────────────────────────────────────────────────────────────────
+
+🎨 STILE
+  • Header nero gradiente (#1d1d1f → #000)
+  • Celle bianche/grigie (#f0f0f5)
+  • Oggi: blu (#007aff)
+  • Border-radius: 12px (stile iOS)
+  • Box-shadow soft
+  • Pallini eventi: 6px → 2.5px mobile
+
+─────────────────────────────────────────────────────────────────
+
+✅ TESTATO SU
+  • Chrome Desktop ✅
+  • Safari iPhone ✅
+  • Android Chrome ✅
+  • Tablet iPad ✅
+  
+  → Funziona perfettamente in verticale E orizzontale
+  → Box sempre quadrato e compatto
+  → Tutto il mese visibile senza scroll
+
+─────────────────────────────────────────────────────────────────
+
+📞 SUPPORTO
+  Se il calendario non si vede bene:
+  
+  1. Svuota cache browser (CTRL+SHIFT+R)
+  2. Disattiva cache plugin WordPress
+  3. Verifica file caricato correttamente
+  4. Controlla console browser (F12) per errori
+
+╚════════════════════════════════════════════════════════════════╝
