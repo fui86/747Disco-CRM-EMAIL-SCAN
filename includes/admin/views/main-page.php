@@ -1037,7 +1037,8 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* ============================================================================ */
-/* CALENDARIO RESPONSIVE */
+/* CALENDARIO RESPONSIVE - MOBILE COMPATTO v2.0 */
+/* Last Update: <?php echo date('Y-m-d H:i:s'); ?> */
 /* ============================================================================ */
 
 /* Tablet e Mobile - Calendario Compatto Stile iPhone */
@@ -1337,3 +1338,22 @@ document.addEventListener('DOMContentLoaded', function() {
     animation: pulse 1.5s ease-in-out infinite;
 }
 </style>
+
+<!-- Cache Buster: <?php echo time(); ?> -->
+<script>
+// Force CSS refresh on mobile devices
+(function() {
+    // Forza re-render del calendario su mobile
+    if (window.innerWidth <= 768) {
+        setTimeout(function() {
+            const calendario = document.getElementById('calendario-eventi');
+            if (calendario) {
+                // Forza repaint
+                calendario.style.display = 'none';
+                calendario.offsetHeight; // Trigger reflow
+                calendario.style.display = '';
+            }
+        }, 100);
+    }
+})();
+</script>
