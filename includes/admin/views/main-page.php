@@ -1037,29 +1037,39 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* ============================================================================ */
-/* CALENDARIO RESPONSIVE - MOBILE COMPATTO v2.0 */
-/* Last Update: <?php echo date('Y-m-d H:i:s'); ?> */
+/* CALENDARIO RESPONSIVE - MOBILE COMPATTO v3.0 ULTRA AGGRESSIVE */
+/* Update: <?php echo time(); ?> */
 /* ============================================================================ */
 
-/* Tablet e Mobile - Calendario Compatto Stile iPhone */
-@media (max-width: 768px) {
+/* TABLET - Calendario Compatto */
+@media screen and (max-width: 768px) {
+    /* Container principale */
     #calendario-eventi {
-        margin: 0 0 20px 0;
+        margin: 0 !important;
+        padding: 0 !important;
         border-radius: 12px !important;
+        margin-bottom: 20px !important;
     }
     
-    /* Header compatto */
-    #calendario-eventi [style*="padding: 25px 30px"] {
+    /* Header background */
+    #calendario-eventi > div:first-child {
         padding: 12px 10px !important;
     }
     
-    /* Selettori mese/anno compatti */
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+    /* Selettori mese/anno container */
+    #calendario-eventi > div:first-child > div:first-child {
         gap: 6px !important;
         margin-bottom: 10px !important;
-        padding: 0 5px;
+        padding: 0 5px !important;
     }
     
+    /* Label "Vai a:" */
+    #calendario-eventi > div:first-child > div:first-child > label {
+        font-size: 0.7rem !important;
+        display: none !important;
+    }
+    
+    /* Select mese e anno */
     #calendario-select-mese,
     #calendario-select-anno {
         padding: 6px 10px !important;
@@ -1068,68 +1078,75 @@ document.addEventListener('DOMContentLoaded', function() {
         border-radius: 6px !important;
     }
     
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+    /* Bottone "Oggi" */
+    #calendario-eventi > div:first-child > div:first-child > button {
         padding: 6px 12px !important;
         font-size: 0.75rem !important;
         border-radius: 6px !important;
     }
     
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] label {
-        font-size: 0.7rem !important;
-        display: none; /* Nascondi "Vai a:" per risparmiare spazio */
+    /* Container navigazione frecce */
+    #calendario-eventi > div:first-child > div:nth-child(2) {
+        gap: 10px !important;
     }
     
-    /* Navigazione frecce compatta */
-    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
+    /* Bottoni frecce */
+    #calendario-eventi > div:first-child > div:nth-child(2) > button {
         padding: 6px 10px !important;
         font-size: 1rem !important;
     }
     
-    #calendario-eventi h2 {
+    /* Titolo mese */
+    #calendario-titolo {
         font-size: 1.1rem !important;
+        margin: 0 !important;
     }
     
-    #calendario-eventi p {
+    /* Contatore eventi */
+    #calendario-eventi > div:first-child > div:nth-child(2) > div > p {
         font-size: 0.7rem !important;
         margin-top: 2px !important;
     }
     
-    /* Griglia calendario molto compatta */
-    #calendario-eventi [style*="padding: 20px"] {
+    /* Container griglia (padding: 20px) */
+    #calendario-eventi > div:nth-child(2) {
         padding: 10px 8px !important;
     }
     
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
+    /* Griglia calendario */
+    #calendario-eventi > div:nth-child(2) > div:first-child {
         gap: 2px !important;
         margin-bottom: 12px !important;
     }
     
-    /* Intestazioni giorni ultra compatte */
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
+    /* Intestazioni giorni settimana */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div:nth-child(-n+7) {
         font-size: 0.6rem !important;
         padding: 5px 0 !important;
     }
     
-    /* Giorni compatti ma touch-friendly (min 36px) */
-    #calendario-eventi [style*="aspect-ratio: 1"] {
+    /* Celle giorni (tutti i div dopo le intestazioni) */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] {
         font-size: 0.7rem !important;
         min-height: 36px !important;
+        max-height: 36px !important;
+        width: auto !important;
         padding: 2px !important;
     }
     
-    /* Pallini eventi più piccoli */
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"] {
-        width: 3px !important;
-        height: 3px !important;
-        margin-top: 1px !important;
-    }
-    
-    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
+    /* Pallini eventi dentro le celle */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] > div {
         margin-top: 1px !important;
         gap: 1px !important;
     }
     
-    /* Eventi giorno compatti */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] > div > div {
+        width: 3px !important;
+        height: 3px !important;
+        margin-top: 0 !important;
+    }
+    
+    /* Area eventi giorno */
     #eventi-giorno {
         padding-top: 12px !important;
         margin-top: 12px !important;
@@ -1151,26 +1168,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
-/* Mobile Piccolo - Ultra Compatto Stile Agenda iPhone */
-@media (max-width: 576px) {
+/* MOBILE PICCOLO - Ultra Compatto Stile iPhone */
+@media screen and (max-width: 576px) {
+    /* Container */
     #calendario-eventi {
-        margin: 0 0 15px 0;
+        margin: 0 !important;
+        margin-bottom: 15px !important;
     }
     
-    /* Header ultra compatto */
-    #calendario-eventi [style*="padding: 25px 30px"] {
+    /* Header */
+    #calendario-eventi > div:first-child {
         padding: 10px 8px !important;
     }
     
-    /* Selettori inline orizzontali compatti */
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+    /* Selettori container */
+    #calendario-eventi > div:first-child > div:first-child {
         flex-direction: row !important;
         gap: 4px !important;
         margin-bottom: 8px !important;
-        padding: 0 3px;
+        padding: 0 3px !important;
         justify-content: center !important;
     }
     
+    /* Select */
     #calendario-select-mese,
     #calendario-select-anno {
         padding: 5px 8px !important;
@@ -1179,67 +1199,72 @@ document.addEventListener('DOMContentLoaded', function() {
         width: auto !important;
     }
     
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+    /* Bottone Oggi */
+    #calendario-eventi > div:first-child > div:first-child > button {
         padding: 5px 10px !important;
         font-size: 0.7rem !important;
         width: auto !important;
     }
     
-    /* Titolo e contatore compatti */
-    #calendario-eventi h2 {
+    /* Titolo */
+    #calendario-titolo {
         font-size: 1rem !important;
     }
     
-    #calendario-eventi p {
+    /* Contatore */
+    #calendario-eventi > div:first-child > div:nth-child(2) > div > p {
         font-size: 0.65rem !important;
         margin-top: 1px !important;
+        margin-bottom: 0 !important;
     }
     
-    /* Navigazione frecce mini */
-    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
+    /* Frecce */
+    #calendario-eventi > div:first-child > div:nth-child(2) > button {
         padding: 5px 8px !important;
         font-size: 0.9rem !important;
     }
     
-    /* Griglia calendario ultra compatta */
-    #calendario-eventi [style*="padding: 20px"] {
+    /* Container griglia */
+    #calendario-eventi > div:nth-child(2) {
         padding: 8px 5px !important;
     }
     
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
+    /* Griglia */
+    #calendario-eventi > div:nth-child(2) > div:first-child {
         gap: 1px !important;
         margin-bottom: 10px !important;
     }
     
-    /* Intestazioni giorni mini */
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
+    /* Intestazioni */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div:nth-child(-n+7) {
         font-size: 0.55rem !important;
         padding: 3px 0 !important;
-        letter-spacing: -0.3px;
+        letter-spacing: -0.3px !important;
     }
     
-    /* Giorni mini ma touch-friendly (32px - minimo iOS) */
-    #calendario-eventi [style*="aspect-ratio: 1"] {
+    /* Celle giorni - RIDOTTE A 32px */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] {
         font-size: 0.65rem !important;
         min-height: 32px !important;
+        max-height: 32px !important;
+        width: auto !important;
         padding: 1px !important;
         font-weight: 500 !important;
     }
     
-    /* Pallini eventi micro */
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"],
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 3px"] {
-        width: 2.5px !important;
-        height: 2.5px !important;
-        margin-top: 0px !important;
-    }
-    
-    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
+    /* Pallini micro */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] > div {
         margin-top: 0px !important;
         gap: 1px !important;
     }
     
-    /* Eventi giorno ultra compatti */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] > div > div {
+        width: 2.5px !important;
+        height: 2.5px !important;
+        margin-top: 0 !important;
+    }
+    
+    /* Eventi giorno */
     #eventi-giorno {
         padding-top: 10px !important;
         margin-top: 10px !important;
@@ -1247,21 +1272,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     #eventi-giorno-titolo {
         font-size: 0.85rem !important;
-        margin-bottom: 8px !important;
+        margin: 0 0 8px 0 !important;
     }
     
     #eventi-giorno-lista > div {
         padding: 8px !important;
         margin-bottom: 5px !important;
         border-radius: 8px !important;
-    }
-    
-    #eventi-giorno-lista [style*="font-weight: 700"] {
-        font-size: 0.85rem !important;
-    }
-    
-    #eventi-giorno-lista [style*="font-size: 0.85rem"] {
-        font-size: 0.7rem !important;
     }
     
     #eventi-giorno-lista a {
@@ -1271,14 +1288,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
-/* Mobile Extra Piccolo - Massima Compattezza */
-@media (max-width: 400px) {
+/* MOBILE EXTRA PICCOLO - Massima Compattezza */
+@media screen and (max-width: 400px) {
+    /* Container */
     #calendario-eventi {
-        margin: 0 0 12px 0;
+        margin: 0 !important;
+        margin-bottom: 12px !important;
     }
     
     /* Header minimale */
-    #calendario-eventi [style*="padding: 25px 30px"] {
+    #calendario-eventi > div:first-child {
         padding: 8px 5px !important;
     }
     
@@ -1290,29 +1309,32 @@ document.addEventListener('DOMContentLoaded', function() {
         min-width: 75px !important;
     }
     
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+    /* Bottone mini */
+    #calendario-eventi > div:first-child > div:first-child > button {
         padding: 4px 8px !important;
         font-size: 0.65rem !important;
     }
     
     /* Titolo mini */
-    #calendario-eventi h2 {
+    #calendario-titolo {
         font-size: 0.9rem !important;
     }
     
-    #calendario-eventi p {
+    /* Contatore mini */
+    #calendario-eventi > div:first-child > div:nth-child(2) > div > p {
         font-size: 0.6rem !important;
     }
     
-    /* Griglia ultra compatta */
-    #calendario-eventi [style*="padding: 20px"] {
+    /* Container griglia ultra compatto */
+    #calendario-eventi > div:nth-child(2) {
         padding: 6px 3px !important;
     }
     
-    /* Giorni mini (30px - limite minimo touch) */
-    #calendario-eventi [style*="aspect-ratio: 1"] {
+    /* Giorni mini - 30px (limite minimo touch iOS) */
+    #calendario-eventi > div:nth-child(2) > div:first-child > div[onclick] {
         font-size: 0.6rem !important;
         min-height: 30px !important;
+        max-height: 30px !important;
     }
 }
 
@@ -1339,21 +1361,53 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 </style>
 
-<!-- Cache Buster: <?php echo time(); ?> -->
+<!-- ============================================================================ -->
+<!-- MOBILE CALENDAR v3.0 - CACHE BUSTER: <?php echo time(); ?> -->
+<!-- ============================================================================ -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script>
-// Force CSS refresh on mobile devices
+/**
+ * FORCE MOBILE CSS RELOAD - v3.0
+ * Questo script forza il browser a riconoscere i nuovi stili mobile
+ */
 (function() {
-    // Forza re-render del calendario su mobile
-    if (window.innerWidth <= 768) {
-        setTimeout(function() {
+    'use strict';
+    
+    // Debug: verifica se siamo su mobile
+    const isMobile = window.innerWidth <= 768;
+    console.log('[Calendario] Device width:', window.innerWidth, '- Mobile:', isMobile);
+    
+    if (isMobile) {
+        // Forza applicazione CSS mobile
+        document.addEventListener('DOMContentLoaded', function() {
             const calendario = document.getElementById('calendario-eventi');
+            
             if (calendario) {
-                // Forza repaint
+                console.log('[Calendario] Applicazione stili mobile forzata');
+                
+                // Forza repaint completo
                 calendario.style.display = 'none';
                 calendario.offsetHeight; // Trigger reflow
                 calendario.style.display = '';
+                
+                // Verifica altezza celle dopo repaint
+                setTimeout(function() {
+                    const celle = calendario.querySelectorAll('div[onclick]');
+                    if (celle.length > 0) {
+                        const altezza = celle[0].offsetHeight;
+                        console.log('[Calendario] Altezza cella giorno:', altezza + 'px', 
+                                    '(Target: 32-36px su mobile)');
+                        
+                        if (altezza > 45) {
+                            console.warn('[Calendario] ⚠️ CSS mobile NON applicato! Altezza troppo grande.');
+                            console.warn('[Calendario] Svuota la cache del browser!');
+                        } else {
+                            console.log('[Calendario] ✅ CSS mobile applicato correttamente!');
+                        }
+                    }
+                }, 500);
             }
-        }, 100);
+        });
     }
 })();
 </script>
