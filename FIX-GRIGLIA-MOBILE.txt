@@ -1,0 +1,194 @@
+╔════════════════════════════════════════════════════════════════╗
+║  🔧 FIX GRIGLIA MOBILE - v7.1                                  ║
+║  Risolto: Giorni in colonna → Griglia 7 colonne               ║
+║  Data: 2025-11-05                                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+❌ PROBLEMA
+──────────────────────────────────────────────────────────────
+
+  Su mobile in verticale i giorni del calendario si 
+  impilano UNO SOTTO L'ALTRO invece di essere in 
+  griglia 7 colonne (settimane):
+
+  ❌ ERRATO:            ✅ CORRETTO:
+  ┌─────┐              ┌─────────────┐
+  │  1  │              │ L M M G V S D│
+  │  2  │              │ 1 2 3 4 5 6 7│
+  │  3  │              │ 8 9 ...     │
+  │  4  │              └─────────────┘
+  │ ... │              
+  └─────┘              7 colonne per settimana
+
+
+✅ SOLUZIONE v7.1
+──────────────────────────────────────────────────────────────
+
+  1️⃣  CSS con !important
+      • display: grid !important
+      • grid-template-columns: repeat(7, 1fr) !important
+      • grid-auto-flow: row !important
+      • width: 100% !important sulle celle
+
+  2️⃣  JavaScript di backup
+      • Forza grid via JS su mobile
+      • Si attiva solo se width ≤ 768px
+      • Sicurezza doppia
+
+  3️⃣  Applicato a TUTTI i breakpoint
+      • Desktop: grid 7 colonne ✅
+      • Mobile 768px: grid 7 colonne ✅
+      • Mobile 480px: grid 7 colonne ✅
+
+
+📝 MODIFICHE TECNICHE
+──────────────────────────────────────────────────────────────
+
+  PRIMA (v7.0):
+  ```css
+  .cal-grid-container {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+  }
+  ```
+  → Veniva sovrascritto da WordPress/theme
+
+  ADESSO (v7.1):
+  ```css
+  .cal-grid-container {
+      display: grid !important;
+      grid-template-columns: repeat(7, 1fr) !important;
+      grid-auto-flow: row !important;
+  }
+  
+  .cal-day,
+  .cal-day-empty {
+      width: 100% !important;
+  }
+  ```
+  → !important forza la griglia su TUTTO
+
+  + JavaScript:
+  ```javascript
+  document.addEventListener('DOMContentLoaded', function() {
+      const grid = document.querySelector('.cal-grid-container');
+      if (grid && window.innerWidth <= 768) {
+          grid.style.display = 'grid';
+          grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+      }
+  });
+  ```
+  → Backup via JavaScript
+
+
+🎯 RISULTATO ATTESO
+──────────────────────────────────────────────────────────────
+
+  🖥️  DESKTOP:
+      ┌────────────────────────────────────┐
+      │  L   M   M   G   V   S   D         │
+      │  ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐     │
+      │  │1│ │2│ │3│ │4│ │5│ │6│ │7│     │
+      │  └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘     │
+      │  ┌─┐ ┌─┐ ...                       │
+      └────────────────────────────────────┘
+      ✅ 7 colonne, celle 80px
+
+  📱  MOBILE VERTICALE:
+      ┌──────────────────┐
+      │ L M M G V S D    │
+      │ ┌┐┌┐┌┐┌┐┌┐┌┐┌┐  │
+      │ └┘└┘└┘└┘└┘└┘└┘  │  ← 7 colonne
+      │ ┌┐┌┐┌┐...        │
+      └──────────────────┘
+      ✅ 7 colonne, celle 42px
+
+  📱  MOBILE PICCOLO:
+      ┌─────────────┐
+      │ LMMGVSD     │
+      │ ┌┐┌┐┌┐┌┐┌┐┌┐┌┐│  ← 7 colonne
+      │ └┘└┘└┘└┘└┘└┘└┘│
+      └─────────────┘
+      ✅ 7 colonne, celle 38px
+
+
+🔍 VERIFICA
+──────────────────────────────────────────────────────────────
+
+  1. Carica main-page.php aggiornato
+  2. Svuota cache (CTRL+SHIFT+R)
+  3. Apri su mobile verticale
+  4. Verifica:
+     ✅ Giorni disposti in 7 COLONNE
+     ✅ Settimane visibili in RIGHE orizzontali
+     ✅ Tutto il mese visibile
+     ✅ Click funzionante
+
+  Console browser (F12):
+  → Cerca messaggio: "✅ Griglia 7 colonne forzata"
+
+
+🐛 TROUBLESHOOTING
+──────────────────────────────────────────────────────────────
+
+  Giorni ancora in colonna?
+  
+  1. Svuota cache COMPLETA
+     • Browser: CTRL+SHIFT+R
+     • WordPress: Plugin cache
+     • CDN: Purge cache
+  
+  2. Controlla Console (F12)
+     • Cerca "✅ Griglia 7 colonne forzata"
+     • Se non c'è → problema JavaScript
+     • Se c'è ma non funziona → problema CSS
+  
+  3. Inspect Element (F12)
+     • Click destro su calendario
+     • Inspect → .cal-grid-container
+     • Verifica: display: grid
+     • Verifica: grid-template-columns: repeat(7, 1fr)
+  
+  4. Test Device
+     • Chrome DevTools: F12 → Device toolbar
+     • Imposta: iPhone 14 Pro
+     • Ruota verticale
+     • Verifica griglia
+
+
+📦 FILE AGGIORNATO
+──────────────────────────────────────────────────────────────
+
+  includes/admin/views/main-page.php
+  
+  Modifiche:
+  • Riga 272-275: CSS grid con !important
+  • Riga 316-321: Mobile grid forzata
+  • Riga 336-342: Celle width 100%
+  • Riga 379-383: Mobile piccolo grid forzata
+  • Riga 259-269: JavaScript backup
+
+
+✅ COMPATIBILITÀ
+──────────────────────────────────────────────────────────────
+
+  ✓ Desktop: Grid 7 colonne (celle 80px)
+  ✓ Laptop: Grid 7 colonne (celle 80px)
+  ✓ Tablet: Grid 7 colonne (celle 70px)
+  ✓ Mobile V: Grid 7 colonne (celle 42px)
+  ✓ Mobile H: Grid 7 colonne (celle 80px)
+  ✓ Mobile Piccolo: Grid 7 colonne (celle 38px)
+
+
+═══════════════════════════════════════════════════════════════
+  🚀 CARICA SUBITO
+═══════════════════════════════════════════════════════════════
+
+  1. Scarica: CALENDARIO-v7.1-FIX-GRIGLIA.tar.gz
+  2. Estrai: main-page.php
+  3. Carica: /includes/admin/views/
+  4. Cache: CTRL+SHIFT+R
+  5. Test: Mobile verticale
+  6. Verifica: 7 colonne ✅
+
+═══════════════════════════════════════════════════════════════

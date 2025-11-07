@@ -1,0 +1,72 @@
+🔧 FIX URGENTE - GRIGLIA MOBILE v7.1
+
+❌ PROBLEMA:
+   Mobile verticale → giorni in COLONNA (uno sotto altro)
+   
+✅ RISOLTO:
+   Mobile verticale → giorni in GRIGLIA 7 colonne (settimane)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📥 FILE DA CARICARE:
+
+   CALENDARIO-v7.1-FIX-GRIGLIA.tar.gz (17KB)
+   
+   Contiene:
+   ✓ includes/admin/views/main-page.php
+   ✓ FIX-GRIGLIA-MOBILE.txt (dettagli tecnici)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ INSTALLAZIONE RAPIDA:
+
+   1. Estrai: main-page.php
+   2. Carica: /wp-content/plugins/747disco-crm/includes/admin/views/
+   3. Cache: CTRL+SHIFT+R (hard refresh)
+   4. Test mobile verticale
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ RISULTATO ATTESO:
+
+   Desktop:  ┌──────────────────┐     Grande ✨
+             │ L M M G V S D    │     (80px)
+             │ □ □ □ □ □ □ □   │
+             └──────────────────┘
+
+   Mobile V: ┌──────────┐           Compatto ✨
+             │ LMMGVSD  │           (42px)
+             │ □□□□□□□  │           7 colonne!
+             │ □□□□□... │
+             └──────────┘
+
+   Mobile H: ┌──────────────────┐     Grande ✨
+             │ L M M G V S D    │     (80px)
+             │ □ □ □ □ □ □ □   │
+             └──────────────────┘
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 VERIFICA:
+
+   Console browser (F12):
+   → Cerca: "✅ Griglia 7 colonne forzata"
+   
+   Su mobile verticale:
+   ✅ 7 colonne (L M M G V S D)
+   ✅ Settimane in righe orizzontali
+   ✅ Tutto il mese visibile
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🛠️ COSA HO FATTO:
+
+   • CSS: display: grid !important
+   • CSS: grid-template-columns: repeat(7, 1fr) !important
+   • CSS: grid-auto-flow: row !important
+   • CSS: width: 100% !important sulle celle
+   • JavaScript: forza grid su mobile (backup)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ v7.1 = Desktop GRANDE + Mobile COMPATTO + Grid 7 colonne SEMPRE

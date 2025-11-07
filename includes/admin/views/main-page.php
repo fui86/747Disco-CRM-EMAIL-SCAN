@@ -256,11 +256,23 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     }
     </script>
     
+    <script>
+    // FORZA GRIGLIA 7 COLONNE SU MOBILE
+    document.addEventListener('DOMContentLoaded', function() {
+        const grid = document.querySelector('.cal-grid-container');
+        if (grid && window.innerWidth <= 768) {
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+            console.log('✅ Griglia 7 colonne forzata');
+        }
+    });
+    </script>
+    
     <style>
     /* DESKTOP: Grande e bello (default) */
     .cal-grid-container {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        display: grid !important;
+        grid-template-columns: repeat(7, 1fr) !important;
         gap: 10px;
     }
     
@@ -312,9 +324,12 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
             padding: 12px !important;
         }
         
-        /* Griglia: gap ridotto */
+        /* GRIGLIA: FORZA 7 COLONNE SEMPRE */
         .cal-grid-container {
+            display: grid !important;
+            grid-template-columns: repeat(7, 1fr) !important;
             gap: 3px !important;
+            grid-auto-flow: row !important;
         }
         
         /* Intestazioni giorni */
@@ -330,11 +345,13 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
             font-size: 0.95rem !important;
             padding: 4px !important;
             border-radius: 10px !important;
+            width: 100% !important;
         }
         
         .cal-day-empty {
             min-height: 42px !important;
             max-height: 42px !important;
+            width: 100% !important;
         }
         
         /* Pallini eventi più piccoli */
@@ -372,6 +389,8 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     /* MOBILE PICCOLO: ancora più compatto */
     @media screen and (max-width: 480px) and (orientation: portrait) {
         .cal-grid-container {
+            display: grid !important;
+            grid-template-columns: repeat(7, 1fr) !important;
             gap: 2px !important;
         }
         
@@ -380,11 +399,13 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
             max-height: 38px !important;
             font-size: 0.85rem !important;
             padding: 2px !important;
+            width: 100% !important;
         }
         
         .cal-day-empty {
             min-height: 38px !important;
             max-height: 38px !important;
+            width: 100% !important;
         }
         
         .cal-dot {
