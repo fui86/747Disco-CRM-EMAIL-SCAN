@@ -1362,13 +1362,14 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <!-- ============================================================================ -->
-<!-- MOBILE CALENDAR v4.0 NUCLEAR - CACHE BUSTER: <?php echo time(); ?> -->
+<!-- MOBILE CALENDAR v4.1 RESPONSIVE - CACHE BUSTER: <?php echo time(); ?> -->
 <!-- ============================================================================ -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script>
 /**
- * NUCLEAR OPTION - v4.0
- * Rimuove FORZATAMENTE inline styles e applica CSS mobile
+ * NUCLEAR OPTION - v4.1 RESPONSIVE
+ * Rimuove FORZATAMENTE inline styles e applica dimensioni RESPONSIVE
+ * Ora funziona perfettamente sia in verticale che in orizzontale!
  */
 (function() {
     'use strict';
@@ -1376,7 +1377,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const isMobile = window.innerWidth <= 768;
     const isSmallMobile = window.innerWidth <= 576;
     
-    console.log('[Calendario v4] Width:', window.innerWidth, 'Mobile:', isMobile);
+    console.log('[Calendario v4.1] Width:', window.innerWidth, 'Mobile:', isMobile);
     
     if (!isMobile) return; // Desktop = no modifiche
     
@@ -1384,11 +1385,11 @@ document.addEventListener('DOMContentLoaded', function() {
     function initMobileCalendar() {
         const calendario = document.getElementById('calendario-eventi');
         if (!calendario) {
-            console.warn('[Calendario v4] Elemento non trovato');
+            console.warn('[Calendario v4.1] Elemento non trovato');
             return;
         }
         
-        console.log('[Calendario v4] 🔥 NUCLEAR MODE ATTIVO - Rimozione inline styles...');
+        console.log('[Calendario v4.1] 🔥 NUCLEAR MODE ATTIVO - Dimensioni RESPONSIVE...');
         
         // Dimensioni basate su larghezza
         const cellSize = isSmallMobile ? '36px' : '40px';
@@ -1458,25 +1459,42 @@ document.addEventListener('DOMContentLoaded', function() {
             int.style.padding = '5px 0';
         });
         
-        // 8. CELLE GIORNI - QUESTO È IL PIÙ IMPORTANTE
+        // 8. CELLE GIORNI - RESPONSIVE PER VERTICALE/ORIZZONTALE
         const celle = calendario.querySelectorAll('div[onclick]');
-        console.log('[Calendario v4] Trovate', celle.length, 'celle giorni');
+        console.log('[Calendario v4.1] Trovate', celle.length, 'celle giorni');
+        
+        // Calcola dimensione ottimale basata su larghezza disponibile
+        const containerWidth = griglia ? griglia.offsetWidth : window.innerWidth - 40;
+        const gapTotal = parseFloat(gap) * 6; // 6 gap tra 7 colonne
+        const availableWidth = containerWidth - gapTotal;
+        const calculatedSize = Math.floor(availableWidth / 7);
+        
+        // Usa dimensione calcolata ma con limiti
+        const minSize = 30; // Minimo touch-friendly
+        const maxSize = 50; // Massimo per estetica
+        const finalSize = Math.min(Math.max(calculatedSize, minSize), maxSize) + 'px';
+        
+        console.log('[Calendario v4.1] Larghezza container:', containerWidth + 'px');
+        console.log('[Calendario v4.1] Dimensione celle calcolata:', finalSize);
         
         celle.forEach(function(cella) {
-            // RIMUOVI aspect-ratio che causa problemi
+            // RIMUOVI aspect-ratio
             cella.style.aspectRatio = 'auto';
             
-            // FORZA dimensioni esatte
-            cella.style.width = cellSize;
-            cella.style.height = cellSize;
-            cella.style.minHeight = cellSize;
-            cella.style.maxHeight = cellSize;
+            // FORZA dimensioni RESPONSIVE
+            cella.style.width = finalSize;
+            cella.style.height = finalSize;
+            cella.style.minWidth = finalSize;
+            cella.style.maxWidth = finalSize;
+            cella.style.minHeight = finalSize;
+            cella.style.maxHeight = finalSize;
             cella.style.fontSize = fontSize;
             cella.style.padding = '0';
             cella.style.display = 'flex';
             cella.style.flexDirection = 'column';
             cella.style.alignItems = 'center';
             cella.style.justifyContent = 'center';
+            cella.style.flexShrink = '0'; // Non rimpicciolire
             
             // Pallini eventi
             const pallini = cella.querySelector('div[style*="display: flex"]');
@@ -1497,12 +1515,12 @@ document.addEventListener('DOMContentLoaded', function() {
             if (celle.length > 0) {
                 const h = celle[0].offsetHeight;
                 const w = celle[0].offsetWidth;
-                console.log('[Calendario v4] ✅ Celle ridimensionate:', w + 'x' + h + 'px');
+                console.log('[Calendario v4.1] ✅ Celle ridimensionate:', w + 'x' + h + 'px');
                 
                 if (h > 50) {
-                    console.error('[Calendario v4] ❌ FALLITO! Altezza ancora:', h + 'px');
+                    console.error('[Calendario v4.1] ❌ FALLITO! Altezza ancora:', h + 'px');
                 } else {
-                    console.log('[Calendario v4] 🎉 SUCCESS! Calendario compatto attivo!');
+                    console.log('[Calendario v4.1] 🎉 SUCCESS! Calendario compatto RESPONSIVE attivo!');
                 }
             }
         }, 100);

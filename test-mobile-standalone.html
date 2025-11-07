@@ -283,25 +283,42 @@
             int.style.padding = '5px 0';
         });
         
-        // 8. CELLE GIORNI - CRUCIALE
+        // 8. CELLE GIORNI - RESPONSIVE PER VERTICALE/ORIZZONTALE
         const celle = calendario.querySelectorAll('div[onclick]');
         log('[Calendario v4] Trovate ' + celle.length + ' celle giorni');
+        
+        // Calcola dimensione ottimale basata su larghezza disponibile
+        const containerWidth = griglia ? griglia.offsetWidth : window.innerWidth - 40;
+        const gapTotal = parseFloat(gap) * 6; // 6 gap tra 7 colonne
+        const availableWidth = containerWidth - gapTotal;
+        const calculatedSize = Math.floor(availableWidth / 7);
+        
+        // Usa dimensione calcolata ma con limiti
+        const minSize = 30; // Minimo touch-friendly
+        const maxSize = 50; // Massimo per estetica
+        const finalSize = Math.min(Math.max(calculatedSize, minSize), maxSize) + 'px';
+        
+        log('[Calendario v4] Larghezza container: ' + containerWidth + 'px');
+        log('[Calendario v4] Dimensione celle calcolata: ' + finalSize);
         
         celle.forEach(function(cella) {
             // RIMUOVI aspect-ratio
             cella.style.aspectRatio = 'auto';
             
-            // FORZA dimensioni
-            cella.style.width = cellSize;
-            cella.style.height = cellSize;
-            cella.style.minHeight = cellSize;
-            cella.style.maxHeight = cellSize;
+            // FORZA dimensioni RESPONSIVE
+            cella.style.width = finalSize;
+            cella.style.height = finalSize;
+            cella.style.minWidth = finalSize;
+            cella.style.maxWidth = finalSize;
+            cella.style.minHeight = finalSize;
+            cella.style.maxHeight = finalSize;
             cella.style.fontSize = fontSize;
             cella.style.padding = '0';
             cella.style.display = 'flex';
             cella.style.flexDirection = 'column';
             cella.style.alignItems = 'center';
             cella.style.justifyContent = 'center';
+            cella.style.flexShrink = '0'; // Non rimpicciolire
             
             // Pallini
             const pallini = cella.querySelector('div[style*="display: flex"]');
