@@ -73,6 +73,7 @@ class Disco747_Database {
             created_at datetime NOT NULL,
             created_by bigint(20) UNSIGNED DEFAULT NULL,
             updated_at datetime NOT NULL,
+            updated_by bigint(20) UNSIGNED DEFAULT NULL,
             PRIMARY KEY (id),
             KEY preventivo_id (preventivo_id),
             KEY data_evento (data_evento),
@@ -84,6 +85,105 @@ class Disco747_Database {
         dbDelta($sql);
         
         error_log('[747Disco-DB] Tabella verificata/creata: ' . $this->table_name);
+        
+        // ✅ Crea tabella audit log per tracciare modifiche
+        $this->create_audit_log_table();
+    }
+    
+    /**
+     * Crea tabella per audit log delle modifiche ai preventivi
+     */
+    private function create_audit_log_table() {
+        global $wpdb;
+        
+        $log_table = $wpdb->prefix . 'disco747_preventivi_log';
+        
+        $sql = "CREATE TABLE IF NOT EXISTS {$log_table} (
+            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            preventivo_id bigint(20) UNSIGNED NOT NULL,
+            user_id bigint(20) UNSIGNED NOT NULL,
+            user_name varchar(100) DEFAULT '',
+            action_type varchar(50) NOT NULL,
+            field_changed varchar(100) DEFAULT '',
+            old_value text DEFAULT '',
+            new_value text DEFAULT '',
+            ip_address varchar(50) DEFAULT '',
+            user_agent varchar(255) DEFAULT '',
+            created_at datetime NOT NULL,
+            PRIMARY KEY (id),
+            KEY preventivo_id (preventivo_id),
+            KEY user_id (user_id),
+            KEY action_type (action_type),
+            KEY created_at (created_at)
+        ) {$this->charset_collate};";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+        
+        error_log('[747Disco-DB] Tabella audit log verificata/creata: ' . $log_table);
+    }
+    
+    /**
+     * Registra modifica nel log audit
+     */
+    public function log_preventivo_change($preventivo_id, $action_type, $changes = array()) {
+        global $wpdb;
+        
+        $log_table = $wpdb->prefix . 'disco747_preventivi_log';
+        $user = wp_get_current_user();
+        
+        // Registra azione generale
+        $wpdb->insert(
+            $log_table,
+            array(
+                'preventivo_id' => $preventivo_id,
+                'user_id' => get_current_user_id(),
+                'user_name' => $user->display_name,
+                'action_type' => $action_type,
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+                'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
+                'created_at' => current_time('mysql')
+            ),
+            array('%d', '%d', '%s', '%s', '%s', '%s', '%s')
+        );
+        
+        // Registra modifiche specifiche ai campi
+        if (!empty($changes)) {
+            foreach ($changes as $field => $change) {
+                $wpdb->insert(
+                    $log_table,
+                    array(
+                        'preventivo_id' => $preventivo_id,
+                        'user_id' => get_current_user_id(),
+                        'user_name' => $user->display_name,
+                        'action_type' => 'field_update',
+                        'field_changed' => $field,
+                        'old_value' => $change['old'] ?? '',
+                        'new_value' => $change['new'] ?? '',
+                        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+                        'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
+                        'created_at' => current_time('mysql')
+                    ),
+                    array('%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+                );
+            }
+        }
+        
+        error_log("[747Disco-DB] Log audit registrato: {$action_type} per preventivo #{$preventivo_id} da user #{$user->ID} ({$user->display_name})");
+    }
+    
+    /**
+     * Ottiene storico modifiche preventivo
+     */
+    public function get_preventivo_log($preventivo_id) {
+        global $wpdb;
+        
+        $log_table = $wpdb->prefix . 'disco747_preventivi_log';
+        
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$log_table} WHERE preventivo_id = %d ORDER BY created_at DESC",
+            $preventivo_id
+        ), ARRAY_A);
     }
     
     /**
@@ -108,7 +208,8 @@ class Disco747_Database {
             array('name' => 'extra3_importo', 'sql' => "ADD COLUMN extra3_importo decimal(10,2) DEFAULT 0.00 AFTER extra3"),
             array('name' => 'note_aggiuntive', 'sql' => "ADD COLUMN note_aggiuntive text DEFAULT NULL AFTER extra3_importo"),
             array('name' => 'note_interne', 'sql' => "ADD COLUMN note_interne text DEFAULT NULL AFTER note_aggiuntive"),
-            array('name' => 'googledrive_file_id', 'sql' => "ADD COLUMN googledrive_file_id varchar(100) DEFAULT '' AFTER googledrive_url")
+            array('name' => 'googledrive_file_id', 'sql' => "ADD COLUMN googledrive_file_id varchar(100) DEFAULT '' AFTER googledrive_url"),
+            array('name' => 'updated_by', 'sql' => "ADD COLUMN updated_by bigint(20) UNSIGNED DEFAULT NULL AFTER updated_at")
         );
         
         $added_count = 0;

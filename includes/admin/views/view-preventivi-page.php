@@ -23,8 +23,13 @@ $filters = array(
     'anno' => intval($_GET['anno'] ?? 0),
     'mese' => intval($_GET['mese'] ?? 0),
     'order_by' => sanitize_key($_GET['order_by'] ?? 'created_at'),
-    'order' => sanitize_key($_GET['order'] ?? 'DESC')
+    'order' => strtoupper(sanitize_text_field($_GET['order'] ?? 'DESC'))
 );
+
+// Valida che order sia solo ASC o DESC
+if (!in_array($filters['order'], array('ASC', 'DESC'))) {
+    $filters['order'] = 'DESC';
+}
 
 // Paginazione
 $page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
@@ -271,15 +276,59 @@ $stats = array(
                     <table class="wp-list-table widefat fixed striped" style="margin: 0;">
                         <thead>
                             <tr>
-                                <th style="width: 100px;">Data Evento</th>
-                                <th>Cliente</th>
+                                <?php
+                                // Funzione helper per generare link ordinamento
+                                function get_sort_link($column, $label, $current_order_by, $current_order, $width = '', $align = '') {
+                                    $is_active = ($current_order_by === $column);
+                                    
+                                    // Determina il nuovo ordine
+                                    if ($is_active) {
+                                        // Se è già attiva, inverti l'ordine
+                                        $new_order = ($current_order === 'ASC') ? 'DESC' : 'ASC';
+                                    } else {
+                                        // Se non è attiva, inizia con DESC
+                                        $new_order = 'DESC';
+                                    }
+                                    
+                                    // Mantieni tutti i parametri esistenti
+                                    $current_params = $_GET;
+                                    $current_params['order_by'] = $column;
+                                    $current_params['order'] = $new_order;
+                                    $current_params['paged'] = 1; // Reset pagination
+                                    
+                                    $url = add_query_arg($current_params);
+                                    
+                                    $arrow = '';
+                                    if ($is_active) {
+                                        $arrow = ($current_order === 'ASC') ? ' ↑' : ' ↓';
+                                    }
+                                    
+                                    $style = '';
+                                    if ($width) $style .= "width: {$width}; ";
+                                    if ($align) $style .= "text-align: {$align}; ";
+                                    if ($is_active) $style .= "background: #f0f0f1; font-weight: 700;";
+                                    
+                                    return sprintf(
+                                        '<th style="%s"><a href="%s" style="text-decoration: none; color: inherit; display: block; padding: 8px 12px;">%s%s</a></th>',
+                                        $style,
+                                        esc_url($url),
+                                        esc_html($label),
+                                        $arrow
+                                    );
+                                }
+                                
+                                echo get_sort_link('data_evento', 'Data Evento', $filters['order_by'], $filters['order'], '100px');
+                                echo get_sort_link('nome_cliente', 'Cliente', $filters['order_by'], $filters['order']);
+                                ?>
                                 <th style="width: 60px; text-align: center;">WhatsApp</th>
-                                <th>Tipo Evento</th>
-                                <th style="width: 100px;">Menu</th>
-                                <th style="width: 70px;">Invitati</th>
-                                <th style="width: 100px;">Importo</th>
-                                <th style="width: 90px;">Acconto</th>
-                                <th style="width: 80px;">Stato</th>
+                                <?php
+                                echo get_sort_link('tipo_evento', 'Tipo Evento', $filters['order_by'], $filters['order']);
+                                echo get_sort_link('tipo_menu', 'Menu', $filters['order_by'], $filters['order'], '100px');
+                                echo get_sort_link('numero_invitati', 'Invitati', $filters['order_by'], $filters['order'], '70px');
+                                echo get_sort_link('importo_totale', 'Importo', $filters['order_by'], $filters['order'], '100px');
+                                echo get_sort_link('acconto', 'Acconto', $filters['order_by'], $filters['order'], '90px');
+                                echo get_sort_link('stato', 'Stato', $filters['order_by'], $filters['order'], '80px');
+                                ?>
                                 <th style="width: 180px;">Azioni</th>
                             </tr>
                         </thead>
@@ -558,8 +607,6 @@ $stats = array(
 
 </div>
 
-<!-- Modal Modifica Preventivo - RIMOSSO: Ora si apre il form principale -->
-
 <style>
 .disco747-wrap {
     padding: 20px;
@@ -605,6 +652,17 @@ $stats = array(
 }
 .btn-delete-preventivo:hover {
     background: #a00;
+}
+
+/* Intestazioni ordinabili */
+.wp-list-table thead th a {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+.wp-list-table thead th a:hover {
+    background: #e8e8e9 !important;
+    color: #2271b1 !important;
 }
 
 /* ============================================================================ */
@@ -728,32 +786,6 @@ $stats = array(
     .disco747-card-content > div[style*="padding: 20px"] > div:first-child > div:last-child a {
         flex: 1;
     }
-    
-    /* Modal più compatto */
-    #modal-edit-preventivo > div {
-        margin: 20px 10px !important;
-        padding: 20px !important;
-        max-width: 100% !important;
-    }
-    
-    #modal-edit-preventivo h2 {
-        font-size: 1.3rem !important;
-        padding-right: 40px;
-    }
-    
-    #form-edit-preventivo > div:first-child {
-        grid-template-columns: 1fr !important;
-    }
-    
-    #form-edit-preventivo input,
-    #form-edit-preventivo select,
-    #form-edit-preventivo textarea {
-        font-size: 16px !important;
-    }
-    
-    #form-edit-preventivo > div[style*="margin-top: 20px"] > div {
-        grid-template-columns: 1fr !important;
-    }
 }
 
 /* MOBILE SMALL (< 480px) */
@@ -814,11 +846,6 @@ jQuery(document).ready(function($) {
         var queryString = $.param(params);
         window.location.href = url + '?' + queryString;
     });
-
-    // ========================================================================
-    // MODIFICA PREVENTIVO - Ora reindirizza al form invece del modal
-    // ========================================================================
-    // Rimosso: gestito tramite link diretto alla pagina del form
 
     // ========================================================================
     // ELIMINA PREVENTIVO

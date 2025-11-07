@@ -42,6 +42,7 @@ class Disco747_Excel_Scan_Handler {
         // Registra hooks AJAX
         add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan_ajax'));
         add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan_ajax'));
+        add_action('wp_ajax_disco747_unlock_scan', array($this, 'handle_unlock_scan_ajax')); // ✅ FIX: Unlock manuale
         
         // Inizializza Google Drive
         $this->init_googledrive();
@@ -65,23 +66,49 @@ class Disco747_Excel_Scan_Handler {
                 $this->googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
             }
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('Disco747 Excel Scan - Errore init Google Drive: ' . $e->getMessage());
         }
     }
     
     /**
-     * Handler AJAX per scansione batch
+     * Handler AJAX per scansione batch PROGRESSIVA
      */
     public function handle_batch_scan_ajax() {
+        // ✅ LOCK: Previeni esecuzioni multiple simultanee (causa 503)
+        $lock_key = 'disco747_scan_lock';
+        $is_locked = get_transient($lock_key);
+        
+        if ($is_locked) {
+            error_log('[747Disco-Scan] ⚠️ LOCK ATTIVO: Scansione già in corso, richiesta rifiutata');
+            wp_send_json_error(array(
+                'message' => '⚠️ Scansione già in corso! Attendere il completamento (lock attivo).'
+            ));
+            return;
+        }
+        
+        // ✅ Acquisici LOCK per 5 minuti
+        set_transient($lock_key, time(), 300);
+        error_log('[747Disco-Scan] 🔒 LOCK acquisito');
+        
+        // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
+        if (function_exists('disco747_set_scan_timeout')) {
+            disco747_set_scan_timeout();
+        } else {
+            @set_time_limit(900);
+            @ini_set('max_execution_time', 900);
+        }
+        
         // Verifica nonce
         if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+            delete_transient($lock_key); // Rilascia lock
             wp_send_json_error(array('message' => 'Nonce non valido'));
             return;
         }
         
         // Verifica permessi
         if (!current_user_can('manage_options')) {
+            delete_transient($lock_key); // Rilascia lock
             wp_send_json_error(array('message' => 'Permessi insufficienti'));
             return;
         }
@@ -89,7 +116,12 @@ class Disco747_Excel_Scan_Handler {
         try {
             $dry_run = isset($_POST['dry_run']) ? intval($_POST['dry_run']) === 1 : false;
             
-            error_log("[747Disco-Scan] Avvio scansione batch");
+            // ✅ NUOVO: Supporto batch progressivi
+            $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+            $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 0; // 0 = tutti
+            $is_first_batch = isset($_POST['is_first_batch']) ? boolval($_POST['is_first_batch']) : true;
+            
+            error_log("[747Disco-Scan] 🚀 Batch progressivo - Offset: {$offset}, Limit: {$limit}, First: " . ($is_first_batch ? 'SI' : 'NO'));
             
             // Inizializza contatori
             $counters = array(
@@ -104,24 +136,51 @@ class Disco747_Excel_Scan_Handler {
             $results = array();
             
             // ✅ REALE: Trova file Excel da Google Drive
-            $excel_files = $this->get_excel_files_from_googledrive();
-            $counters['listed'] = count($excel_files);
+            $all_excel_files = $this->get_excel_files_from_googledrive();
+            $total_files_count = count($all_excel_files);
             
-            error_log("[747Disco-Scan] Trovati {$counters['listed']} file Excel da Google Drive");
+            error_log("[747Disco-Scan] Trovati {$total_files_count} file Excel TOTALI da Google Drive");
             
-            if (empty($excel_files)) {
+            if (empty($all_excel_files)) {
                 wp_send_json_success(array(
                     'total_files' => 0,
                     'processed' => 0,
                     'new_records' => 0,
                     'updated_records' => 0,
                     'errors' => 0,
+                    'has_more' => false,
+                    'next_offset' => 0,
                     'messages' => array('Nessun file Excel trovato con i filtri specificati')
                 ));
                 return;
             }
             
-            // ✅ REALE: Processa ogni file Excel
+            // ✅ BATCH PROGRESSIVO: Applica offset e limit
+            if ($limit > 0) {
+                $excel_files = array_slice($all_excel_files, $offset, $limit);
+                $has_more = ($offset + $limit) < $total_files_count;
+                $next_offset = $offset + $limit;
+                error_log("[747Disco-Scan] 📦 Batch {$offset}-" . ($offset + count($excel_files)) . " di {$total_files_count} file");
+            } else {
+                // Modalità compatibilità: processa tutti i file in 1 colpo
+                $excel_files = $all_excel_files;
+                $has_more = false;
+                $next_offset = 0;
+            }
+            
+            $counters['listed'] = count($excel_files);
+            
+            // ✅ SAFETY: Limite RIDOTTO a 2 file per garantire risposta JSON rapida (~20s)
+            $max_files_per_request = 2;
+            if ($limit == 0 && count($excel_files) > $max_files_per_request) {
+                error_log("[747Disco-Scan] ⚠️ SAFETY LIMIT: Riducendo da " . count($excel_files) . " a {$max_files_per_request} file per evitare timeout server");
+                $excel_files = array_slice($excel_files, 0, $max_files_per_request);
+                $has_more = true;
+                $next_offset = $max_files_per_request;
+                $total_files_count = count($all_excel_files); // Salva il totale originale
+            }
+            
+            // ✅ REALE: Processa ogni file Excel del batch corrente
             foreach ($excel_files as $i => $file) {
                 try {
                     error_log("[747Disco-Scan] Processando file: {$file['name']}");
@@ -156,15 +215,16 @@ class Disco747_Excel_Scan_Handler {
                         $counters['saved_ok']++;
                     }
                     
-                    // Rate limiting per non sovraccaricare Google Drive
+                    // ✅ Rate limiting ridotto per velocizzare (50ms)
                     if ($i < count($excel_files) - 1) {
-                        usleep(200000); // 200ms
+                        usleep(50000); // 50ms (per completare prima del timeout server)
                     }
                     
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $error_msg = "Errore processando {$file['name']}: " . $e->getMessage();
                     $errors[] = $error_msg;
-                    error_log("[747Disco-Scan] {$error_msg}");
+                    error_log("[747Disco-Scan] ❌ {$error_msg}");
+                    error_log("[747Disco-Scan] ❌ Tipo errore: " . get_class($e));
                     $counters['errors']++;
                     
                     // ✅ NON bloccare l'intera scansione, continua con file successivo
@@ -172,50 +232,159 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
-            error_log("[747Disco-Scan] Completata - Parsed: {$counters['parsed_ok']}, Saved: {$counters['saved_ok']}, Errors: {$counters['errors']}");
+            error_log("[747Disco-Scan] ✅ Completata - Parsed: {$counters['parsed_ok']}, Saved: {$counters['saved_ok']}, Errors: {$counters['errors']}");
+            
+            // ✅ Log completo errori per debug
+            if (!empty($errors)) {
+                error_log("[747Disco-Scan] ========== FILE CON ERRORI ==========");
+                foreach ($errors as $error) {
+                    error_log("[747Disco-Scan] ❌ " . $error);
+                }
+                error_log("[747Disco-Scan] =====================================");
+            }
             
             // Prepara messaggi per il frontend
             $messages = array();
-            foreach ($results as $result) {
-                $messages[] = "✅ Processato: {$result['filename']} - {$result['data']['nome_cliente']}";
-            }
-            foreach (array_slice($errors, 0, 5) as $error) {
-                $messages[] = "❌ Errore: {$error}";
+            
+            // Mostra errori per primi (più visibili)
+            if (!empty($errors)) {
+                $messages[] = "⚠️ File con errori: " . count($errors);
+                foreach (array_slice($errors, 0, 10) as $error) {
+                    $messages[] = "❌ {$error}";
+                }
+                if (count($errors) > 10) {
+                    $messages[] = "... e altri " . (count($errors) - 10) . " errori (vedi log debug)";
+                }
             }
             
-            wp_send_json_success(array(
-                'total_files' => $counters['listed'],
+            // Poi i successi (ultimi 5)
+            foreach (array_slice($results, -5) as $result) {
+                $messages[] = "✅ {$result['filename']} - {$result['data']['nome_cliente']}";
+            }
+            
+            // ✅ Log prima di inviare risposta
+            error_log("[747Disco-Scan] ========== PREPARAZIONE RISPOSTA FINALE ==========");
+            error_log("[747Disco-Scan] 📊 Total files: {$counters['listed']}");
+            error_log("[747Disco-Scan] ✅ Processed: {$counters['parsed_ok']}");
+            error_log("[747Disco-Scan] 💾 Saved: {$counters['saved_ok']}");
+            error_log("[747Disco-Scan] ❌ Errors: {$counters['errors']}");
+            error_log("[747Disco-Scan] 📝 Messages count: " . count($messages));
+            
+            $response_data = array(
+                'total_files' => isset($total_files_count) ? $total_files_count : $counters['listed'],
+                'batch_size' => $counters['listed'],
                 'processed' => $counters['parsed_ok'],
                 'new_records' => $counters['saved_ok'],
                 'updated_records' => 0,
                 'errors' => $counters['errors'],
+                'has_more' => isset($has_more) ? $has_more : false,
+                'next_offset' => isset($next_offset) ? $next_offset : 0,
+                'current_offset' => $offset,
                 'messages' => $messages
-            ));
+            );
             
-        } catch (Exception $e) {
+            error_log("[747Disco-Scan] 🚀 Invio risposta JSON success...");
+            error_log("[747Disco-Scan] 📊 Has more: " . ($response_data['has_more'] ? 'SI' : 'NO') . ", Next offset: {$response_data['next_offset']}");
+            
+            // ✅ Rilascia LOCK prima di inviare risposta
+            delete_transient($lock_key);
+            error_log('[747Disco-Scan] 🔓 LOCK rilasciato');
+            
+            // ✅ FLUSH buffer PHP per evitare problemi con FastCGI/Nginx
+            if (ob_get_level()) {
+                ob_end_clean(); // Pulisci buffer esistenti
+            }
+            
+            // ✅ Disabilita output buffering per questa risposta
+            @ini_set('output_buffering', 'off');
+            @ini_set('zlib.output_compression', 'off');
+            
+            // ✅ Invia header espliciti
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+                header('Cache-Control: no-cache, must-revalidate');
+                header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+            }
+            
+            error_log('[747Disco-Scan] 📤 Header e buffer configurati, invio JSON...');
+            
+            wp_send_json_success($response_data);
+            
+            // Questa riga non verrà mai eseguita (wp_send_json_success chiama wp_die)
+            error_log("[747Disco-Scan] ✅ Dopo wp_send_json_success (non dovrebbe apparire)");
+            
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore scansione batch: ' . $e->getMessage());
+            
+            // ✅ Rilascia LOCK in caso di errore
+            delete_transient($lock_key);
+            error_log('[747Disco-Scan] 🔓 LOCK rilasciato (errore)');
+            
             wp_send_json_error(array('message' => 'Errore interno: ' . $e->getMessage()));
         }
     }
     
     /**
-     * Handler AJAX per reset e scan completo
+     * ✅ Handler AJAX per sbloccare manualmente il lock (emergenza)
      */
-    public function handle_reset_and_scan_ajax() {
-        // Verifica nonce
-        if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
-            wp_send_json_error(array('message' => 'Nonce non valido'));
-            return;
-        }
-        
+    public function handle_unlock_scan_ajax() {
         // Verifica permessi
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'));
             return;
         }
         
+        $lock_key = 'disco747_scan_lock';
+        delete_transient($lock_key);
+        error_log('[747Disco-Scan] 🔓 LOCK forzatamente rilasciato da utente');
+        
+        wp_send_json_success(array('message' => '✅ Lock rilasciato con successo!'));
+    }
+    
+    /**
+     * Handler AJAX per reset e scan completo
+     */
+    public function handle_reset_and_scan_ajax() {
+        // ✅ LOCK: Previeni esecuzioni multiple simultanee
+        $lock_key = 'disco747_scan_lock';
+        $is_locked = get_transient($lock_key);
+        
+        if ($is_locked) {
+            error_log('[747Disco-Scan] ⚠️ LOCK ATTIVO: Reset già in corso, richiesta rifiutata');
+            wp_send_json_error(array(
+                'message' => '⚠️ Reset già in corso! Attendere il completamento.'
+            ));
+            return;
+        }
+        
+        // ✅ Acquisici LOCK per 5 minuti
+        set_transient($lock_key, time(), 300);
+        error_log('[747Disco-Scan] 🔒 LOCK acquisito (reset)');
+        
+        // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
+        if (function_exists('disco747_set_scan_timeout')) {
+            disco747_set_scan_timeout();
+        } else {
+            @set_time_limit(900);
+            @ini_set('max_execution_time', 900);
+        }
+        
+        // Verifica nonce
+        if (!check_ajax_referer('disco747_batch_scan', 'nonce', false)) {
+            delete_transient($lock_key); // Rilascia lock
+            wp_send_json_error(array('message' => 'Nonce non valido'));
+            return;
+        }
+        
+        // Verifica permessi
+        if (!current_user_can('manage_options')) {
+            delete_transient($lock_key); // Rilascia lock
+            wp_send_json_error(array('message' => 'Permessi insufficienti'));
+            return;
+        }
+        
         try {
-            error_log('[747Disco-Scan] Svuotamento database...');
+            error_log('[747Disco-Scan] Svuotamento database (timeout: 15min)...');
             
             // Svuota tabella preventivi
             global $wpdb;
@@ -223,11 +392,27 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("[747Disco-Scan] Eliminati {$deleted} record dal database");
             
-            // Esegui batch scan normale
+            // ✅ Reset AUTO_INCREMENT per ripartire da ID 1
+            $wpdb->query("ALTER TABLE {$this->table_name} AUTO_INCREMENT = 1");
+            error_log("[747Disco-Scan] ✅ AUTO_INCREMENT resettato a 1");
+            
+            // ✅ NON chiamare handle_batch_scan_ajax (ha già il suo lock)
+            // Invece, duplica la logica qui con lock condiviso
+            
+            // Rilascia lock temporaneamente per permettere alla scan di acquisirlo
+            delete_transient($lock_key);
+            
+            // Esegui batch scan normale (che acquisirà il suo lock)
             $this->handle_batch_scan_ajax();
             
-        } catch (Exception $e) {
-            error_log('[747Disco-Scan] Errore reset and scan: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('[747Disco-Scan] ❌ Errore reset and scan: ' . $e->getMessage());
+            error_log('[747Disco-Scan] ❌ Tipo errore: ' . get_class($e));
+            
+            // ✅ Rilascia LOCK in caso di errore
+            delete_transient($lock_key);
+            error_log('[747Disco-Scan] 🔓 LOCK rilasciato (errore reset)');
+            
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()));
         }
     }
@@ -264,7 +449,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $all_files;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('Disco747 Excel Scan - Errore ricerca file: ' . $e->getMessage());
             return array();
         }
@@ -302,7 +487,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -352,7 +537,7 @@ class Disco747_Excel_Scan_Handler {
             error_log('[747Disco-Scan] Cartella 747-Preventivi non trovata');
             return null;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore ricerca cartella principale: ' . $e->getMessage());
             return null;
         }
@@ -386,7 +571,7 @@ class Disco747_Excel_Scan_Handler {
                     'refresh_token' => $credentials['refresh_token'],
                     'grant_type' => 'refresh_token'
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per refresh token
             ));
             
             if (is_wp_error($response)) {
@@ -413,7 +598,7 @@ class Disco747_Excel_Scan_Handler {
             error_log('[747Disco-Scan] Token refreshed con successo');
             return $access_token;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore ottenimento token: ' . $e->getMessage());
             return null;
         }
@@ -449,7 +634,7 @@ class Disco747_Excel_Scan_Handler {
             
             error_log("[747Disco-Scan] Filtri applicati - Anno: " . ($year ?: 'tutti') . ", Mese: " . ($month ?: 'tutti'));
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore scansione con filtri: " . $e->getMessage());
         }
         
@@ -477,7 +662,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -490,7 +675,7 @@ class Disco747_Excel_Scan_Handler {
             
             return !empty($body['files']) ? $body['files'][0]['id'] : null;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore ricerca anno: " . $e->getMessage());
             return null;
         }
@@ -517,7 +702,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -530,7 +715,7 @@ class Disco747_Excel_Scan_Handler {
             
             return !empty($body['files']) ? $body['files'][0]['id'] : null;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore ricerca mese: " . $e->getMessage());
             return null;
         }
@@ -557,7 +742,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (is_wp_error($response)) {
@@ -584,7 +769,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $excel_files;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore scansione cartella: " . $e->getMessage());
             return array();
         }
@@ -616,7 +801,7 @@ class Disco747_Excel_Scan_Handler {
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste API Google Drive
             ));
             
             if (!is_wp_error($response)) {
@@ -631,7 +816,7 @@ class Disco747_Excel_Scan_Handler {
                     $all_files = array_merge($all_files, $subfolder_files);
                 }
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] Errore scansione sottocartelle: " . $e->getMessage());
         }
         
@@ -678,8 +863,9 @@ class Disco747_Excel_Scan_Handler {
             
             return $parsed_data;
             
-        } catch (Exception $e) {
-            error_log('[747Disco-Scan] Errore download/parsing: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('[747Disco-Scan] ❌ Errore download/parsing: ' . $e->getMessage());
+            error_log('[747Disco-Scan] ❌ Tipo errore: ' . get_class($e));
             return false;
         }
     }
@@ -701,13 +887,15 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
-            // ✅ FIX: Carica il file Excel con gestione errori per file corrotti
+            // ✅ FIX DEFINITIVO: Carica il file Excel con gestione errori per file corrotti
+            // Usa \Throwable per catturare ANCHE TypeError (non solo Exception)
             try {
                 $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file_path);
                 $worksheet = $spreadsheet->getActiveSheet();
-            } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
-                error_log('[747Disco-Scan] File Excel corrotto o con hyperlink nulli: ' . $e->getMessage());
-                throw new \Exception('File Excel corrotto: ' . $e->getMessage());
+            } catch (\Throwable $e) {
+                error_log('[747Disco-Scan] ❌ File Excel corrotto (TypeError/Exception): ' . $e->getMessage());
+                error_log('[747Disco-Scan] ❌ File problematico: ' . basename($file_path));
+                throw new \Exception('File Excel corrotto o con hyperlink nulli: ' . $e->getMessage());
             }
             
             // ✅ Mapping secondo le specifiche richieste
@@ -795,7 +983,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $data;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore parsing PhpSpreadsheet: ' . $e->getMessage());
             return false;
         }
@@ -899,7 +1087,7 @@ class Disco747_Excel_Scan_Handler {
             
             return $insert_id;
             
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             error_log('[747Disco-Scan] Errore salvataggio preventivo: ' . $e->getMessage());
             return false;
         }
@@ -945,6 +1133,27 @@ class Disco747_Excel_Scan_Handler {
                 }
             }
             
+            // ✅ Pattern formato italiano testuale: "sabato 13 dicembre 2025"
+            if (preg_match('/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})/i', $value, $matches)) {
+                $day = intval($matches[1]);
+                $month_name = strtolower($matches[2]);
+                $year = intval($matches[3]);
+                
+                // Mappa mesi italiani
+                $mesi = array(
+                    'gennaio' => 1, 'febbraio' => 2, 'marzo' => 3, 'aprile' => 4,
+                    'maggio' => 5, 'giugno' => 6, 'luglio' => 7, 'agosto' => 8,
+                    'settembre' => 9, 'ottobre' => 10, 'novembre' => 11, 'dicembre' => 12
+                );
+                
+                if (isset($mesi[$month_name])) {
+                    $month = $mesi[$month_name];
+                    if (checkdate($month, $day, $year)) {
+                        return sprintf('%04d-%02d-%02d', $year, $month, $day);
+                    }
+                }
+            }
+            
             // ✅ Fallback: prova strtotime() per altri formati
             $timestamp = strtotime($value);
             if ($timestamp) {
@@ -954,7 +1163,7 @@ class Disco747_Excel_Scan_Handler {
             error_log("[747Disco-Scan] ⚠️ Impossibile parsare data: {$value}");
             return null;
             
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             error_log("[747Disco-Scan] ❌ Errore parsing data: " . $e->getMessage());
             return null;
         }
@@ -1013,8 +1222,8 @@ class Disco747_Excel_Scan_Handler {
             
             return null;
             
-        } catch (\Exception $e) {
-            error_log('[747Disco-Scan] Errore estrazione data da filename: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            error_log('[747Disco-Scan] ❌ Errore estrazione data da filename: ' . $e->getMessage());
             return null;
         }
     }

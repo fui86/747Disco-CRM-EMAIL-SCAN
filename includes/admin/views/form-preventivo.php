@@ -413,6 +413,28 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                            placeholder="0.00">
                 </div>
                 
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2b1e1a;">
+                        📊 Stato Preventivo
+                    </label>
+                    <select name="stato" id="stato"
+                            style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
+                        <option value="attivo" <?php echo get_field_value('stato', 'attivo', $edit_data) == 'attivo' ? 'selected' : ''; ?>>
+                            ✅ Attivo
+                        </option>
+                        <option value="confermato" <?php echo get_field_value('stato', '', $edit_data) == 'confermato' ? 'selected' : ''; ?>>
+                            💰 Confermato (con acconto)
+                        </option>
+                        <option value="annullato" <?php echo get_field_value('stato', '', $edit_data) == 'annullato' ? 'selected' : ''; ?>>
+                            ❌ Annullato
+                        </option>
+                    </select>
+                    <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                        ℹ️ <strong>Annullato</strong> aggiunge "NO" al nome file Excel<br>
+                        💡 <strong>Confermato</strong> o acconto > 0 aggiunge "CONF"
+                    </p>
+                </div>
+                
             </div>
             
             <!-- Display Calcoli Automatici -->
@@ -518,6 +540,97 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
         
     </form>
     
+    <?php if ($is_edit_mode && $edit_id > 0): ?>
+    <!-- ============================================================================ -->
+    <!-- SEZIONE STORICO MODIFICHE -->
+    <!-- ============================================================================ -->
+    <div style="background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-top: 30px; overflow: hidden;">
+        
+        <div style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; padding: 20px;">
+            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1.4rem;">
+                📋 Storico Modifiche
+            </h2>
+        </div>
+        
+        <div style="padding: 30px;">
+            <?php
+            // Carica storico modifiche
+            $disco747_crm = disco747_crm();
+            if ($disco747_crm && $disco747_crm->get_database()) {
+                $log_entries = $disco747_crm->get_database()->get_preventivo_log($edit_id);
+                
+                if (!empty($log_entries)):
+            ?>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <?php foreach ($log_entries as $entry): 
+                    $user_info = get_userdata($entry['user_id']);
+                    $user_display = $user_info ? $user_info->display_name : $entry['user_name'];
+                    
+                    $action_icons = array(
+                        'create' => '✨',
+                        'update' => '✏️',
+                        'field_update' => '📝',
+                        'delete' => '🗑️'
+                    );
+                    $icon = $action_icons[$entry['action_type']] ?? '📌';
+                    
+                    $action_labels = array(
+                        'create' => 'Creazione preventivo',
+                        'update' => 'Aggiornamento preventivo',
+                        'field_update' => 'Modifica campo',
+                        'delete' => 'Eliminazione'
+                    );
+                    $action_label = $action_labels[$entry['action_type']] ?? $entry['action_type'];
+                ?>
+                <div style="background: #f8f9fa; border-left: 4px solid #6c757d; padding: 15px; margin-bottom: 10px; border-radius: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 15px; flex-wrap: wrap;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #2b1e1a; margin-bottom: 5px;">
+                                <?php echo $icon; ?> <?php echo esc_html($action_label); ?>
+                            </div>
+                            <?php if ($entry['field_changed']): ?>
+                            <div style="font-size: 14px; color: #6c757d; margin-top: 8px;">
+                                <strong>Campo:</strong> <?php echo esc_html($entry['field_changed']); ?><br>
+                                <?php if ($entry['old_value']): ?>
+                                <span style="color: #dc3545;">Da:</span> <code><?php echo esc_html(substr($entry['old_value'], 0, 100)); ?></code><br>
+                                <?php endif; ?>
+                                <span style="color: #28a745;">A:</span> <code><?php echo esc_html(substr($entry['new_value'], 0, 100)); ?></code>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <div style="text-align: right; min-width: 200px;">
+                            <div style="font-weight: 600; color: #495057; font-size: 14px;">
+                                👤 <?php echo esc_html($user_display); ?>
+                            </div>
+                            <div style="font-size: 12px; color: #6c757d; margin-top: 3px;">
+                                🕐 <?php echo date('d/m/Y H:i', strtotime($entry['created_at'])); ?>
+                            </div>
+                            <?php if ($entry['ip_address']): ?>
+                            <div style="font-size: 11px; color: #adb5bd; margin-top: 2px;">
+                                🌐 <?php echo esc_html($entry['ip_address']); ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php else: ?>
+            <div style="text-align: center; padding: 40px; color: #6c757d;">
+                <div style="font-size: 48px; margin-bottom: 15px;">📋</div>
+                <p style="margin: 0; font-size: 16px;">Nessuna modifica registrata per questo preventivo</p>
+            </div>
+            <?php 
+                endif;
+            } else {
+                echo '<p style="color: #dc3545;">⚠️ Sistema di logging non disponibile</p>';
+            }
+            ?>
+        </div>
+        
+    </div>
+    <?php endif; ?>
+    
     <!-- ============================================================================ -->
     <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
     <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
@@ -616,7 +729,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 25px;">
                 <p style="margin: 0; color: #004085; font-size: 0.9rem;">
-                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@gestionale.747disco.it</strong> con copia a <strong>info@gestionale.747disco.it</strong>
+                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
                 </p>
             </div>
             

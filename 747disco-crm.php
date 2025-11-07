@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: 747 Disco CRM - PreventiviParty Enhanced
- * Plugin URI: https://gestionale.747disco.it
+ * Plugin URI: https://747disco.it
  * Description: Sistema CRM completo per la gestione dei preventivi della location 747 Disco. Replica del vecchio PreventiviParty con funzionalitÃƒÆ'Ã‚Â  avanzate.
  * Version: 11.8.0
  * Author: 747 Disco Team
- * Author URI: https://gestionale.747disco.it
+ * Author URI: https://747disco.it
  * Text Domain: disco747
  * Domain Path: /languages/
  * Requires at least: 5.8
@@ -140,6 +140,9 @@ final class Disco747_CRM_Plugin {
      * Carica autoloader SAFE - FIXED con storage dependencies + AJAX handlers + Excel Scan
      */
     private function load_autoloader() {
+        // ✅ Carica configurazione timeout centralizzata
+        require_once DISCO747_CRM_PLUGIN_DIR . 'includes/config-timeouts.php';
+        
         // Carica le classi principali manualmente per sicurezza
         $core_files = array(
             'includes/core/class-disco747-config.php',

@@ -20,12 +20,12 @@ class Disco747_AJAX_Handlers {
      * Inizializza gli handler AJAX
      */
     public static function init() {
-        // Batch scan Excel
-        add_action('wp_ajax_batch_scan_excel', array(__CLASS__, 'handle_batch_scan'));
-        add_action('wp_ajax_disco747_scan_drive_batch', array(__CLASS__, 'handle_batch_scan')); // Alias
+        // ❌ DISABILITATO: Batch scan Excel ora gestito da class-disco747-excel-scan-handler.php
+        // add_action('wp_ajax_batch_scan_excel', array(__CLASS__, 'handle_batch_scan'));
+        // add_action('wp_ajax_disco747_scan_drive_batch', array(__CLASS__, 'handle_batch_scan')); // Alias
         
-        // Reset e Scan
-        add_action('wp_ajax_reset_and_scan_excel', array(__CLASS__, 'handle_reset_and_scan'));
+        // ❌ DISABILITATO: Reset e Scan ora gestito da class-disco747-excel-scan-handler.php  
+        // add_action('wp_ajax_reset_and_scan_excel', array(__CLASS__, 'handle_reset_and_scan'));
         
         // Altri handler
         add_action('wp_ajax_analyze_excel_file', array(__CLASS__, 'handle_analyze_file'));
@@ -37,14 +37,22 @@ class Disco747_AJAX_Handlers {
         add_action('wp_ajax_disco747_get_excel_files_list', array(__CLASS__, 'handle_get_excel_files_list'));
         add_action('wp_ajax_disco747_analyze_excel_structure', array(__CLASS__, 'handle_analyze_excel_structure'));
         
-        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: batch_scan_excel, reset_and_scan_excel, analyze_excel_file, diagnostic_excel_dates, debug_structure');
+        error_log('[Excel-Scan-AJAX] Hook AJAX registrati: analyze_excel_file, diagnostic_excel_dates, debug_structure');
     }
 
     /**
      * Handler principale per batch scan
      */
     public static function handle_batch_scan() {
-        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN ==========');
+        // ✅ Aumenta timeout PHP per scansioni lunghe (usa config centralizzata)
+        if (function_exists('disco747_set_scan_timeout')) {
+            disco747_set_scan_timeout();
+        } else {
+            @set_time_limit(900);
+            @ini_set('max_execution_time', 900);
+        }
+        
+        error_log('[Batch-Scan-AJAX] ========== INIZIO BATCH SCAN (timeout: 15min) ==========');
         
         // Verifica nonce
         if (!isset($_POST['nonce']) && !isset($_POST['_wpnonce'])) {
@@ -569,7 +577,7 @@ class Disco747_AJAX_Handlers {
         
         $response = wp_remote_get($url, array(
             'headers' => array('Authorization' => 'Bearer ' . $token),
-            'timeout' => 30
+            'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
         ));
         
         if (is_wp_error($response)) {
@@ -617,7 +625,7 @@ class Disco747_AJAX_Handlers {
                     'refresh_token' => $credentials['refresh_token'],
                     'grant_type' => 'refresh_token'
                 ),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
             ));
             
             if (is_wp_error($response)) {
@@ -675,7 +683,7 @@ class Disco747_AJAX_Handlers {
             
             $response = wp_remote_get($url, array(
                 'headers' => array('Authorization' => 'Bearer ' . $token),
-                'timeout' => 30
+                'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
             ));
             
             if (!is_wp_error($response)) {
@@ -707,7 +715,7 @@ class Disco747_AJAX_Handlers {
         
         $response = wp_remote_get($url, array(
             'headers' => array('Authorization' => 'Bearer ' . $token),
-            'timeout' => 30
+            'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
         ));
         
         if (is_wp_error($response)) return null;
@@ -729,7 +737,7 @@ class Disco747_AJAX_Handlers {
         
         $response = wp_remote_get($url, array(
             'headers' => array('Authorization' => 'Bearer ' . $token),
-            'timeout' => 30
+            'timeout' => 120 // ✅ 2 minuti per richieste Google Drive API
         ));
         
         if (is_wp_error($response)) return array();

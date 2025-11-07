@@ -149,10 +149,22 @@ class Disco747_Forms {
                 
                 // Upload Excel
                 if ($excel_path && file_exists($excel_path)) {
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
+                    $upload_result = $this->storage->upload_file($excel_path, $drive_folder);
+                    
+                    // ✅ Gestisci risposta (può essere array o stringa per compatibilità)
+                    if ($upload_result) {
+                        $excel_url = is_array($upload_result) ? $upload_result['url'] : $upload_result;
+                        $file_id = is_array($upload_result) ? ($upload_result['file_id'] ?? '') : '';
+                        
                         $cloud_url = $excel_url;
                         $data['googledrive_url'] = $excel_url;
+                        
+                        // ✅ Salva anche il file_id per poterlo eliminare in futuro
+                        if (!empty($file_id)) {
+                            $data['googledrive_file_id'] = $file_id;
+                            $this->log('[Forms] 📎 File ID salvato: ' . $file_id);
+                        }
+                        
                         $this->log('[Forms] âœ… Excel caricato su Drive: ' . basename($excel_path));
                     }
                 }
@@ -172,6 +184,12 @@ class Disco747_Forms {
         
         $this->log('[Forms] âœ… Preventivo salvato con ID database: ' . $db_id);
         $this->log('[Forms] ========== âœ…âœ…âœ… PREVENTIVO COMPLETATO ==========');
+        
+        // ✅ REGISTRA CREAZIONE NEL LOG AUDIT
+        if ($this->database) {
+            $this->database->log_preventivo_change($db_id, 'create');
+            $this->log('[Forms] 📝 Creazione registrata nel log audit');
+        }
         
         wp_send_json_success(array(
             'message' => 'Preventivo creato con successo!',
@@ -217,6 +235,12 @@ class Disco747_Forms {
         
         global $wpdb;
         
+        // ✅ Carica dati precedenti per confronto
+        $old_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE id = %d",
+            $edit_id
+        ), ARRAY_A);
+        
         // Calcola extra totale
         $extra_totale = floatval($data['extra1_importo']) + floatval($data['extra2_importo']) + floatval($data['extra3_importo']);
         
@@ -255,13 +279,14 @@ class Disco747_Forms {
                 'note_aggiuntive' => $data['note_aggiuntive'],
                 'note_interne' => $data['note_interne'],
                 'stato' => $data['stato'],
-                'updated_at' => current_time('mysql')
+                'updated_at' => current_time('mysql'),
+                'updated_by' => get_current_user_id() // ✅ Traccia chi ha modificato
             ),
             array('id' => $edit_id),
             array(
                 '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d',
                 '%s', '%s', '%s', '%s', '%s', '%s', '%f', '%s', '%f',
-                '%s', '%f', '%f', '%f', '%f', '%f', '%s', '%s', '%s', '%s'
+                '%s', '%f', '%f', '%f', '%f', '%f', '%s', '%s', '%s', '%s', '%d'
             ),
             array('%d')
         );
@@ -273,6 +298,15 @@ class Disco747_Forms {
         }
         
         $this->log('[Forms] âœ… Preventivo aggiornato con successo');
+        
+        // ✅ REGISTRA MODIFICHE NEL LOG AUDIT
+        if ($old_data && $this->database) {
+            $changes = $this->detect_changes($old_data, $data);
+            if (!empty($changes)) {
+                $this->database->log_preventivo_change($edit_id, 'update', $changes);
+                $this->log('[Forms] 📝 ' . count($changes) . ' modifiche registrate nel log audit');
+            }
+        }
         
         // Rileggi preventivo aggiornato dal database per avere tutti i dati
         $preventivo = $wpdb->get_row($wpdb->prepare(
@@ -316,11 +350,27 @@ class Disco747_Forms {
         if ($excel_path && file_exists($excel_path)) {
             $this->log('[Forms] âœ… Excel rigenerato: ' . basename($excel_path));
             
-            // Upload su Google Drive (sovrascrive il vecchio)
+            // Upload su Google Drive (elimina vecchio, carica nuovo)
             if ($this->storage) {
                 $this->log('[Forms] â˜ï¸ Upload Excel aggiornato su Google Drive...');
                 
                 try {
+                    // ✅ ELIMINA vecchio file da Google Drive (evita duplicati con nome diverso)
+                    if (!empty($preventivo['googledrive_file_id'])) {
+                        $this->log('[Forms] 🗑️ Eliminazione vecchio file da Drive (ID: ' . $preventivo['googledrive_file_id'] . ')...');
+                        try {
+                            $handler = $this->storage->get_active_handler();
+                            if ($handler && method_exists($handler, 'delete_file')) {
+                                $handler->delete_file($preventivo['googledrive_file_id']);
+                                $this->log('[Forms] ✅ Vecchio file eliminato da Google Drive');
+                            } else {
+                                $this->log('[Forms] ⚠️ Handler non supporta delete_file', 'WARNING');
+                            }
+                        } catch (\Exception $e) {
+                            $this->log('[Forms] ⚠️ Impossibile eliminare vecchio file: ' . $e->getMessage(), 'WARNING');
+                        }
+                    }
+                    
                     // Usa data_evento per determinare il percorso corretto
                     $date_parts = explode('-', $preventivo['data_evento']);
                     $year = $date_parts[0];
@@ -340,15 +390,26 @@ class Disco747_Forms {
                     
                     $this->log('[Forms] ðŸ" Percorso Google Drive: ' . $drive_folder);
                     
-                    // Upload Excel
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
-                        // Aggiorna URL nel database
+                    // ✅ Upload nuovo Excel con nome aggiornato (include prefisso NO/CONF)
+                    $upload_result = $this->storage->upload_file($excel_path, $drive_folder);
+                    
+                    // ✅ Gestisci risposta (può essere array o stringa per compatibilità)
+                    if ($upload_result) {
+                        $excel_url = is_array($upload_result) ? $upload_result['url'] : $upload_result;
+                        $file_id = is_array($upload_result) ? ($upload_result['file_id'] ?? '') : '';
+                        
+                        // Aggiorna URL e file_id nel database
+                        $update_data = array('googledrive_url' => $excel_url);
+                        if (!empty($file_id)) {
+                            $update_data['googledrive_file_id'] = $file_id;
+                            $this->log('[Forms] 📎 File ID salvato: ' . $file_id);
+                        }
+                        
                         $wpdb->update(
                             $this->table_name,
-                            array('googledrive_url' => $excel_url),
+                            $update_data,
                             array('id' => $edit_id),
-                            array('%s'),
+                            array_fill(0, count($update_data), '%s'),
                             array('%d')
                         );
                         $this->log('[Forms] âœ… Excel aggiornato su Drive: ' . basename($excel_path));
@@ -839,7 +900,7 @@ class Disco747_Forms {
         $data['note_interne'] = sanitize_textarea_field($post_data['note_interne'] ?? '');
         
         // METADATA
-        $data['stato'] = 'attivo';
+        $data['stato'] = sanitize_text_field($post_data['stato'] ?? 'attivo'); // ✅ Legge dal form
         $data['created_by'] = get_current_user_id();
         $data['created_at'] = current_time('mysql');
         
@@ -982,6 +1043,7 @@ class Disco747_Forms {
             // Stato e URLs
             'stato' => $data['stato'] ?? 'attivo',
             'googledrive_url' => $data['googledrive_url'] ?? '',
+            'googledrive_file_id' => $data['googledrive_file_id'] ?? '', // ✅ Salva file_id per eliminazioni future
             'excel_url' => $data['googledrive_url'] ?? '',
             'pdf_url' => '',
             
@@ -1045,6 +1107,52 @@ class Disco747_Forms {
                 }
             }
         }
+    }
+    
+    /**
+     * ========================================================================
+     * HELPER: Rileva modifiche tra vecchi e nuovi dati
+     * ========================================================================
+     */
+    private function detect_changes($old_data, $new_data) {
+        $changes = array();
+        
+        // Campi da monitorare
+        $monitored_fields = array(
+            'nome_referente' => 'Nome',
+            'cognome_referente' => 'Cognome',
+            'telefono' => 'Telefono',
+            'email' => 'Email',
+            'data_evento' => 'Data Evento',
+            'tipo_evento' => 'Tipo Evento',
+            'tipo_menu' => 'Menu',
+            'numero_invitati' => 'Numero Invitati',
+            'importo_totale' => 'Importo Totale',
+            'acconto' => 'Acconto',
+            'stato' => 'Stato',
+            'note_aggiuntive' => 'Note',
+            'orario_inizio' => 'Orario Inizio',
+            'orario_fine' => 'Orario Fine'
+        );
+        
+        foreach ($monitored_fields as $field => $label) {
+            $old_value = $old_data[$field] ?? '';
+            $new_value = $new_data[$field] ?? '';
+            
+            // Converti a stringa per confronto
+            $old_str = strval($old_value);
+            $new_str = strval($new_value);
+            
+            if ($old_str !== $new_str) {
+                $changes[$field] = array(
+                    'label' => $label,
+                    'old' => $old_str,
+                    'new' => $new_str
+                );
+            }
+        }
+        
+        return $changes;
     }
     
     /**

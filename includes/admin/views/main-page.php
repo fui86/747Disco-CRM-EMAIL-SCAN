@@ -50,6 +50,293 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     </div>
 
     <!-- ============================================================================ -->
+    <!-- CALENDARIO EVENTI STILE IPHONE -->
+    <!-- ============================================================================ -->
+    <?php
+    // Carica eventi del mese corrente (solo attivi e confermati)
+    $calendario_mese = isset($_GET['cal_month']) ? intval($_GET['cal_month']) : date('n');
+    $calendario_anno = isset($_GET['cal_year']) ? intval($_GET['cal_year']) : date('Y');
+    
+    $primo_giorno = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-01";
+    $ultimo_giorno = date('Y-m-t', strtotime($primo_giorno));
+    
+    $eventi_calendario = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM {$table} 
+         WHERE data_evento BETWEEN %s AND %s 
+         AND stato IN ('attivo', 'confermato')
+         ORDER BY data_evento ASC",
+        $primo_giorno,
+        $ultimo_giorno
+    ), ARRAY_A);
+    
+    // Raggruppa eventi per data
+    $eventi_per_data = array();
+    foreach ($eventi_calendario as $evento) {
+        $data = date('Y-m-d', strtotime($evento['data_evento']));
+        if (!isset($eventi_per_data[$data])) {
+            $eventi_per_data[$data] = array();
+        }
+        $eventi_per_data[$data][] = $evento;
+    }
+    ?>
+    
+    <div id="calendario-eventi" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
+        
+        <!-- Header Calendario -->
+        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px;">
+            
+            <!-- Selettori Mese e Anno -->
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <label style="color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 600;">
+                    📅 Vai a:
+                </label>
+                
+                <select id="calendario-select-mese" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; min-width: 140px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                    <?php 
+                    $mesi_nomi = array(
+                        1 => 'Gennaio', 2 => 'Febbraio', 3 => 'Marzo', 4 => 'Aprile',
+                        5 => 'Maggio', 6 => 'Giugno', 7 => 'Luglio', 8 => 'Agosto',
+                        9 => 'Settembre', 10 => 'Ottobre', 11 => 'Novembre', 12 => 'Dicembre'
+                    );
+                    foreach ($mesi_nomi as $num => $nome):
+                    ?>
+                        <option value="<?php echo $num; ?>" <?php selected($calendario_mese, $num); ?> style="background: #1d1d1f; color: white;">
+                            <?php echo $nome; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                
+                <select id="calendario-select-anno" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; min-width: 100px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                    <?php 
+                    $anno_corrente = date('Y');
+                    for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
+                    ?>
+                        <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?> style="background: #1d1d1f; color: white;">
+                            <?php echo $anno; ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+                
+                <button onclick="vaiOggi()" style="background: rgba(0, 122, 255, 0.3); border: 2px solid rgba(0, 122, 255, 0.6); color: white; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: all 0.3s;" onmouseover="this.style.background='rgba(0, 122, 255, 0.5)'" onmouseout="this.style.background='rgba(0, 122, 255, 0.3)'">
+                    📍 Oggi
+                </button>
+            </div>
+            
+            <!-- Navigazione Frecce -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    ‹
+                </button>
+                <div style="text-align: center;">
+                    <h2 id="calendario-titolo" style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+                        <?php echo $mesi_nomi[$calendario_mese] . ' ' . $calendario_anno; ?>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        <?php echo count($eventi_calendario); ?> eventi questo mese
+                    </p>
+                </div>
+                <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    ›
+                </button>
+            </div>
+            
+        </div>
+        
+        <div style="padding: 20px;">
+            
+            <!-- Griglia Calendario -->
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px;">
+                
+                <!-- Intestazioni giorni settimana -->
+                <?php 
+                $giorni_settimana = array('Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom');
+                foreach ($giorni_settimana as $giorno): 
+                ?>
+                    <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">
+                        <?php echo $giorno; ?>
+                    </div>
+                <?php endforeach; ?>
+                
+                <!-- Celle giorni -->
+                <?php
+                $primo_giorno_settimana = date('N', strtotime($primo_giorno)); // 1=Lun, 7=Dom
+                $giorni_nel_mese = date('t', strtotime($primo_giorno));
+                $oggi = date('Y-m-d');
+                
+                // Celle vuote per allineare il primo giorno
+                for ($i = 1; $i < $primo_giorno_settimana; $i++) {
+                    echo '<div></div>';
+                }
+                
+                // Giorni del mese
+                for ($giorno = 1; $giorno <= $giorni_nel_mese; $giorno++) {
+                    $data_corrente = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-" . sprintf('%02d', $giorno);
+                    $ha_eventi = isset($eventi_per_data[$data_corrente]);
+                    $numero_eventi = $ha_eventi ? count($eventi_per_data[$data_corrente]) : 0;
+                    $is_oggi = $data_corrente === $oggi;
+                    
+                    // Conta confermati vs attivi
+                    $confermati = 0;
+                    $attivi = 0;
+                    if ($ha_eventi) {
+                        foreach ($eventi_per_data[$data_corrente] as $evt) {
+                            if ($evt['stato'] === 'confermato' || floatval($evt['acconto']) > 0) {
+                                $confermati++;
+                            } else {
+                                $attivi++;
+                            }
+                        }
+                    }
+                    
+                    $bg_color = $is_oggi ? '#007aff' : ($ha_eventi ? '#e5e5ea' : 'transparent');
+                    $text_color = $is_oggi ? 'white' : ($ha_eventi ? '#000' : '#8e8e93');
+                    $border = $is_oggi ? '2px solid #007aff' : 'none';
+                    ?>
+                    <div onclick="mostraEventi('<?php echo $data_corrente; ?>')" 
+                         style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: <?php echo $bg_color; ?>; color: <?php echo $text_color; ?>; border-radius: 50%; cursor: <?php echo $ha_eventi ? 'pointer' : 'default'; ?>; font-weight: <?php echo $is_oggi ? '700' : ($ha_eventi ? '600' : '400'); ?>; font-size: 0.9rem; position: relative; transition: all 0.2s; border: <?php echo $border; ?>;"
+                         onmouseover="<?php echo $ha_eventi ? "this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" : ''; ?>"
+                         onmouseout="<?php echo $ha_eventi ? "this.style.transform='scale(1)'; this.style.boxShadow='none';" : ''; ?>">
+                        <?php echo $giorno; ?>
+                        <?php if ($ha_eventi): ?>
+                            <div style="display: flex; gap: 2px; margin-top: 2px;">
+                                <?php if ($confermati > 0): ?>
+                                    <div style="width: 5px; height: 5px; background: #34c759; border-radius: 50%;" title="<?php echo $confermati; ?> confermati"></div>
+                                <?php endif; ?>
+                                <?php if ($attivi > 0): ?>
+                                    <div style="width: 5px; height: 5px; background: #007aff; border-radius: 50%;" title="<?php echo $attivi; ?> attivi"></div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php } ?>
+            </div>
+            
+            <!-- Area eventi del giorno selezionato -->
+            <div id="eventi-giorno" style="display: none; border-top: 2px solid #e5e5ea; padding-top: 20px;">
+                <h3 id="eventi-giorno-titolo" style="margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 700; color: #1d1d1f;"></h3>
+                <div id="eventi-giorno-lista"></div>
+            </div>
+            
+        </div>
+    </div>
+    
+    <!-- JavaScript per il calendario -->
+    <script>
+    // Dati eventi dal PHP
+    const eventiPerData = <?php echo json_encode($eventi_per_data); ?>;
+    
+    // Funzione: Vai a mese/anno selezionato dai menu a tendina
+    function vaiAMese() {
+        const mese = document.getElementById('calendario-select-mese').value;
+        const anno = document.getElementById('calendario-select-anno').value;
+        
+        const params = new URLSearchParams(window.location.search);
+        params.set('cal_month', mese);
+        params.set('cal_year', anno);
+        window.location.search = params.toString();
+    }
+    
+    // Funzione: Vai a oggi (mese e anno correnti)
+    function vaiOggi() {
+        const params = new URLSearchParams(window.location.search);
+        const meseOggi = <?php echo date('n'); ?>;
+        const annoOggi = <?php echo date('Y'); ?>;
+        
+        params.set('cal_month', meseOggi);
+        params.set('cal_year', annoOggi);
+        window.location.search = params.toString();
+    }
+    
+    // Funzione: Cambio mese con frecce (mantiene compatibilità)
+    function cambioMese(delta) {
+        const params = new URLSearchParams(window.location.search);
+        const meseCorrente = parseInt(params.get('cal_month') || <?php echo date('n'); ?>);
+        const annoCorrente = parseInt(params.get('cal_year') || <?php echo date('Y'); ?>);
+        
+        let nuovoMese = meseCorrente + delta;
+        let nuovoAnno = annoCorrente;
+        
+        if (nuovoMese < 1) {
+            nuovoMese = 12;
+            nuovoAnno--;
+        } else if (nuovoMese > 12) {
+            nuovoMese = 1;
+            nuovoAnno++;
+        }
+        
+        params.set('cal_month', nuovoMese);
+        params.set('cal_year', nuovoAnno);
+        window.location.search = params.toString();
+    }
+    
+    function mostraEventi(data) {
+        const eventi = eventiPerData[data];
+        if (!eventi || eventi.length === 0) return;
+        
+        const container = document.getElementById('eventi-giorno');
+        const titolo = document.getElementById('eventi-giorno-titolo');
+        const lista = document.getElementById('eventi-giorno-lista');
+        
+        // Formatta data
+        const dataObj = new Date(data + 'T00:00:00');
+        const opzioni = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dataFormattata = dataObj.toLocaleDateString('it-IT', opzioni);
+        
+        titolo.textContent = dataFormattata.charAt(0).toUpperCase() + dataFormattata.slice(1);
+        
+        // Costruisci lista eventi
+        lista.innerHTML = eventi.map(evento => {
+            const isConfermato = evento.stato === 'confermato' || parseFloat(evento.acconto) > 0;
+            const badge = isConfermato 
+                ? '<span style="background: #34c759; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">✅ CONFERMATO</span>'
+                : '<span style="background: #007aff; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">⏳ ATTIVO</span>';
+            
+            const whatsappNum = evento.telefono ? evento.telefono.replace(/[^0-9+]/g, '') : '';
+            const whatsappLink = whatsappNum ? (whatsappNum.startsWith('+') ? whatsappNum : '+39' + whatsappNum) : '';
+            
+            return `
+                <div style="background: #f5f5f7; border-radius: 12px; padding: 15px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700; color: #1d1d1f; font-size: 1rem; margin-bottom: 5px;">
+                                ${evento.tipo_evento || 'Evento'}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #8e8e93;">
+                                ${evento.nome_cliente || 'Cliente'}
+                            </div>
+                        </div>
+                        <div>
+                            ${badge}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${whatsappLink ? `
+                            <a href="https://wa.me/${whatsappLink}" target="_blank" 
+                               style="background: #25D366; color: white; padding: 8px 15px; border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;"
+                               onmouseover="this.style.transform='scale(1.05)'"
+                               onmouseout="this.style.transform='scale(1)'">
+                                📱 WhatsApp
+                            </a>
+                        ` : ''}
+                        ${evento.email ? `
+                            <a href="mailto:${evento.email}" 
+                               style="background: #007aff; color: white; padding: 8px 15px; border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;"
+                               onmouseover="this.style.transform='scale(1.05)'"
+                               onmouseout="this.style.transform='scale(1)'">
+                                ✉️ Email
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        container.style.display = 'block';
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    </script>
+
+    <!-- ============================================================================ -->
     <!-- SEZIONE INSIGHTS: Link Analisi Finanziaria + Eventi Imminenti -->
     <!-- ============================================================================ -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
@@ -749,6 +1036,298 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
+/* ============================================================================ */
+/* CALENDARIO RESPONSIVE - MOBILE COMPATTO v2.0 */
+/* Last Update: <?php echo date('Y-m-d H:i:s'); ?> */
+/* ============================================================================ */
+
+/* Tablet e Mobile - Calendario Compatto Stile iPhone */
+@media (max-width: 768px) {
+    #calendario-eventi {
+        margin: 0 0 20px 0;
+        border-radius: 12px !important;
+    }
+    
+    /* Header compatto */
+    #calendario-eventi [style*="padding: 25px 30px"] {
+        padding: 12px 10px !important;
+    }
+    
+    /* Selettori mese/anno compatti */
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+        gap: 6px !important;
+        margin-bottom: 10px !important;
+        padding: 0 5px;
+    }
+    
+    #calendario-select-mese,
+    #calendario-select-anno {
+        padding: 6px 10px !important;
+        font-size: 0.75rem !important;
+        min-width: 100px !important;
+        border-radius: 6px !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+        padding: 6px 12px !important;
+        font-size: 0.75rem !important;
+        border-radius: 6px !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] label {
+        font-size: 0.7rem !important;
+        display: none; /* Nascondi "Vai a:" per risparmiare spazio */
+    }
+    
+    /* Navigazione frecce compatta */
+    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
+        padding: 6px 10px !important;
+        font-size: 1rem !important;
+    }
+    
+    #calendario-eventi h2 {
+        font-size: 1.1rem !important;
+    }
+    
+    #calendario-eventi p {
+        font-size: 0.7rem !important;
+        margin-top: 2px !important;
+    }
+    
+    /* Griglia calendario molto compatta */
+    #calendario-eventi [style*="padding: 20px"] {
+        padding: 10px 8px !important;
+    }
+    
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
+        gap: 2px !important;
+        margin-bottom: 12px !important;
+    }
+    
+    /* Intestazioni giorni ultra compatte */
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
+        font-size: 0.6rem !important;
+        padding: 5px 0 !important;
+    }
+    
+    /* Giorni compatti ma touch-friendly (min 36px) */
+    #calendario-eventi [style*="aspect-ratio: 1"] {
+        font-size: 0.7rem !important;
+        min-height: 36px !important;
+        padding: 2px !important;
+    }
+    
+    /* Pallini eventi più piccoli */
+    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"] {
+        width: 3px !important;
+        height: 3px !important;
+        margin-top: 1px !important;
+    }
+    
+    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
+        margin-top: 1px !important;
+        gap: 1px !important;
+    }
+    
+    /* Eventi giorno compatti */
+    #eventi-giorno {
+        padding-top: 12px !important;
+        margin-top: 12px !important;
+    }
+    
+    #eventi-giorno-titolo {
+        font-size: 0.9rem !important;
+        margin-bottom: 10px !important;
+    }
+    
+    #eventi-giorno-lista > div {
+        padding: 10px !important;
+        margin-bottom: 6px !important;
+    }
+    
+    #eventi-giorno-lista a {
+        padding: 6px 10px !important;
+        font-size: 0.7rem !important;
+    }
+}
+
+/* Mobile Piccolo - Ultra Compatto Stile Agenda iPhone */
+@media (max-width: 576px) {
+    #calendario-eventi {
+        margin: 0 0 15px 0;
+    }
+    
+    /* Header ultra compatto */
+    #calendario-eventi [style*="padding: 25px 30px"] {
+        padding: 10px 8px !important;
+    }
+    
+    /* Selettori inline orizzontali compatti */
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+        flex-direction: row !important;
+        gap: 4px !important;
+        margin-bottom: 8px !important;
+        padding: 0 3px;
+        justify-content: center !important;
+    }
+    
+    #calendario-select-mese,
+    #calendario-select-anno {
+        padding: 5px 8px !important;
+        font-size: 0.7rem !important;
+        min-width: 85px !important;
+        width: auto !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+        padding: 5px 10px !important;
+        font-size: 0.7rem !important;
+        width: auto !important;
+    }
+    
+    /* Titolo e contatore compatti */
+    #calendario-eventi h2 {
+        font-size: 1rem !important;
+    }
+    
+    #calendario-eventi p {
+        font-size: 0.65rem !important;
+        margin-top: 1px !important;
+    }
+    
+    /* Navigazione frecce mini */
+    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
+        padding: 5px 8px !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Griglia calendario ultra compatta */
+    #calendario-eventi [style*="padding: 20px"] {
+        padding: 8px 5px !important;
+    }
+    
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
+        gap: 1px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    /* Intestazioni giorni mini */
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
+        font-size: 0.55rem !important;
+        padding: 3px 0 !important;
+        letter-spacing: -0.3px;
+    }
+    
+    /* Giorni mini ma touch-friendly (32px - minimo iOS) */
+    #calendario-eventi [style*="aspect-ratio: 1"] {
+        font-size: 0.65rem !important;
+        min-height: 32px !important;
+        padding: 1px !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Pallini eventi micro */
+    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"],
+    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 3px"] {
+        width: 2.5px !important;
+        height: 2.5px !important;
+        margin-top: 0px !important;
+    }
+    
+    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
+        margin-top: 0px !important;
+        gap: 1px !important;
+    }
+    
+    /* Eventi giorno ultra compatti */
+    #eventi-giorno {
+        padding-top: 10px !important;
+        margin-top: 10px !important;
+    }
+    
+    #eventi-giorno-titolo {
+        font-size: 0.85rem !important;
+        margin-bottom: 8px !important;
+    }
+    
+    #eventi-giorno-lista > div {
+        padding: 8px !important;
+        margin-bottom: 5px !important;
+        border-radius: 8px !important;
+    }
+    
+    #eventi-giorno-lista [style*="font-weight: 700"] {
+        font-size: 0.85rem !important;
+    }
+    
+    #eventi-giorno-lista [style*="font-size: 0.85rem"] {
+        font-size: 0.7rem !important;
+    }
+    
+    #eventi-giorno-lista a {
+        padding: 5px 8px !important;
+        font-size: 0.65rem !important;
+        border-radius: 12px !important;
+    }
+}
+
+/* Mobile Extra Piccolo - Massima Compattezza */
+@media (max-width: 400px) {
+    #calendario-eventi {
+        margin: 0 0 12px 0;
+    }
+    
+    /* Header minimale */
+    #calendario-eventi [style*="padding: 25px 30px"] {
+        padding: 8px 5px !important;
+    }
+    
+    /* Selettori mini */
+    #calendario-select-mese,
+    #calendario-select-anno {
+        padding: 4px 6px !important;
+        font-size: 0.65rem !important;
+        min-width: 75px !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+        padding: 4px 8px !important;
+        font-size: 0.65rem !important;
+    }
+    
+    /* Titolo mini */
+    #calendario-eventi h2 {
+        font-size: 0.9rem !important;
+    }
+    
+    #calendario-eventi p {
+        font-size: 0.6rem !important;
+    }
+    
+    /* Griglia ultra compatta */
+    #calendario-eventi [style*="padding: 20px"] {
+        padding: 6px 3px !important;
+    }
+    
+    /* Giorni mini (30px - limite minimo touch) */
+    #calendario-eventi [style*="aspect-ratio: 1"] {
+        font-size: 0.6rem !important;
+        min-height: 30px !important;
+    }
+}
+
+/* Desktop Large */
+@media (min-width: 1400px) {
+    #calendario-eventi [style*="aspect-ratio: 1"] {
+        font-size: 1rem !important;
+    }
+    
+    #calendario-eventi [style*="width: 5px"] {
+        width: 6px !important;
+        height: 6px !important;
+    }
+}
+
 /* Animazione caricamento */
 @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -759,3 +1338,22 @@ document.addEventListener('DOMContentLoaded', function() {
     animation: pulse 1.5s ease-in-out infinite;
 }
 </style>
+
+<!-- Cache Buster: <?php echo time(); ?> -->
+<script>
+// Force CSS refresh on mobile devices
+(function() {
+    // Forza re-render del calendario su mobile
+    if (window.innerWidth <= 768) {
+        setTimeout(function() {
+            const calendario = document.getElementById('calendario-eventi');
+            if (calendario) {
+                // Forza repaint
+                calendario.style.display = 'none';
+                calendario.offsetHeight; // Trigger reflow
+                calendario.style.display = '';
+            }
+        }, 100);
+    }
+})();
+</script>

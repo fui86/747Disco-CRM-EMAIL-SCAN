@@ -125,11 +125,19 @@ class Disco747_GoogleDrive {
             if ($share_url) {
                 $this->log('✅ Link condivisione: ' . $share_url);
                 $this->log('========== UPLOAD COMPLETATO CON SUCCESSO ==========');
-                return $share_url;
+                // ✅ Ritorna array con URL e file_id per poterlo eliminare in futuro
+                return array(
+                    'url' => $share_url,
+                    'file_id' => $file_id
+                );
             }
             
             $this->log('⚠️ Upload riuscito ma link condivisione non creato');
-            return "https://drive.google.com/file/d/{$file_id}/view";
+            // ✅ Ritorna array anche in fallback
+            return array(
+                'url' => "https://drive.google.com/file/d/{$file_id}/view",
+                'file_id' => $file_id
+            );
             
         } catch (\Exception $e) {
             $this->log('❌ ERRORE UPLOAD: ' . $e->getMessage(), 'ERROR');
