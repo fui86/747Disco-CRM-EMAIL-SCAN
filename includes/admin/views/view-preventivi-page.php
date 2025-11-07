@@ -23,8 +23,13 @@ $filters = array(
     'anno' => intval($_GET['anno'] ?? 0),
     'mese' => intval($_GET['mese'] ?? 0),
     'order_by' => sanitize_key($_GET['order_by'] ?? 'created_at'),
-    'order' => strtoupper(sanitize_key($_GET['order'] ?? 'DESC')) // ✅ FIX: Converti in maiuscolo dopo sanitize
+    'order' => strtoupper(sanitize_text_field($_GET['order'] ?? 'DESC'))
 );
+
+// Valida che order sia solo ASC o DESC
+if (!in_array($filters['order'], array('ASC', 'DESC'))) {
+    $filters['order'] = 'DESC';
+}
 
 // Paginazione
 $page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
@@ -76,32 +81,11 @@ if (!empty($where_values)) {
 $total_preventivi = $wpdb->get_var($count_query);
 $total_pages = ceil($total_preventivi / $per_page);
 
-// ✅ Whitelist colonne ordinabili per sicurezza
-$allowed_order_columns = array(
-    'created_at', 'data_evento', 'nome_cliente', 'importo_totale', 
-    'acconto', 'stato', 'numero_invitati', 'tipo_evento', 'tipo_menu'
+// Query preventivi
+$order_clause = sprintf('ORDER BY %s %s', 
+    sanitize_key($filters['order_by']), 
+    $filters['order'] === 'ASC' ? 'ASC' : 'DESC'
 );
-
-// Verifica che la colonna sia valida
-if (!in_array($filters['order_by'], $allowed_order_columns)) {
-    $filters['order_by'] = 'created_at'; // Default sicuro
-}
-
-$order_direction = $filters['order'] === 'ASC' ? 'ASC' : 'DESC';
-
-// ✅ Gestione speciale per data_evento: metti NULL/invalide alla fine
-if ($filters['order_by'] === 'data_evento') {
-    // Le date NULL o '0000-00-00' vanno sempre alla fine
-    $order_clause = "ORDER BY 
-        CASE 
-            WHEN data_evento IS NULL OR data_evento = '0000-00-00' THEN 1 
-            ELSE 0 
-        END ASC,
-        data_evento {$order_direction}";
-} else {
-    // Ordinamento normale per altre colonne
-    $order_clause = "ORDER BY {$filters['order_by']} {$order_direction}";
-}
 
 if (!empty($where_values)) {
     $query = $wpdb->prepare(
@@ -117,24 +101,6 @@ if (!empty($where_values)) {
 }
 
 $preventivi = $wpdb->get_results($query);
-
-// ✅ DEBUG: Mostra query SQL agli admin (rimuovi dopo test)
-if (current_user_can('manage_options') && isset($_GET['debug_sql'])) {
-    echo '<div style="background: #fff3cd; padding: 20px; margin: 20px; border: 3px solid #ff9800; font-family: monospace; font-size: 13px; border-radius: 8px;">';
-    echo '<strong style="font-size: 16px; color: #ff6b00;">🔍 DEBUG ORDINAMENTO</strong><br><br>';
-    echo '<strong>$_GET Parameters:</strong><br>';
-    echo 'order_by = ' . esc_html($_GET['order_by'] ?? 'NOT SET') . '<br>';
-    echo 'order = ' . esc_html($_GET['order'] ?? 'NOT SET') . '<br><br>';
-    echo '<strong>$filters Array:</strong><br>';
-    echo 'order_by = ' . esc_html($filters['order_by']) . '<br>';
-    echo 'order = ' . esc_html($filters['order']) . '<br><br>';
-    echo '<strong>$order_direction:</strong> ' . esc_html($order_direction) . '<br><br>';
-    echo '<strong>SQL ORDER BY Clause:</strong><br>' . nl2br(esc_html($order_clause)) . '<br><br>';
-    echo '<strong>Full Query:</strong><br>';
-    echo '<div style="background: white; padding: 10px; overflow-x: auto;">' . nl2br(esc_html($query)) . '</div>';
-    echo '<br><strong>Total Results:</strong> ' . count($preventivi);
-    echo '</div>';
-}
 
 // Statistiche
 $stats = array(
@@ -271,26 +237,12 @@ $stats = array(
 
                     <!-- Ordina per -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">
-                            🔢 Ordina per <?php echo $filters['order'] === 'ASC' ? '▲' : '▼'; ?>
-                        </label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">🔢 Ordina per</label>
                         <select name="order_by" style="width: 100%; padding: 8px;">
                             <option value="created_at" <?php selected($filters['order_by'], 'created_at'); ?>>Data Creazione</option>
                             <option value="data_evento" <?php selected($filters['order_by'], 'data_evento'); ?>>Data Evento</option>
                             <option value="nome_cliente" <?php selected($filters['order_by'], 'nome_cliente'); ?>>Cliente</option>
                             <option value="importo_totale" <?php selected($filters['order_by'], 'importo_totale'); ?>>Importo</option>
-                            <option value="acconto" <?php selected($filters['order_by'], 'acconto'); ?>>Acconto</option>
-                            <option value="stato" <?php selected($filters['order_by'], 'stato'); ?>>Stato</option>
-                            <option value="numero_invitati" <?php selected($filters['order_by'], 'numero_invitati'); ?>>Invitati</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Direzione ordinamento -->
-                    <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">↕️ Direzione</label>
-                        <select name="order" style="width: 100%; padding: 8px;">
-                            <option value="DESC" <?php selected($filters['order'], 'DESC'); ?>>Decrescente (9→1)</option>
-                            <option value="ASC" <?php selected($filters['order'], 'ASC'); ?>>Crescente (1→9)</option>
                         </select>
                     </div>
                 </div>
@@ -304,46 +256,10 @@ $stats = array(
         </div>
     </div>
 
-    <!-- ⚠️ DEBUG BOX SEMPRE VISIBILE -->
-    <div style="background: #fff3cd; border: 3px solid #ff9800; border-radius: 8px; padding: 15px; margin: 20px 0; font-family: monospace; font-size: 13px;">
-        <strong style="color: #ff6b00; font-size: 16px;">🔍 DEBUG ORDINAMENTO (Rimuovere dopo test)</strong><br><br>
-        <strong>URL $_GET['order_by']:</strong> <?php echo esc_html($_GET['order_by'] ?? 'NON IMPOSTATO'); ?><br>
-        <strong>URL $_GET['order']:</strong> <?php echo esc_html($_GET['order'] ?? 'NON IMPOSTATO'); ?><br><br>
-        <strong>$filters['order_by']:</strong> <?php echo esc_html($filters['order_by']); ?><br>
-        <strong>$filters['order']:</strong> <span style="background: yellow; padding: 2px 8px; font-size: 16px; font-weight: bold;"><?php echo esc_html($filters['order']); ?></span><br><br>
-        <strong>$order_direction (usato in SQL):</strong> <span style="background: lime; padding: 2px 8px; font-size: 16px; font-weight: bold;"><?php echo esc_html($order_direction); ?></span><br><br>
-        <strong>URL Completo:</strong><br>
-        <div style="background: white; padding: 10px; overflow-x: auto; word-break: break-all;">
-            <?php echo esc_html($_SERVER['REQUEST_URI']); ?>
-        </div>
-    </div>
-    
     <!-- Tabella Preventivi -->
     <div class="disco747-card">
-        <div class="disco747-card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <div>📋 Preventivi (<?php echo number_format($total_preventivi); ?> risultati)</div>
-            <?php if ($filters['order_by'] !== 'created_at' || $filters['order'] !== 'DESC'): ?>
-            <div style="font-size: 13px; color: #666; font-weight: normal;">
-                🔄 Ordinamento: 
-                <strong style="color: #2271b1;">
-                    <?php 
-                    $labels = array(
-                        'data_evento' => 'Data Evento',
-                        'nome_cliente' => 'Cliente',
-                        'tipo_evento' => 'Tipo Evento',
-                        'tipo_menu' => 'Menu',
-                        'numero_invitati' => 'Invitati',
-                        'importo_totale' => 'Importo',
-                        'acconto' => 'Acconto',
-                        'stato' => 'Stato',
-                        'created_at' => 'Data Creazione'
-                    );
-                    echo $labels[$filters['order_by']] ?? $filters['order_by'];
-                    ?>
-                </strong>
-                <?php echo $filters['order'] === 'ASC' ? '↑ Crescente' : '↓ Decrescente'; ?>
-            </div>
-            <?php endif; ?>
+        <div class="disco747-card-header">
+            📋 Preventivi (<?php echo number_format($total_preventivi); ?> risultati)
         </div>
         <div class="disco747-card-content" style="padding: 0;">
             
@@ -361,95 +277,58 @@ $stats = array(
                         <thead>
                             <tr>
                                 <?php
-                                // Helper per generare link ordinamento
-                                $sort_link = function($column, $label, $width = '', $align = '') {
-                                    global $filters;
+                                // Funzione helper per generare link ordinamento
+                                function get_sort_link($column, $label, $current_order_by, $current_order, $width = '', $align = '') {
+                                    $is_active = ($current_order_by === $column);
                                     
-                                    $is_active = $filters['order_by'] === $column;
-                                    
-                                    // Determina ordine nuovo e icone
+                                    // Determina il nuovo ordine
                                     if ($is_active) {
-                                        // Colonna già attiva: alterna ASC/DESC
-                                        $current_order = $filters['order'];
-                                        $new_order = $current_order === 'ASC' ? 'DESC' : 'ASC';
-                                        
-                                        // Frecce grandi e colorate
-                                        if ($current_order === 'ASC') {
-                                            $icon = '<span style="color: #2271b1; font-size: 16px; font-weight: bold;">↑</span>';
-                                            $tooltip = 'Click per ordinare decrescente (Z→A, 9→1, recente→vecchio)';
-                                        } else {
-                                            $icon = '<span style="color: #2271b1; font-size: 16px; font-weight: bold;">↓</span>';
-                                            $tooltip = 'Click per ordinare crescente (A→Z, 1→9, vecchio→recente)';
-                                        }
+                                        // Se è già attiva, inverti l'ordine
+                                        $new_order = ($current_order === 'ASC') ? 'DESC' : 'ASC';
                                     } else {
-                                        // Colonna non attiva: mostra frecce grigie
-                                        $new_order = 'ASC'; // Primo click sempre crescente
-                                        $icon = '<span style="color: #ccc; font-size: 14px;">⇅</span>';
-                                        $tooltip = 'Click per ordinare per ' . $label;
+                                        // Se non è attiva, inizia con DESC
+                                        $new_order = 'DESC';
                                     }
                                     
-                                    // ✅ Mantieni parametri filtri esistenti, sovrascrivendo order_by e order
-                                    $url_params = array(
-                                        'page' => 'disco747-view-preventivi',
-                                        'order_by' => $column,
-                                        'order' => $new_order
-                                    );
+                                    // Mantieni tutti i parametri esistenti
+                                    $current_params = $_GET;
+                                    $current_params['order_by'] = $column;
+                                    $current_params['order'] = $new_order;
+                                    $current_params['paged'] = 1; // Reset pagination
                                     
-                                    // Mantieni i filtri di ricerca se esistono
-                                    if (!empty($filters['search'])) $url_params['search'] = $filters['search'];
-                                    if (!empty($filters['stato'])) $url_params['stato'] = $filters['stato'];
-                                    if (!empty($filters['menu'])) $url_params['menu'] = $filters['menu'];
-                                    if ($filters['anno'] > 0) $url_params['anno'] = $filters['anno'];
-                                    if ($filters['mese'] > 0) $url_params['mese'] = $filters['mese'];
-                                    if (isset($_GET['paged']) && $_GET['paged'] > 1) $url_params['paged'] = $_GET['paged'];
+                                    $url = add_query_arg($current_params);
                                     
-                                    $url = add_query_arg($url_params, admin_url('admin.php'));
-                                    
-                                    // Style colonna
-                                    $th_style = array();
-                                    if ($width) $th_style[] = 'width: ' . $width;
-                                    if ($align) $th_style[] = 'text-align: ' . $align;
-                                    $th_style[] = 'cursor: pointer';
-                                    $th_style[] = 'user-select: none';
-                                    $th_style = implode('; ', $th_style);
-                                    
-                                    // Style link
-                                    $link_style = 'text-decoration: none; color: inherit; display: flex; align-items: center; gap: 6px; padding: 8px 10px; margin: -8px -10px; border-radius: 4px; transition: all 0.2s;';
+                                    $arrow = '';
                                     if ($is_active) {
-                                        $link_style .= ' font-weight: 700; color: #2271b1; background: rgba(33, 113, 177, 0.08);';
+                                        $arrow = ($current_order === 'ASC') ? ' ↑' : ' ↓';
                                     }
                                     
-                                    // DEBUG: Mostra info nell'HTML (visibile con inspector)
-                                    $debug_attr = sprintf(
-                                        'data-column="%s" data-is-active="%s" data-current-order="%s" data-new-order="%s"',
-                                        $column,
-                                        $is_active ? 'true' : 'false',
-                                        $is_active ? $filters['order'] : 'N/A',
-                                        $new_order
-                                    );
+                                    $style = '';
+                                    if ($width) $style .= "width: {$width}; ";
+                                    if ($align) $style .= "text-align: {$align}; ";
+                                    if ($is_active) $style .= "background: #f0f0f1; font-weight: 700;";
                                     
                                     return sprintf(
-                                        '<th style="%s" %s><a href="%s" style="%s" title="%s"><span>%s</span> %s</a></th>',
-                                        $th_style,
-                                        $debug_attr,
+                                        '<th style="%s"><a href="%s" style="text-decoration: none; color: inherit; display: block; padding: 8px 12px;">%s%s</a></th>',
+                                        $style,
                                         esc_url($url),
-                                        $link_style,
-                                        esc_attr($tooltip),
                                         esc_html($label),
-                                        $icon
+                                        $arrow
                                     );
-                                };
-                                ?>
+                                }
                                 
-                                <?php echo $sort_link('data_evento', 'Data Evento', '120px'); ?>
-                                <?php echo $sort_link('nome_cliente', 'Cliente', ''); ?>
+                                echo get_sort_link('data_evento', 'Data Evento', $filters['order_by'], $filters['order'], '100px');
+                                echo get_sort_link('nome_cliente', 'Cliente', $filters['order_by'], $filters['order']);
+                                ?>
                                 <th style="width: 60px; text-align: center;">WhatsApp</th>
-                                <?php echo $sort_link('tipo_evento', 'Tipo Evento', ''); ?>
-                                <?php echo $sort_link('tipo_menu', 'Menu', '100px'); ?>
-                                <?php echo $sort_link('numero_invitati', 'Invitati', '80px', 'center'); ?>
-                                <?php echo $sort_link('importo_totale', 'Importo', '120px', 'right'); ?>
-                                <?php echo $sort_link('acconto', 'Acconto', '110px', 'right'); ?>
-                                <?php echo $sort_link('stato', 'Stato', '100px', 'center'); ?>
+                                <?php
+                                echo get_sort_link('tipo_evento', 'Tipo Evento', $filters['order_by'], $filters['order']);
+                                echo get_sort_link('tipo_menu', 'Menu', $filters['order_by'], $filters['order'], '100px');
+                                echo get_sort_link('numero_invitati', 'Invitati', $filters['order_by'], $filters['order'], '70px');
+                                echo get_sort_link('importo_totale', 'Importo', $filters['order_by'], $filters['order'], '100px');
+                                echo get_sort_link('acconto', 'Acconto', $filters['order_by'], $filters['order'], '90px');
+                                echo get_sort_link('stato', 'Stato', $filters['order_by'], $filters['order'], '80px');
+                                ?>
                                 <th style="width: 180px;">Azioni</th>
                             </tr>
                         </thead>
@@ -728,8 +607,6 @@ $stats = array(
 
 </div>
 
-<!-- Modal Modifica Preventivo - RIMOSSO: Ora si apre il form principale -->
-
 <style>
 .disco747-wrap {
     padding: 20px;
@@ -777,34 +654,14 @@ $stats = array(
     background: #a00;
 }
 
-/* ============================================================================ */
-/* ORDINAMENTO COLONNE */
-/* ============================================================================ */
+/* Intestazioni ordinabili */
 .wp-list-table thead th a {
+    cursor: pointer;
+    user-select: none;
     transition: all 0.2s ease;
 }
-
 .wp-list-table thead th a:hover {
-    background: rgba(33, 113, 177, 0.15) !important;
-    color: #2271b1 !important;
-}
-
-.wp-list-table thead th a:hover span {
-    color: #2271b1 !important;
-}
-
-.wp-list-table thead th a:active {
-    transform: scale(0.98);
-}
-
-/* Frecce ordinamento sempre visibili */
-.wp-list-table thead th a span[style*="color: #ccc"] {
-    opacity: 0.5;
-    transition: opacity 0.2s;
-}
-
-.wp-list-table thead th a:hover span[style*="color: #ccc"] {
-    opacity: 1;
+    background: #e8e8e9 !important;
     color: #2271b1 !important;
 }
 
@@ -929,32 +786,6 @@ $stats = array(
     .disco747-card-content > div[style*="padding: 20px"] > div:first-child > div:last-child a {
         flex: 1;
     }
-    
-    /* Modal più compatto */
-    #modal-edit-preventivo > div {
-        margin: 20px 10px !important;
-        padding: 20px !important;
-        max-width: 100% !important;
-    }
-    
-    #modal-edit-preventivo h2 {
-        font-size: 1.3rem !important;
-        padding-right: 40px;
-    }
-    
-    #form-edit-preventivo > div:first-child {
-        grid-template-columns: 1fr !important;
-    }
-    
-    #form-edit-preventivo input,
-    #form-edit-preventivo select,
-    #form-edit-preventivo textarea {
-        font-size: 16px !important;
-    }
-    
-    #form-edit-preventivo > div[style*="margin-top: 20px"] > div {
-        grid-template-columns: 1fr !important;
-    }
 }
 
 /* MOBILE SMALL (< 480px) */
@@ -1015,11 +846,6 @@ jQuery(document).ready(function($) {
         var queryString = $.param(params);
         window.location.href = url + '?' + queryString;
     });
-
-    // ========================================================================
-    // MODIFICA PREVENTIVO - Ora reindirizza al form invece del modal
-    // ========================================================================
-    // Rimosso: gestito tramite link diretto alla pagina del form
 
     // ========================================================================
     // ELIMINA PREVENTIVO
