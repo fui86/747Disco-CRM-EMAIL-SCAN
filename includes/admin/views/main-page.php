@@ -51,273 +51,252 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
 
 
     <!-- ============================================================================ -->
-    <!-- CALENDARIO EVENTI MOBILE-FRIENDLY - v5.0 SIMPLE -->
+    <!-- 📅 EVENTI PROSSIMI - LISTA MOBILE-FRIENDLY -->
     <!-- ============================================================================ -->
     <?php
-    // Carica eventi del mese corrente
-    $calendario_mese = isset($_GET['cal_month']) ? intval($_GET['cal_month']) : date('n');
-    $calendario_anno = isset($_GET['cal_year']) ? intval($_GET['cal_year']) : date('Y');
+    // Carica prossimi eventi (30 giorni)
+    $data_oggi = date('Y-m-d');
+    $data_fine = date('Y-m-d', strtotime('+30 days'));
     
-    $primo_giorno = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-01";
-    $ultimo_giorno = date('Y-m-t', strtotime($primo_giorno));
-    
-    $eventi_calendario = $wpdb->get_results($wpdb->prepare(
+    $prossimi_eventi = $wpdb->get_results($wpdb->prepare(
         "SELECT * FROM {$table} 
-         WHERE data_evento BETWEEN %s AND %s 
+         WHERE data_evento >= %s 
+         AND data_evento <= %s
          AND stato IN ('attivo', 'confermato')
-         ORDER BY data_evento ASC",
-        $primo_giorno,
-        $ultimo_giorno
+         ORDER BY data_evento ASC
+         LIMIT 50",
+        $data_oggi,
+        $data_fine
     ), ARRAY_A);
     
-    // Raggruppa eventi per data
-    $eventi_per_data = array();
-    foreach ($eventi_calendario as $evento) {
+    // Raggruppa per giorno
+    $eventi_per_giorno = array();
+    foreach ($prossimi_eventi as $evento) {
         $data = date('Y-m-d', strtotime($evento['data_evento']));
-        if (!isset($eventi_per_data[$data])) {
-            $eventi_per_data[$data] = array();
+        if (!isset($eventi_per_giorno[$data])) {
+            $eventi_per_giorno[$data] = array();
         }
-        $eventi_per_data[$data][] = $evento;
+        $eventi_per_giorno[$data][] = $evento;
     }
     
     $mesi_nomi = array(
-        1 => 'Gennaio', 2 => 'Febbraio', 3 => 'Marzo', 4 => 'Aprile',
-        5 => 'Maggio', 6 => 'Giugno', 7 => 'Luglio', 8 => 'Agosto',
-        9 => 'Settembre', 10 => 'Ottobre', 11 => 'Novembre', 12 => 'Dicembre'
+        1 => 'Gen', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
+        5 => 'Mag', 6 => 'Giu', 7 => 'Lug', 8 => 'Ago',
+        9 => 'Set', 10 => 'Ott', 11 => 'Nov', 12 => 'Dic'
     );
     ?>
     
-    <div id="calendario-eventi" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
+    <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
         
-        <!-- Header Calendario -->
-        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px 30px;">
+            <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white; display: flex; align-items: center; gap: 10px;">
+                📅 Prossimi Eventi
+            </h2>
+            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
+                <?php echo count($prossimi_eventi); ?> eventi nei prossimi 30 giorni
+            </p>
+        </div>
+        
+        <!-- Lista Eventi -->
+        <div style="padding: 20px; max-height: 600px; overflow-y: auto;">
             
-            <!-- Selettori Mese e Anno -->
-            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <label style="color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 600;">📅 Vai a:</label>
+            <?php if (empty($prossimi_eventi)): ?>
                 
-                <select id="calendario-select-mese" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; font-size: 0.95rem; min-width: 140px;">
-                    <?php foreach ($mesi_nomi as $num => $nome): ?>
-                        <option value="<?php echo $num; ?>" <?php selected($calendario_mese, $num); ?>><?php echo $nome; ?></option>
-                    <?php endforeach; ?>
-                </select>
-                
-                <select id="calendario-select-anno" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; font-size: 0.95rem; min-width: 100px;">
-                    <?php 
-                    $anno_corrente = date('Y');
-                    for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
-                    ?>
-                        <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?>><?php echo $anno; ?></option>
-                    <?php endfor; ?>
-                </select>
-                
-                <button onclick="vaiOggi()" style="background: rgba(0, 122, 255, 0.3); border: 2px solid rgba(0, 122, 255, 0.6); color: white; padding: 10px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700;">📍 Oggi</button>
-            </div>
-            
-            <!-- Navigazione Frecce -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; font-size: 1.2rem; cursor: pointer;">‹</button>
-                <div style="text-align: center;">
-                    <h2 id="calendario-titolo" style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
-                        <?php echo $mesi_nomi[$calendario_mese] . ' ' . $calendario_anno; ?>
-                    </h2>
-                    <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                        <?php echo count($eventi_calendario); ?> eventi questo mese
-                    </p>
+                <!-- Nessun evento -->
+                <div style="text-align: center; padding: 60px 20px; color: #6c757d;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">📭</div>
+                    <h3 style="margin: 0 0 10px 0; color: #495057;">Nessun evento in programma</h3>
+                    <p style="margin: 0; font-size: 0.95rem;">I prossimi eventi appariranno qui</p>
                 </div>
-                <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; font-size: 1.2rem; cursor: pointer;">›</button>
-            </div>
-            
-        </div>
-        
-        <div style="padding: 20px;">
-            
-            <!-- Griglia Calendario - SEMPLICE CON GRID GIÀ NELL'HTML -->
-            <div id="calendario-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px;">
                 
-                <!-- Intestazioni giorni settimana -->
-                <?php 
-                $giorni_settimana = array('Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom');
-                foreach ($giorni_settimana as $giorno): 
+            <?php else: ?>
+                
+                <!-- Timeline Eventi -->
+                <?php foreach ($eventi_per_giorno as $data => $eventi): 
+                    $timestamp = strtotime($data);
+                    $giorno_num = date('j', $timestamp);
+                    $mese = $mesi_nomi[(int)date('n', $timestamp)];
+                    $giorno_settimana = array('Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab')[date('w', $timestamp)];
+                    $is_oggi = $data === $data_oggi;
                 ?>
-                    <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">
-                        <?php echo $giorno; ?>
-                    </div>
-                <?php endforeach; ?>
                 
-                <!-- Celle giorni -->
-                <?php
-                $primo_giorno_settimana = date('N', strtotime($primo_giorno));
-                $giorni_nel_mese = date('t', strtotime($primo_giorno));
-                $oggi = date('Y-m-d');
-                
-                // Celle vuote per allineare il primo giorno
-                for ($i = 1; $i < $primo_giorno_settimana; $i++) {
-                    echo '<div></div>';
-                }
-                
-                // Giorni del mese
-                for ($giorno = 1; $giorno <= $giorni_nel_mese; $giorno++) {
-                    $data_corrente = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-" . sprintf('%02d', $giorno);
-                    $ha_eventi = isset($eventi_per_data[$data_corrente]);
-                    $is_oggi = $data_corrente === $oggi;
+                <!-- Giorno -->
+                <div style="margin-bottom: 30px;">
                     
-                    $confermati = 0;
-                    $attivi = 0;
-                    if ($ha_eventi) {
-                        foreach ($eventi_per_data[$data_corrente] as $evt) {
-                            if ($evt['stato'] === 'confermato' || floatval($evt['acconto']) > 0) {
-                                $confermati++;
-                            } else {
-                                $attivi++;
-                            }
-                        }
-                    }
-                    
-                    $bg_color = $is_oggi ? '#007aff' : ($ha_eventi ? '#e5e5ea' : 'transparent');
-                    $text_color = $is_oggi ? 'white' : ($ha_eventi ? '#000' : '#8e8e93');
-                    ?>
-                    <div onclick="mostraEventi('<?php echo $data_corrente; ?>')" 
-                         class="calendario-giorno"
-                         style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: <?php echo $bg_color; ?>; color: <?php echo $text_color; ?>; border-radius: 50%; cursor: <?php echo $ha_eventi ? 'pointer' : 'default'; ?>; font-weight: <?php echo $is_oggi ? '700' : ($ha_eventi ? '600' : '400'); ?>; font-size: 0.9rem;">
-                        <?php echo $giorno; ?>
-                        <?php if ($ha_eventi): ?>
-                            <div style="display: flex; gap: 2px; margin-top: 2px;">
-                                <?php if ($confermati > 0): ?>
-                                    <div style="width: 5px; height: 5px; background: #34c759; border-radius: 50%;"></div>
-                                <?php endif; ?>
-                                <?php if ($attivi > 0): ?>
-                                    <div style="width: 5px; height: 5px; background: #007aff; border-radius: 50%;"></div>
-                                <?php endif; ?>
+                    <!-- Data -->
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <div style="background: <?php echo $is_oggi ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f8f9fa'; ?>; padding: 12px 16px; border-radius: 12px; text-align: center; min-width: 70px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                            <div style="font-size: 1.8rem; font-weight: 700; line-height: 1; color: <?php echo $is_oggi ? 'white' : '#2b1e1a'; ?>;">
+                                <?php echo $giorno_num; ?>
                             </div>
-                        <?php endif; ?>
-                    </div>
-                <?php } ?>
-            </div>
-            
-            <!-- Area eventi del giorno selezionato -->
-            <div id="eventi-giorno" style="display: none; border-top: 2px solid #e5e5ea; padding-top: 20px;">
-                <h3 id="eventi-giorno-titolo" style="margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 700; color: #1d1d1f;"></h3>
-                <div id="eventi-giorno-lista"></div>
-            </div>
-            
-        </div>
-    </div>
-    
-    <!-- JavaScript per il calendario -->
-    <script>
-    const eventiPerData = <?php echo json_encode($eventi_per_data); ?>;
-    
-    function vaiAMese() {
-        const mese = document.getElementById('calendario-select-mese').value;
-        const anno = document.getElementById('calendario-select-anno').value;
-        const params = new URLSearchParams(window.location.search);
-        params.set('cal_month', mese);
-        params.set('cal_year', anno);
-        window.location.search = params.toString();
-    }
-    
-    function vaiOggi() {
-        const params = new URLSearchParams(window.location.search);
-        params.set('cal_month', <?php echo date('n'); ?>);
-        params.set('cal_year', <?php echo date('Y'); ?>);
-        window.location.search = params.toString();
-    }
-    
-    function cambioMese(delta) {
-        let mese = parseInt(document.getElementById('calendario-select-mese').value);
-        let anno = parseInt(document.getElementById('calendario-select-anno').value);
-        mese += delta;
-        if (mese > 12) { mese = 1; anno++; }
-        if (mese < 1) { mese = 12; anno--; }
-        const params = new URLSearchParams(window.location.search);
-        params.set('cal_month', mese);
-        params.set('cal_year', anno);
-        window.location.search = params.toString();
-    }
-    
-    function mostraEventi(data) {
-        const eventi = eventiPerData[data];
-        if (!eventi || eventi.length === 0) return;
-        
-        const container = document.getElementById('eventi-giorno');
-        const titolo = document.getElementById('eventi-giorno-titolo');
-        const lista = document.getElementById('eventi-giorno-lista');
-        
-        const dataObj = new Date(data + 'T00:00:00');
-        const formatter = new Intl.DateTimeFormat('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-        titolo.textContent = formatter.format(dataObj).charAt(0).toUpperCase() + formatter.format(dataObj).slice(1);
-        
-        lista.innerHTML = eventi.map(function(evento) {
-            const badge = (evento.stato === 'confermato' || parseFloat(evento.acconto) > 0) 
-                ? '<span style="background: #34c759; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">💰 Confermato</span>'
-                : '<span style="background: #007aff; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">📋 Attivo</span>';
-            
-            return `
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid ${(evento.stato === 'confermato' || parseFloat(evento.acconto) > 0) ? '#34c759' : '#007aff'};">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <div>
-                            <div style="font-weight: 700; color: #1d1d1f; font-size: 1rem; margin-bottom: 4px;">
-                                ${evento.tipo_evento || 'Evento'}
-                            </div>
-                            <div style="color: #6c757d; font-size: 0.85rem;">
-                                ${evento.nome_referente || ''} ${evento.cognome_referente || ''}
+                            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; margin-top: 4px; color: <?php echo $is_oggi ? 'rgba(255,255,255,0.9)' : '#6c757d'; ?>;">
+                                <?php echo $mese; ?>
                             </div>
                         </div>
-                        ${badge}
+                        <div>
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #2b1e1a;">
+                                <?php echo $giorno_settimana; ?>
+                            </div>
+                            <div style="font-size: 0.85rem; color: #6c757d;">
+                                <?php echo count($eventi); ?> evento<?php echo count($eventi) > 1 ? 'i' : ''; ?>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        ${evento.telefono ? `<a href="https://wa.me/${evento.telefono.replace(/[^0-9]/g, '')}" target="_blank" style="background: #25D366; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">📱 WhatsApp</a>` : ''}
-                        ${evento.email ? `<a href="mailto:${evento.email}" style="background: #007aff; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600;">✉️ Email</a>` : ''}
+                    
+                    <!-- Eventi del giorno -->
+                    <div style="padding-left: 85px;">
+                        <?php foreach ($eventi as $evento): 
+                            $is_confermato = ($evento['stato'] === 'confermato' || floatval($evento['acconto']) > 0);
+                            $border_color = $is_confermato ? '#34c759' : '#007aff';
+                        ?>
+                        
+                        <!-- Card Evento -->
+                        <div style="background: white; border: 2px solid <?php echo $border_color; ?>; border-radius: 16px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.12)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';">
+                            
+                            <!-- Header Card -->
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; gap: 15px;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 1.2rem; font-weight: 700; color: #2b1e1a; margin-bottom: 6px;">
+                                        <?php echo esc_html($evento['tipo_evento'] ?: 'Evento'); ?>
+                                    </div>
+                                    <div style="font-size: 1rem; color: #495057; font-weight: 500;">
+                                        <?php echo esc_html($evento['nome_referente'] . ' ' . $evento['cognome_referente']); ?>
+                                    </div>
+                                </div>
+                                <div style="background: <?php echo $is_confermato ? '#34c759' : '#007aff'; ?>; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">
+                                    <?php echo $is_confermato ? '💰 Confermato' : '📋 Attivo'; ?>
+                                </div>
+                            </div>
+                            
+                            <!-- Dettagli -->
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 15px;">
+                                
+                                <?php if ($evento['numero_invitati']): ?>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.2rem;">👥</span>
+                                    <span style="font-size: 0.9rem; color: #495057;">
+                                        <strong><?php echo esc_html($evento['numero_invitati']); ?></strong> invitati
+                                    </span>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <?php if ($evento['tipo_menu']): ?>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.2rem;">🍽️</span>
+                                    <span style="font-size: 0.9rem; color: #495057;">
+                                        Menu <strong><?php echo esc_html($evento['tipo_menu']); ?></strong>
+                                    </span>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <?php if ($evento['orario_inizio']): ?>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.2rem;">🕐</span>
+                                    <span style="font-size: 0.9rem; color: #495057;">
+                                        ore <strong><?php echo esc_html($evento['orario_inizio']); ?></strong>
+                                    </span>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <?php if ($evento['importo_totale']): ?>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.2rem;">💶</span>
+                                    <span style="font-size: 0.9rem; color: #495057;">
+                                        <strong>€<?php echo number_format(floatval($evento['importo_totale']), 2, ',', '.'); ?></strong>
+                                    </span>
+                                </div>
+                                <?php endif; ?>
+                                
+                            </div>
+                            
+                            <!-- Azioni -->
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <?php if ($evento['telefono']): ?>
+                                <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $evento['telefono']); ?>" 
+                                   target="_blank" 
+                                   style="background: #25D366; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                                   onmouseover="this.style.background='#20ba5a';"
+                                   onmouseout="this.style.background='#25D366';">
+                                    <span style="font-size: 1.2rem;">📱</span> WhatsApp
+                                </a>
+                                <?php endif; ?>
+                                
+                                <?php if ($evento['email']): ?>
+                                <a href="mailto:<?php echo esc_attr($evento['email']); ?>" 
+                                   style="background: #007aff; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                                   onmouseover="this.style.background='#0056b3';"
+                                   onmouseout="this.style.background='#007aff';">
+                                    <span style="font-size: 1.2rem;">✉️</span> Email
+                                </a>
+                                <?php endif; ?>
+                                
+                                <a href="?page=disco747-form-preventivo&edit=<?php echo $evento['id']; ?>" 
+                                   style="background: #f8f9fa; color: #495057; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: 2px solid #e9ecef; transition: all 0.2s;"
+                                   onmouseover="this.style.background='#e9ecef';"
+                                   onmouseout="this.style.background='#f8f9fa';">
+                                    <span style="font-size: 1.2rem;">✏️</span> Modifica
+                                </a>
+                            </div>
+                            
+                        </div>
+                        
+                        <?php endforeach; ?>
                     </div>
+                    
                 </div>
-            `;
-        }).join('');
+                
+                <?php endforeach; ?>
+                
+            <?php endif; ?>
+            
+        </div>
         
-        container.style.display = 'block';
-    }
+        <!-- Footer -->
+        <div style="border-top: 2px solid #e9ecef; padding: 20px 30px; background: #f8f9fa; text-align: center;">
+            <a href="?page=disco747-view-preventivi" style="color: #667eea; text-decoration: none; font-weight: 600; font-size: 0.95rem;">
+                📋 Visualizza tutti i preventivi →
+            </a>
+        </div>
+        
+    </div>
     
-    // MOBILE OPTIMIZATION - Simple and effective
-    (function() {
-        if (window.innerWidth > 768) return; // Desktop: no changes
-        
-        const isMobile = window.innerWidth <= 576;
-        
-        // Wait for DOM
-        function optimizeMobile() {
-            const grid = document.getElementById('calendario-grid');
-            const celle = document.querySelectorAll('.calendario-giorno');
-            
-            if (!grid || celle.length === 0) return;
-            
-            // Force responsive cell size
-            const width = grid.offsetWidth;
-            const gap = isMobile ? 2 : 3;
-            const cellSize = Math.floor((width - (gap * 6)) / 7);
-            const finalSize = Math.min(Math.max(cellSize, 30), 50);
-            
-            grid.style.gap = gap + 'px';
-            
-            celle.forEach(function(cella) {
-                cella.style.width = finalSize + 'px';
-                cella.style.height = finalSize + 'px';
-                cella.style.fontSize = isMobile ? '0.7rem' : '0.75rem';
-            });
-            
-            console.log('📱 Calendario mobile ottimizzato:', finalSize + 'px celle');
+    <style>
+    /* Responsive per mobile */
+    @media (max-width: 768px) {
+        /* Header più compatto */
+        div[style*="padding: 25px 30px"]:has(h2:first-child) {
+            padding: 20px 15px !important;
         }
         
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', optimizeMobile);
-        } else {
-            optimizeMobile();
+        /* Lista eventi più compatta */
+        div[style*="padding: 20px; max-height: 600px"] {
+            padding: 15px !important;
         }
         
-        window.addEventListener('resize', optimizeMobile);
-    })();
-    </script>
+        /* Data box più piccola */
+        div[style*="min-width: 70px"] {
+            min-width: 60px !important;
+            padding: 10px 12px !important;
+        }
+        
+        /* Card evento compatta */
+        div[style*="padding: 20px; margin-bottom: 15px"] {
+            padding: 15px !important;
+        }
+        
+        /* Bottoni stack verticale su mobile */
+        div[style*="display: flex; gap: 10px; flex-wrap: wrap"] {
+            flex-direction: column !important;
+        }
+        
+        div[style*="display: flex; gap: 10px; flex-wrap: wrap"] a {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+    }
+    </style>
 
-    <!-- ============================================================================ -->
     <!-- SEZIONE INSIGHTS: Link Analisi Finanziaria + Eventi Imminenti -->
     <!-- ============================================================================ -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
