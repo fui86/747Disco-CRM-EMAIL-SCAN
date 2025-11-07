@@ -185,7 +185,7 @@ $top_eventi = $wpdb->get_results($wpdb->prepare("
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
             <div>
                 <h1 style="margin: 0; font-size: 2.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px;">
-                    💰 Analisi Finanziaria
+                    💰 KPI Finanziari
                 </h1>
                 <p style="margin: 10px 0 0 0; font-size: 1.1rem; opacity: 0.9;">
                     Dashboard completa per monitoraggio economico e trend

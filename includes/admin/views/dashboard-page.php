@@ -344,7 +344,7 @@ $login_system_status = is_user_logged_in() ? 'ok' : 'error';
                 <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-messages')); ?>" 
                    class="button button-secondary" 
                    style="background: rgba(194, 138, 77, 0.1); border: 2px solid #c28a4d; color: #c28a4d; padding: 12px; text-align: center; text-decoration: none; border-radius: 8px; transition: all 0.3s ease; font-weight: 600;">
-                    📧 Messaggi Automatici
+                    📧 Configurazioni Email/Whatsapp
                 </a>
                 <a href="<?php echo esc_url(home_url('/disco747-dashboard')); ?>" 
                    class="button button-primary" 

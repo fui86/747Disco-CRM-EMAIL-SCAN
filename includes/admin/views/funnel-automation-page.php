@@ -114,7 +114,7 @@ $cron_status = $scheduler->get_cron_status();
     <!-- HEADER -->
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; margin-bottom: 30px; color: white; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
         <h1 style="margin: 0; font-size: 2.5rem; font-weight: 700;">
-            🚀 Automazione Funnel Marketing
+            🚀 Configurazioni Funnel
         </h1>
         <p style="margin: 10px 0 0 0; font-size: 1.1rem; opacity: 0.9;">
             Sistema automatico per convertire preventivi e aumentare le vendite
