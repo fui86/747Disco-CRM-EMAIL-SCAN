@@ -17,7 +17,7 @@ if (!current_user_can('manage_options')) {
 
 ?>
 <div class="wrap">
-    <h1>🔬 Debug Struttura Excel</h1>
+    <h1>🔬 Debug Excel analizzati</h1>
     <p>Questo strumento scarica un file Excel specifico e mostra il contenuto di TUTTE le celle per capire la struttura reale.</p>
     
     <div class="card" style="max-width: 800px; margin: 20px 0; padding: 20px;">

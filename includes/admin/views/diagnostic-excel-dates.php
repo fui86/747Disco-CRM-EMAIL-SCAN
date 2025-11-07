@@ -17,7 +17,7 @@ if (!current_user_can('manage_options')) {
 
 ?>
 <div class="wrap">
-    <h1>🔍 Diagnostica Date Excel</h1>
+    <h1>🔍 Diagnostica Cella Data</h1>
     <p>Analisi dei file Excel su Google Drive per verificare quali hanno la cella C6 (data_evento) vuota.</p>
     
     <div id="diagnostic-results" style="margin-top: 20px;">

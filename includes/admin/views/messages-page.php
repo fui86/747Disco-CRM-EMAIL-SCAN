@@ -58,7 +58,7 @@ for ($i = 1; $i <= $max_templates; $i++) {
 <div class="wrap disco747-wrap">
     <h1 class="disco747-page-title">
         <span class="disco747-icon">💬</span>
-        Messaggi Automatici
+        Configurazioni Email/Whatsapp
     </h1>
 
     <div class="disco747-card" style="margin-bottom: 30px;">

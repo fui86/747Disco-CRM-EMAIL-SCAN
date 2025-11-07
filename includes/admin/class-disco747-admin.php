@@ -77,8 +77,8 @@ class Disco747_Admin {
     public function add_admin_menu() {
         try {
             add_menu_page(
-                __('PreventiviParty', 'disco747'),
-                __('PreventiviParty', 'disco747'),
+                __('Dashboard', 'disco747'),
+                __('Dashboard', 'disco747'),
                 $this->min_capability,
                 'disco747-crm',
                 array($this, 'render_main_dashboard'),
@@ -87,64 +87,64 @@ class Disco747_Admin {
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Impostazioni', 'disco747'),
-                __('Impostazioni', 'disco747'),
-                $this->min_capability,
-                'disco747-settings',
-                array($this, 'render_settings_page')
-            );
-            add_submenu_page(
-                'disco747-crm',
-                __('Messaggi Automatici', 'disco747'),
-                __('Messaggi Automatici', 'disco747'),
-                $this->min_capability,
-                'disco747-messages',
-                array($this, 'render_messages_page')
-            );
-            add_submenu_page(
-                'disco747-crm',
-                __('Scansione Excel Auto', 'disco747'),
-                __('Scansione Excel Auto', 'disco747'),
-                $this->min_capability,
-                'disco747-scan-excel',
-                array($this, 'render_scan_excel_page')
-            );
-            add_submenu_page(
-                'disco747-crm',
-                __('View Database', 'disco747'),
-                __('📊 View Database', 'disco747'),
+                __('Database Preventivi', 'disco747'),
+                __('📊 Database Preventivi', 'disco747'),
                 $this->min_capability,
                 'disco747-view-preventivi',
                 array($this, 'render_view_preventivi_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Analisi Finanziaria', 'disco747'),
-                __('💰 Analisi Finanziaria', 'disco747'),
+                __('Impostazioni Cloud', 'disco747'),
+                __('Impostazioni Cloud', 'disco747'),
                 $this->min_capability,
-                'disco747-financial',
-                array($this, 'render_financial_page')
+                'disco747-settings',
+                array($this, 'render_settings_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Automazione Funnel', 'disco747'),
-                __('🚀 Automazione Funnel', 'disco747'),
+                __('Configurazioni Email/Whatsapp', 'disco747'),
+                __('Configurazioni Email/Whatsapp', 'disco747'),
+                $this->min_capability,
+                'disco747-messages',
+                array($this, 'render_messages_page')
+            );
+            add_submenu_page(
+                'disco747-crm',
+                __('Configurazioni Funnel', 'disco747'),
+                __('🚀 Configurazioni Funnel', 'disco747'),
                 $this->min_capability,
                 'disco747-funnel',
                 array($this, 'render_funnel_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Diagnostica Date Excel', 'disco747'),
-                __('🔍 Diagnostica Date', 'disco747'),
+                __('Scansione file GDrive', 'disco747'),
+                __('Scansione file GDrive', 'disco747'),
+                $this->min_capability,
+                'disco747-scan-excel',
+                array($this, 'render_scan_excel_page')
+            );
+            add_submenu_page(
+                'disco747-crm',
+                __('KPI Finanziari', 'disco747'),
+                __('💰 KPI Finanziari', 'disco747'),
+                $this->min_capability,
+                'disco747-financial',
+                array($this, 'render_financial_page')
+            );
+            add_submenu_page(
+                'disco747-crm',
+                __('Diagnostica Cella Data', 'disco747'),
+                __('🔍 Diagnostica Cella Data', 'disco747'),
                 $this->min_capability,
                 'disco747-diagnostic',
                 array($this, 'render_diagnostic_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Debug Struttura Excel', 'disco747'),
-                __('🔬 Debug Struttura', 'disco747'),
+                __('Debug Excel analizzati', 'disco747'),
+                __('🔬 Debug Excel analizzati', 'disco747'),
                 $this->min_capability,
                 'disco747-debug-structure',
                 array($this, 'render_debug_structure_page')

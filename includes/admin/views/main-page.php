@@ -36,7 +36,7 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
                     🎉 747 Disco CRM
                 </h1>
                 <p style="margin: 0; font-size: 1.3rem; opacity: 0.95; font-weight: 400; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">
-                    Benvenuto, <?php echo esc_html($user_name); ?>! · PreventiviParty Enhanced v<?php echo esc_html($version); ?>
+                    Benvenuto, <?php echo esc_html($user_name); ?>! · Dashboard v<?php echo esc_html($version); ?>
                 </p>
             </div>
             
@@ -419,7 +419,7 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
                            onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(0, 123, 255, 0.3)'"
                            onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(0, 123, 255, 0.2)'">
                             <span style="font-size: 1.5rem;">📊</span>
-                            <span>View Database</span>
+                            <span>Database Preventivi</span>
                         </a>
                         
                         <a href="<?php echo admin_url('admin.php?page=disco747-scan-excel'); ?>" 
@@ -427,7 +427,7 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
                            onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(111, 66, 193, 0.3)'"
                            onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(111, 66, 193, 0.2)'">
                             <span style="font-size: 1.5rem;">🔄</span>
-                            <span>Scansione Excel</span>
+                            <span>Scansione file GDrive</span>
                         </a>
                         
                         <a href="<?php echo admin_url('admin.php?page=disco747-financial'); ?>" 
@@ -435,7 +435,7 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
                            onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(255, 193, 7, 0.3)'"
                            onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(255, 193, 7, 0.2)'">
                             <span style="font-size: 1.5rem;">💰</span>
-                            <span>Analisi Finanziaria</span>
+                            <span>KPI Finanziari</span>
                         </a>
                         
                     </div>
