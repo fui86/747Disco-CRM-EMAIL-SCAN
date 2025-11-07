@@ -1040,106 +1040,48 @@ document.addEventListener('DOMContentLoaded', function() {
 /* CALENDARIO RESPONSIVE */
 /* ============================================================================ */
 
-/* Tablet e Mobile */
+/* Tablet e Mobile - Calendario Compatto Stile iPhone */
 @media (max-width: 768px) {
     #calendario-eventi {
-        margin: 0 -10px 30px -10px;
-        border-radius: 15px !important;
-    }
-    
-    #calendario-eventi [style*="padding: 25px 30px"] {
-        padding: 20px 15px !important;
-    }
-    
-    /* Selettori mese/anno responsive */
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
-        gap: 10px !important;
-        margin-bottom: 15px !important;
-    }
-    
-    #calendario-select-mese,
-    #calendario-select-anno {
-        padding: 8px 12px !important;
-        font-size: 0.85rem !important;
-        min-width: 120px !important;
-    }
-    
-    #calendario-eventi button {
-        padding: 8px 12px !important;
-        font-size: 0.85rem !important;
-    }
-    
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] label {
-        font-size: 0.8rem !important;
-    }
-    
-    #calendario-eventi h2 {
-        font-size: 1.3rem !important;
-    }
-    
-    #calendario-eventi [style*="padding: 20px"] {
-        padding: 15px !important;
-    }
-    
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
-        gap: 3px !important;
-    }
-    
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
-        font-size: 0.7rem !important;
-    }
-    
-    #calendario-eventi [style*="aspect-ratio: 1"] {
-        font-size: 0.75rem !important;
-        min-height: 40px;
-    }
-    
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"] {
-        width: 4px !important;
-        height: 4px !important;
-    }
-    
-    #eventi-giorno {
-        padding-top: 15px !important;
-    }
-    
-    #eventi-giorno-titolo {
-        font-size: 0.95rem !important;
-    }
-    
-    #eventi-giorno-lista > div {
-        padding: 12px !important;
-        margin-bottom: 8px !important;
-    }
-    
-    #eventi-giorno-lista a {
-        padding: 6px 12px !important;
-        font-size: 0.75rem !important;
-    }
-}
-
-/* Mobile Piccolo */
-@media (max-width: 576px) {
-    #calendario-eventi {
         margin: 0 0 20px 0;
+        border-radius: 12px !important;
     }
     
-    /* Selettori mese/anno stacked verticalmente */
+    /* Header compatto */
+    #calendario-eventi [style*="padding: 25px 30px"] {
+        padding: 12px 10px !important;
+    }
+    
+    /* Selettori mese/anno compatti */
     #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
-        flex-direction: column !important;
-        gap: 8px !important;
+        gap: 6px !important;
+        margin-bottom: 10px !important;
+        padding: 0 5px;
     }
     
     #calendario-select-mese,
     #calendario-select-anno {
-        width: 100% !important;
-        min-width: auto !important;
-        max-width: 250px;
+        padding: 6px 10px !important;
+        font-size: 0.75rem !important;
+        min-width: 100px !important;
+        border-radius: 6px !important;
     }
     
     #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
-        width: 100%;
-        max-width: 250px;
+        padding: 6px 12px !important;
+        font-size: 0.75rem !important;
+        border-radius: 6px !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] label {
+        font-size: 0.7rem !important;
+        display: none; /* Nascondi "Vai a:" per risparmiare spazio */
+    }
+    
+    /* Navigazione frecce compatta */
+    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
+        padding: 6px 10px !important;
+        font-size: 1rem !important;
     }
     
     #calendario-eventi h2 {
@@ -1147,25 +1089,229 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     #calendario-eventi p {
-        font-size: 0.75rem !important;
+        font-size: 0.7rem !important;
+        margin-top: 2px !important;
     }
     
+    /* Griglia calendario molto compatta */
+    #calendario-eventi [style*="padding: 20px"] {
+        padding: 10px 8px !important;
+    }
+    
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
+        gap: 2px !important;
+        margin-bottom: 12px !important;
+    }
+    
+    /* Intestazioni giorni ultra compatte */
     #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
         font-size: 0.6rem !important;
         padding: 5px 0 !important;
     }
     
+    /* Giorni compatti ma touch-friendly (min 36px) */
     #calendario-eventi [style*="aspect-ratio: 1"] {
         font-size: 0.7rem !important;
-        min-height: 35px;
+        min-height: 36px !important;
+        padding: 2px !important;
     }
     
-    #eventi-giorno-lista [style*="font-weight: 700"] {
+    /* Pallini eventi più piccoli */
+    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"] {
+        width: 3px !important;
+        height: 3px !important;
+        margin-top: 1px !important;
+    }
+    
+    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
+        margin-top: 1px !important;
+        gap: 1px !important;
+    }
+    
+    /* Eventi giorno compatti */
+    #eventi-giorno {
+        padding-top: 12px !important;
+        margin-top: 12px !important;
+    }
+    
+    #eventi-giorno-titolo {
+        font-size: 0.9rem !important;
+        margin-bottom: 10px !important;
+    }
+    
+    #eventi-giorno-lista > div {
+        padding: 10px !important;
+        margin-bottom: 6px !important;
+    }
+    
+    #eventi-giorno-lista a {
+        padding: 6px 10px !important;
+        font-size: 0.7rem !important;
+    }
+}
+
+/* Mobile Piccolo - Ultra Compatto Stile Agenda iPhone */
+@media (max-width: 576px) {
+    #calendario-eventi {
+        margin: 0 0 15px 0;
+    }
+    
+    /* Header ultra compatto */
+    #calendario-eventi [style*="padding: 25px 30px"] {
+        padding: 10px 8px !important;
+    }
+    
+    /* Selettori inline orizzontali compatti */
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+        flex-direction: row !important;
+        gap: 4px !important;
+        margin-bottom: 8px !important;
+        padding: 0 3px;
+        justify-content: center !important;
+    }
+    
+    #calendario-select-mese,
+    #calendario-select-anno {
+        padding: 5px 8px !important;
+        font-size: 0.7rem !important;
+        min-width: 85px !important;
+        width: auto !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+        padding: 5px 10px !important;
+        font-size: 0.7rem !important;
+        width: auto !important;
+    }
+    
+    /* Titolo e contatore compatti */
+    #calendario-eventi h2 {
+        font-size: 1rem !important;
+    }
+    
+    #calendario-eventi p {
+        font-size: 0.65rem !important;
+        margin-top: 1px !important;
+    }
+    
+    /* Navigazione frecce mini */
+    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
+        padding: 5px 8px !important;
         font-size: 0.9rem !important;
     }
     
+    /* Griglia calendario ultra compatta */
+    #calendario-eventi [style*="padding: 20px"] {
+        padding: 8px 5px !important;
+    }
+    
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
+        gap: 1px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    /* Intestazioni giorni mini */
+    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
+        font-size: 0.55rem !important;
+        padding: 3px 0 !important;
+        letter-spacing: -0.3px;
+    }
+    
+    /* Giorni mini ma touch-friendly (32px - minimo iOS) */
+    #calendario-eventi [style*="aspect-ratio: 1"] {
+        font-size: 0.65rem !important;
+        min-height: 32px !important;
+        padding: 1px !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Pallini eventi micro */
+    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"],
+    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 3px"] {
+        width: 2.5px !important;
+        height: 2.5px !important;
+        margin-top: 0px !important;
+    }
+    
+    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
+        margin-top: 0px !important;
+        gap: 1px !important;
+    }
+    
+    /* Eventi giorno ultra compatti */
+    #eventi-giorno {
+        padding-top: 10px !important;
+        margin-top: 10px !important;
+    }
+    
+    #eventi-giorno-titolo {
+        font-size: 0.85rem !important;
+        margin-bottom: 8px !important;
+    }
+    
+    #eventi-giorno-lista > div {
+        padding: 8px !important;
+        margin-bottom: 5px !important;
+        border-radius: 8px !important;
+    }
+    
+    #eventi-giorno-lista [style*="font-weight: 700"] {
+        font-size: 0.85rem !important;
+    }
+    
     #eventi-giorno-lista [style*="font-size: 0.85rem"] {
-        font-size: 0.75rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    #eventi-giorno-lista a {
+        padding: 5px 8px !important;
+        font-size: 0.65rem !important;
+        border-radius: 12px !important;
+    }
+}
+
+/* Mobile Extra Piccolo - Massima Compattezza */
+@media (max-width: 400px) {
+    #calendario-eventi {
+        margin: 0 0 12px 0;
+    }
+    
+    /* Header minimale */
+    #calendario-eventi [style*="padding: 25px 30px"] {
+        padding: 8px 5px !important;
+    }
+    
+    /* Selettori mini */
+    #calendario-select-mese,
+    #calendario-select-anno {
+        padding: 4px 6px !important;
+        font-size: 0.65rem !important;
+        min-width: 75px !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+        padding: 4px 8px !important;
+        font-size: 0.65rem !important;
+    }
+    
+    /* Titolo mini */
+    #calendario-eventi h2 {
+        font-size: 0.9rem !important;
+    }
+    
+    #calendario-eventi p {
+        font-size: 0.6rem !important;
+    }
+    
+    /* Griglia ultra compatta */
+    #calendario-eventi [style*="padding: 20px"] {
+        padding: 6px 3px !important;
+    }
+    
+    /* Giorni mini (30px - limite minimo touch) */
+    #calendario-eventi [style*="aspect-ratio: 1"] {
+        font-size: 0.6rem !important;
+        min-height: 30px !important;
     }
 }
 
