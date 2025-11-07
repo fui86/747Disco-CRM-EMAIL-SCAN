@@ -51,7 +51,7 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
 
 
     <!-- ============================================================================ -->
-    <!-- 📅 CALENDARIO STILE IPHONE - BOX QUADRATO -->
+    <!-- 📅 CALENDARIO EVENTI STILE IPHONE - v7.0 DESKTOP+MOBILE -->
     <!-- ============================================================================ -->
     <?php
     // Carica eventi del mese corrente
@@ -87,115 +87,110 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     );
     ?>
     
-    <div style="max-width: 800px; margin: 0 auto 30px auto;">
+    <div id="calendario-eventi" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
         
-        <!-- Container Calendario Quadrato -->
-        <div id="calendario-iphone" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px; text-align: center;">
             
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 20px; text-align: center;">
+            <!-- Navigazione mese -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)';" onmouseout="this.style.background='rgba(255,255,255,0.15)';">‹</button>
                 
-                <!-- Navigazione mese -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)';" onmouseout="this.style.background='rgba(255,255,255,0.15)';">‹</button>
-                    
-                    <div>
-                        <h2 style="margin: 0; font-size: 1.5rem; font-weight: 700; color: white;">
-                            <?php echo $mesi_nomi[$calendario_mese]; ?>
-                        </h2>
-                        <p style="margin: 5px 0 0 0; font-size: 1.1rem; font-weight: 600; color: rgba(255,255,255,0.7);">
-                            <?php echo $calendario_anno; ?>
-                        </p>
-                    </div>
-                    
-                    <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)';" onmouseout="this.style.background='rgba(255,255,255,0.15)';">›</button>
+                <div>
+                    <h2 id="calendario-titolo" style="margin: 0; font-size: 2rem; font-weight: 700; color: white;">
+                        <?php echo $mesi_nomi[$calendario_mese]; ?>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; font-size: 1.2rem; font-weight: 600; color: rgba(255,255,255,0.7);">
+                        <?php echo $calendario_anno; ?>
+                    </p>
                 </div>
                 
-                <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 0.9rem;">
-                    <?php echo count($eventi_calendario); ?> eventi questo mese
-                </p>
+                <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.15); border: none; color: white; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)';" onmouseout="this.style.background='rgba(255,255,255,0.15)';">›</button>
+            </div>
+            
+            <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 1rem;">
+                <?php echo count($eventi_calendario); ?> eventi questo mese
+            </p>
+            
+        </div>
+        
+        <!-- Griglia Calendario -->
+        <div style="padding: 30px;">
+            
+            <div class="cal-grid-container" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;">
+                
+                <!-- Intestazioni giorni -->
+                <?php 
+                $giorni_settimana = array('L', 'M', 'M', 'G', 'V', 'S', 'D');
+                foreach ($giorni_settimana as $g): 
+                ?>
+                    <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.9rem; padding: 10px 0; text-transform: uppercase;">
+                        <?php echo $g; ?>
+                    </div>
+                <?php endforeach; ?>
+                
+                <!-- Giorni del mese -->
+                <?php
+                $primo_giorno_settimana = date('N', strtotime($primo_giorno));
+                $giorni_nel_mese = date('t', strtotime($primo_giorno));
+                $oggi = date('Y-m-d');
+                
+                // Celle vuote iniziali
+                for ($i = 1; $i < $primo_giorno_settimana; $i++) {
+                    echo '<div class="cal-day-empty"></div>';
+                }
+                
+                // Giorni del mese
+                for ($giorno = 1; $giorno <= $giorni_nel_mese; $giorno++) {
+                    $data_corrente = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-" . sprintf('%02d', $giorno);
+                    $ha_eventi = isset($eventi_per_data[$data_corrente]);
+                    $is_oggi = $data_corrente === $oggi;
+                    
+                    $confermati = 0;
+                    $attivi = 0;
+                    if ($ha_eventi) {
+                        foreach ($eventi_per_data[$data_corrente] as $evt) {
+                            if ($evt['stato'] === 'confermato' || floatval($evt['acconto']) > 0) {
+                                $confermati++;
+                            } else {
+                                $attivi++;
+                            }
+                        }
+                    }
+                    
+                    $bg = $is_oggi ? 'linear-gradient(135deg, #007aff 0%, #0056b3 100%)' : ($ha_eventi ? '#f0f0f5' : 'transparent');
+                    $color = $is_oggi ? 'white' : ($ha_eventi ? '#000' : '#8e8e93');
+                    $weight = $is_oggi ? '700' : ($ha_eventi ? '600' : '400');
+                    ?>
+                    <div class="cal-day" 
+                         onclick="<?php echo $ha_eventi ? "mostraEventi('{$data_corrente}')" : ''; ?>" 
+                         style="background: <?php echo $bg; ?>; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: <?php echo $weight; ?>; color: <?php echo $color; ?>; cursor: <?php echo $ha_eventi ? 'pointer' : 'default'; ?>; transition: all 0.2s; position: relative; min-height: 80px; padding: 10px;"
+                         <?php if ($ha_eventi): ?>
+                         onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                         onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
+                         <?php endif; ?>>
+                        
+                        <span><?php echo $giorno; ?></span>
+                        
+                        <?php if ($ha_eventi): ?>
+                            <div style="display: flex; gap: 4px; margin-top: 6px;">
+                                <?php if ($confermati > 0): ?>
+                                    <div class="cal-dot" style="width: 8px; height: 8px; background: #34c759; border-radius: 50%;"></div>
+                                <?php endif; ?>
+                                <?php if ($attivi > 0): ?>
+                                    <div class="cal-dot" style="width: 8px; height: 8px; background: #007aff; border-radius: 50%;"></div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php } ?>
                 
             </div>
             
-            <!-- Griglia Calendario QUADRATA -->
-            <div style="padding: 20px;">
-                
-                <div id="cal-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
-                    
-                    <!-- Intestazioni giorni -->
-                    <?php 
-                    $giorni_settimana = array('L', 'M', 'M', 'G', 'V', 'S', 'D');
-                    foreach ($giorni_settimana as $g): 
-                    ?>
-                        <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 8px 0; text-transform: uppercase;">
-                            <?php echo $g; ?>
-                        </div>
-                    <?php endforeach; ?>
-                    
-                    <!-- Giorni del mese -->
-                    <?php
-                    $primo_giorno_settimana = date('N', strtotime($primo_giorno));
-                    $giorni_nel_mese = date('t', strtotime($primo_giorno));
-                    $oggi = date('Y-m-d');
-                    
-                    // Celle vuote
-                    for ($i = 1; $i < $primo_giorno_settimana; $i++) {
-                        echo '<div style="aspect-ratio: 1;"></div>';
-                    }
-                    
-                    // Giorni
-                    for ($giorno = 1; $giorno <= $giorni_nel_mese; $giorno++) {
-                        $data_corrente = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-" . sprintf('%02d', $giorno);
-                        $ha_eventi = isset($eventi_per_data[$data_corrente]);
-                        $is_oggi = $data_corrente === $oggi;
-                        
-                        $confermati = 0;
-                        $attivi = 0;
-                        if ($ha_eventi) {
-                            foreach ($eventi_per_data[$data_corrente] as $evt) {
-                                if ($evt['stato'] === 'confermato' || floatval($evt['acconto']) > 0) {
-                                    $confermati++;
-                                } else {
-                                    $attivi++;
-                                }
-                            }
-                        }
-                        
-                        $bg = $is_oggi ? 'linear-gradient(135deg, #007aff 0%, #0056b3 100%)' : ($ha_eventi ? '#f0f0f5' : 'transparent');
-                        $color = $is_oggi ? 'white' : ($ha_eventi ? '#000' : '#8e8e93');
-                        $weight = $is_oggi ? '700' : ($ha_eventi ? '600' : '400');
-                        ?>
-                        <div class="cal-day" 
-                             onclick="<?php echo $ha_eventi ? "mostraEventi('{$data_corrente}')" : ''; ?>" 
-                             style="aspect-ratio: 1; background: <?php echo $bg; ?>; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1rem; font-weight: <?php echo $weight; ?>; color: <?php echo $color; ?>; cursor: <?php echo $ha_eventi ? 'pointer' : 'default'; ?>; transition: all 0.2s; position: relative;"
-                             <?php if ($ha_eventi): ?>
-                             onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
-                             onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
-                             <?php endif; ?>>
-                            
-                            <span><?php echo $giorno; ?></span>
-                            
-                            <?php if ($ha_eventi): ?>
-                                <div style="display: flex; gap: 3px; margin-top: 4px;">
-                                    <?php if ($confermati > 0): ?>
-                                        <div style="width: 6px; height: 6px; background: #34c759; border-radius: 50%;"></div>
-                                    <?php endif; ?>
-                                    <?php if ($attivi > 0): ?>
-                                        <div style="width: 6px; height: 6px; background: #007aff; border-radius: 50%;"></div>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    <?php } ?>
-                    
-                </div>
-                
-                <!-- Eventi del giorno selezionato -->
-                <div id="eventi-giorno" style="display: none; margin-top: 25px; padding-top: 25px; border-top: 2px solid #e5e5ea;">
-                    <h3 id="eventi-giorno-titolo" style="margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 700; color: #1d1d1f;"></h3>
-                    <div id="eventi-giorno-lista"></div>
-                </div>
-                
+            <!-- Eventi del giorno selezionato -->
+            <div id="eventi-giorno" style="display: none; margin-top: 30px; padding-top: 30px; border-top: 2px solid #e5e5ea;">
+                <h3 id="eventi-giorno-titolo" style="margin: 0 0 20px 0; font-size: 1.3rem; font-weight: 700; color: #1d1d1f;"></h3>
+                <div id="eventi-giorno-lista"></div>
             </div>
             
         </div>
@@ -232,25 +227,25 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
         
         lista.innerHTML = eventi.map(function(evento) {
             const badge = (evento.stato === 'confermato' || parseFloat(evento.acconto) > 0) 
-                ? '<span style="background: #34c759; color: white; padding: 6px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">💰 Confermato</span>'
-                : '<span style="background: #007aff; color: white; padding: 6px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">📋 Attivo</span>';
+                ? '<span style="background: #34c759; color: white; padding: 8px 16px; border-radius: 12px; font-size: 0.85rem; font-weight: 700;">💰 Confermato</span>'
+                : '<span style="background: #007aff; color: white; padding: 8px 16px; border-radius: 12px; font-size: 0.85rem; font-weight: 700;">📋 Attivo</span>';
             
             return `
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; gap: 15px; flex-wrap: wrap;">
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 14px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; gap: 15px; flex-wrap: wrap;">
                         <div style="flex: 1; min-width: 200px;">
-                            <div style="font-weight: 700; color: #1d1d1f; font-size: 1.1rem; margin-bottom: 4px;">
+                            <div style="font-weight: 700; color: #1d1d1f; font-size: 1.2rem; margin-bottom: 5px;">
                                 ${evento.tipo_evento || 'Evento'}
                             </div>
-                            <div style="color: #6c757d; font-size: 0.95rem;">
+                            <div style="color: #6c757d; font-size: 1rem;">
                                 ${evento.nome_referente || ''} ${evento.cognome_referente || ''}
                             </div>
                         </div>
                         ${badge}
                     </div>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        ${evento.telefono ? `<a href="https://wa.me/${evento.telefono.replace(/[^0-9]/g, '')}" target="_blank" style="background: #25D366; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">📱 WhatsApp</a>` : ''}
-                        ${evento.email ? `<a href="mailto:${evento.email}" style="background: #007aff; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">✉️ Email</a>` : ''}
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        ${evento.telefono ? `<a href="https://wa.me/${evento.telefono.replace(/[^0-9]/g, '')}" target="_blank" style="background: #25D366; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">📱 WhatsApp</a>` : ''}
+                        ${evento.email ? `<a href="mailto:${evento.email}" style="background: #007aff; color: white; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-size: 0.95rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">✉️ Email</a>` : ''}
                     </div>
                 </div>
             `;
@@ -262,37 +257,151 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     </script>
     
     <style>
-    /* Responsive - mantiene proporzioni */
-    @media (max-width: 768px) {
-        #calendario-iphone {
-            margin: 0 10px;
+    /* DESKTOP: Grande e bello (default) */
+    .cal-grid-container {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 10px;
+    }
+    
+    .cal-day {
+        min-height: 80px;
+    }
+    
+    .cal-day-empty {
+        min-height: 80px;
+    }
+    
+    /* MOBILE: Compatto SOLO in verticale */
+    @media screen and (max-width: 768px) and (orientation: portrait) {
+        /* Container calendario */
+        #calendario-eventi {
+            margin: 0 5px 20px 5px;
+            border-radius: 16px;
         }
         
-        #cal-grid {
-            gap: 4px !important;
+        /* Header compatto */
+        #calendario-eventi > div:first-child {
+            padding: 15px 10px !important;
         }
         
-        .cal-day {
+        /* Bottoni frecce più piccoli */
+        #calendario-eventi button {
+            width: 35px !important;
+            height: 35px !important;
+            font-size: 1.4rem !important;
+        }
+        
+        /* Titolo mese */
+        #calendario-titolo {
+            font-size: 1.3rem !important;
+        }
+        
+        /* Anno */
+        #calendario-eventi > div:first-child > div > div > p {
             font-size: 0.9rem !important;
         }
         
-        .cal-day > div {
-            margin-top: 2px !important;
+        /* Contatore eventi */
+        #calendario-eventi > div:first-child > p {
+            font-size: 0.8rem !important;
         }
         
-        .cal-day > div > div {
+        /* Container griglia */
+        #calendario-eventi > div:nth-child(2) {
+            padding: 12px !important;
+        }
+        
+        /* Griglia: gap ridotto */
+        .cal-grid-container {
+            gap: 3px !important;
+        }
+        
+        /* Intestazioni giorni */
+        .cal-grid-container > div:nth-child(-n+7) {
+            font-size: 0.7rem !important;
+            padding: 5px 0 !important;
+        }
+        
+        /* CELLE GIORNI: compatte ma cliccabili */
+        .cal-day {
+            min-height: 42px !important;
+            max-height: 42px !important;
+            font-size: 0.95rem !important;
+            padding: 4px !important;
+            border-radius: 10px !important;
+        }
+        
+        .cal-day-empty {
+            min-height: 42px !important;
+            max-height: 42px !important;
+        }
+        
+        /* Pallini eventi più piccoli */
+        .cal-day > div {
+            margin-top: 3px !important;
+            gap: 2px !important;
+        }
+        
+        .cal-dot {
+            width: 5px !important;
+            height: 5px !important;
+        }
+        
+        /* Eventi giorno */
+        #eventi-giorno {
+            margin-top: 15px !important;
+            padding-top: 15px !important;
+        }
+        
+        #eventi-giorno-titolo {
+            font-size: 1rem !important;
+        }
+        
+        #eventi-giorno-lista > div {
+            padding: 15px !important;
+            margin-bottom: 10px !important;
+        }
+        
+        #eventi-giorno-lista a {
+            padding: 8px 14px !important;
+            font-size: 0.85rem !important;
+        }
+    }
+    
+    /* MOBILE PICCOLO: ancora più compatto */
+    @media screen and (max-width: 480px) and (orientation: portrait) {
+        .cal-grid-container {
+            gap: 2px !important;
+        }
+        
+        .cal-day {
+            min-height: 38px !important;
+            max-height: 38px !important;
+            font-size: 0.85rem !important;
+            padding: 2px !important;
+        }
+        
+        .cal-day-empty {
+            min-height: 38px !important;
+            max-height: 38px !important;
+        }
+        
+        .cal-dot {
             width: 4px !important;
             height: 4px !important;
         }
     }
     
-    @media (max-width: 480px) {
+    /* TABLET: Medio */
+    @media screen and (min-width: 769px) and (max-width: 1024px) {
         .cal-day {
-            font-size: 0.85rem !important;
+            min-height: 70px !important;
+            font-size: 1.1rem !important;
         }
         
-        #cal-grid {
-            gap: 3px !important;
+        .cal-day-empty {
+            min-height: 70px !important;
         }
     }
     </style>

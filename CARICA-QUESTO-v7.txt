@@ -1,0 +1,154 @@
+╔════════════════════════════════════════════════════════════════╗
+║                                                                ║
+║   🚀 CALENDARIO v7.0 - ISTRUZIONI RAPIDE                      ║
+║                                                                ║
+║   Desktop GRANDE ✅  +  Mobile Compatto ✅                     ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+
+
+📥 DOWNLOAD
+──────────────────────────────────────────────────────────────
+
+  File: CALENDARIO-v7-DESKTOP-MOBILE.tar.gz (16KB)
+  
+  Contiene:
+  ✓ includes/admin/views/main-page.php
+  ✓ CALENDARIO-v7-DESKTOP-MOBILE.txt (guida completa)
+
+
+🔧 INSTALLAZIONE (3 PASSI)
+──────────────────────────────────────────────────────────────
+
+  1️⃣  ESTRAI FILE
+      • Decomprimi CALENDARIO-v7-DESKTOP-MOBILE.tar.gz
+      • Trova: includes/admin/views/main-page.php
+
+  2️⃣  CARICA FILE
+      • FTP/FileZilla → /wp-content/plugins/747disco-crm/
+      • Oppure cPanel File Manager
+      • Sovrascrivi main-page.php esistente
+
+  3️⃣  SVUOTA CACHE
+      • WordPress: Disattiva cache plugin
+      • Browser: CTRL+SHIFT+R (hard refresh)
+      • Server: Svuota cache CDN/Varnish
+
+
+✅ VERIFICA FUNZIONAMENTO
+──────────────────────────────────────────────────────────────
+
+  🖥️  DESKTOP (PC/Laptop):
+      1. Apri: admin.php?page=disco747-crm
+      2. Vedi calendario GRANDE? ✅
+      3. Celle ~80px di altezza? ✅
+      4. Tutto leggibile e bello? ✅
+
+  📱  MOBILE VERTICALE (Smartphone):
+      1. Apri su cellulare in verticale
+      2. Vedi TUTTO il mese? ✅
+      3. Celle ~40px (compatte)? ✅
+      4. Puoi cliccare facilmente? ✅
+
+  📱  MOBILE ORIZZONTALE:
+      1. Ruota cellulare orizzontale
+      2. Calendario diventa GRANDE? ✅
+      3. Layout desktop-like? ✅
+
+
+🎯 COSA ASPETTARSI
+──────────────────────────────────────────────────────────────
+
+  DESKTOP:
+  ┌─────────────────────────────────────┐
+  │  Calendario GRANDE e leggibile      │
+  │  Celle: 80px altezza                │
+  │  Tutto ben spaziato                 │
+  │  Esperienza premium ✨               │
+  └─────────────────────────────────────┘
+
+  MOBILE VERTICALE:
+  ┌─────────────┐
+  │ Calendario  │
+  │ COMPATTO    │
+  │ Tutto il    │
+  │ mese in     │
+  │ un colpo    │
+  │ d'occhio 👀 │
+  └─────────────┘
+
+  MOBILE ORIZZONTALE:
+  ┌──────────────────────────────┐
+  │ Calendario GRANDE            │
+  │ (come desktop)               │
+  └──────────────────────────────┘
+
+
+🐛 TROUBLESHOOTING
+──────────────────────────────────────────────────────────────
+
+  ❌ Desktop ancora piccolo?
+     → Svuota cache WordPress plugin
+     → Hard refresh: CTRL+F5
+     → Modalità incognito
+
+  ❌ Mobile ancora grande?
+     → Svuota cache browser mobile
+     → Ricarica pagina
+     → Verifica orientamento (verticale)
+
+  ❌ Nulla cambia?
+     → Verifica file caricato correttamente
+     → Controlla path: /includes/admin/views/
+     → Guarda console browser (F12)
+
+
+💡 COSA È CAMBIATO da v6.0
+──────────────────────────────────────────────────────────────
+
+  ❌ v6.0: Calendario ridotto anche su DESKTOP
+  ✅ v7.0: Desktop GRANDE, mobile compatto
+
+  TECNICA:
+  • Rimosso max-width 800px
+  • Celle desktop: 50px → 80px (+60%)
+  • Media query solo per mobile verticale
+  • CSS puro, no JavaScript pesante
+  • Orientation-aware (portrait/landscape)
+
+
+📊 DIMENSIONI CELLE
+──────────────────────────────────────────────────────────────
+
+  Desktop 1920px:    80px  ← GRANDE ✨
+  Laptop 1366px:     80px  ← GRANDE ✨
+  Tablet 1024px:     70px  ← Medio
+  Mobile H 844px:    80px  ← GRANDE (landscape)
+  Mobile V 414px:    42px  ← Compatto
+  Mobile V 375px:    38px  ← Compatto
+  Mobile V 360px:    38px  ← Compatto
+
+
+📞 SUPPORTO
+──────────────────────────────────────────────────────────────
+
+  Se hai problemi:
+  
+  1. Leggi: CALENDARIO-v7-DESKTOP-MOBILE.txt
+  2. Leggi: CONFRONTO-v6-vs-v7.txt
+  3. Console browser (F12) → cerca errori
+  4. Screenshot problema + dimensione schermo
+
+
+═══════════════════════════════════════════════════════════════
+
+  ✅ RISULTATO FINALE
+
+  🖥️  Desktop: Calendario BELLO e GRANDE
+  📱  Mobile ↕: Calendario COMPATTO e COMPLETO
+  📱  Mobile ↔: Calendario GRANDE (auto)
+  📱  Tablet: Calendario OTTIMIZZATO
+
+  → Esperienza PERFETTA su TUTTI i dispositivi! 🎉
+
+═══════════════════════════════════════════════════════════════

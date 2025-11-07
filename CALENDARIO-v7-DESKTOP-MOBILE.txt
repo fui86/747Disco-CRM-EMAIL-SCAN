@@ -1,0 +1,236 @@
+╔════════════════════════════════════════════════════════════════╗
+║  📅 CALENDARIO v7.0 - DESKTOP GRANDE + MOBILE COMPATTO         ║
+║  Fix: Solo mobile verticale, desktop intatto                   ║
+║  Data: 2025-11-05                                              ║
+╚════════════════════════════════════════════════════════════════╝
+
+✅ PROBLEMA RISOLTO
+─────────────────────────────────────────────────────────────────
+
+❌ PRIMA (v6.0):
+  • Calendario ridotto anche su DESKTOP
+  • Max-width 800px su tutti i dispositivi
+  • Esperienza desktop peggiorata
+
+✅ ADESSO (v7.0):
+  • DESKTOP: Grande, bello, leggibile (celle 80px)
+  • MOBILE VERTICALE: Compatto e funzionale (celle 38-42px)
+  • TABLET: Dimensioni medie (celle 70px)
+  • MOBILE ORIZZONTALE: Layout desktop (grande)
+
+─────────────────────────────────────────────────────────────────
+
+🖥️ DESKTOP (default)
+  • Celle: 80px di altezza
+  • Gap: 10px
+  • Font: 1.2rem
+  • Padding: 30px
+  • Pallini: 8px
+  • Header: 25px padding
+  • Bottoni: 45px
+  • Titolo: 2rem
+  
+  → Esperienza OTTIMALE, tutto grande e leggibile
+
+─────────────────────────────────────────────────────────────────
+
+📱 MOBILE VERTICALE (≤768px portrait)
+  • Celle: 42px → 38px (piccoli)
+  • Gap: 3px → 2px
+  • Font: 0.95rem → 0.85rem
+  • Padding: 12px
+  • Pallini: 5px → 4px
+  • Header: 15px padding
+  • Bottoni: 35px
+  • Titolo: 1.3rem
+  
+  → Tutto il mese VISIBILE in un solo schermo
+  → Touch-friendly (min 38px iOS standard)
+  → Grid 7 colonne perfettamente allineate
+
+─────────────────────────────────────────────────────────────────
+
+📐 BREAKPOINTS RESPONSIVE
+
+1️⃣ Desktop / Mobile Orizzontale (default)
+   • Tutto GRANDE e leggibile
+   • Celle 80px, gap 10px
+   • Font size normali
+
+2️⃣ Tablet (769px - 1024px)
+   • Celle 70px
+   • Font 1.1rem
+   • Layout intermedio
+
+3️⃣ Mobile Verticale ≤768px
+   • Celle 42px
+   • Gap 3px
+   • Font 0.95rem
+   • Media query: (orientation: portrait)
+
+4️⃣ Mobile Piccolo ≤480px
+   • Celle 38px
+   • Gap 2px
+   • Font 0.85rem
+   • Pallini 4px
+
+─────────────────────────────────────────────────────────────────
+
+🎯 MEDIA QUERIES
+
+```css
+/* DESKTOP: Default (grande) */
+.cal-day {
+    min-height: 80px;
+}
+
+/* MOBILE VERTICALE: Compatto */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+    .cal-day {
+        min-height: 42px !important;
+    }
+}
+
+/* MOBILE PICCOLO: Ultra compatto */
+@media screen and (max-width: 480px) and (orientation: portrait) {
+    .cal-day {
+        min-height: 38px !important;
+    }
+}
+
+/* TABLET: Medio */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+    .cal-day {
+        min-height: 70px !important;
+    }
+}
+```
+
+─────────────────────────────────────────────────────────────────
+
+📦 MODIFICHE TECNICHE
+
+✅ CSS Puro:
+  • Nessun JavaScript che manipola DOM
+  • Solo media queries CSS
+  • Orientation: portrait per mobile verticale
+  • !important per override sicuro
+
+✅ Classi CSS:
+  • .cal-grid-container → griglia principale
+  • .cal-day → celle giorni
+  • .cal-day-empty → celle vuote
+  • .cal-dot → pallini eventi
+
+✅ Selettori specifici:
+  • nth-child per intestazioni giorni
+  • #calendario-eventi per container
+  • Selettori gerarchici per precisione
+
+─────────────────────────────────────────────────────────────────
+
+🚀 INSTALLAZIONE
+
+1. SCARICA FILE
+   CALENDARIO-v7-DESKTOP-MOBILE.tar.gz
+
+2. ESTRAI
+   includes/admin/views/main-page.php
+
+3. CARICA
+   Sovrascrivi file esistente via FTP/File Manager
+
+4. SVUOTA CACHE
+   • Plugin cache WordPress
+   • Browser: CTRL+SHIFT+R (hard refresh)
+   • Server cache se presente
+
+5. VERIFICA
+   🖥️ Desktop: Calendario GRANDE ✅
+   📱 Mobile verticale: Calendario COMPATTO ✅
+   📱 Mobile orizzontale: Calendario GRANDE ✅
+
+─────────────────────────────────────────────────────────────────
+
+✅ TEST CONSIGLIATI
+
+Desktop:
+  1. Apri admin.php?page=disco747-crm
+  2. Verifica celle GRANDI (80px)
+  3. Verifica tutto leggibile
+  4. Click su giorno con eventi
+
+Mobile Verticale:
+  1. Apri su smartphone in verticale
+  2. Verifica TUTTO il mese visibile
+  3. Verifica celle 38-42px
+  4. Verifica click funzionante (touch)
+
+Mobile Orizzontale:
+  1. Ruota smartphone in orizzontale
+  2. Verifica calendario si ingrandisce
+  3. Verifica layout desktop-like
+
+Tablet:
+  1. Apri su iPad/tablet
+  2. Verifica layout medio (70px)
+  3. Verifica leggibilità
+
+─────────────────────────────────────────────────────────────────
+
+💡 DIFFERENZE vs v6.0
+
+v6.0 (ERRATO):
+  • Max-width 800px su TUTTI i dispositivi
+  • Desktop ridotto e peggiorato
+  • Aspect-ratio fisso ovunque
+
+v7.0 (CORRETTO):
+  • Desktop: GRANDE e leggibile
+  • Mobile verticale: COMPATTO
+  • Orientation-aware (portrait/landscape)
+  • CSS puro senza JavaScript
+
+─────────────────────────────────────────────────────────────────
+
+🎨 DESIGN MANTENUTO
+
+✅ Stile iPhone/iOS:
+  • Header nero gradiente
+  • Celle arrotondate (border-radius)
+  • Pallini colorati (verde/blu)
+  • Hover effects desktop
+  • Click mostra eventi sotto
+
+✅ Navigazione:
+  • Frecce ‹ › per mese
+  • Titolo centrale
+  • Contatore eventi
+  • Grid 7x6 (settimane)
+
+✅ Responsive:
+  • Mobile: tutto visibile
+  • Desktop: tutto leggibile
+  • Tablet: bilanciato
+  • Landscape: desktop-like
+
+─────────────────────────────────────────────────────────────────
+
+❓ TROUBLESHOOTING
+
+Calendario ancora grande su mobile?
+  → Svuota cache browser (CTRL+SHIFT+R)
+  → Controlla che main-page.php sia caricato
+  → Verifica media query con DevTools (F12)
+
+Calendario ancora piccolo su desktop?
+  → Svuota cache plugin WordPress
+  → Ricarica pagina (CTRL+F5)
+  → Verifica che file sia versione v7.0
+
+Celle non si vedono bene?
+  → Controlla console browser (F12) errori
+  → Verifica larghezza schermo
+  → Testa in modalità incognito
+
+╚════════════════════════════════════════════════════════════════╝

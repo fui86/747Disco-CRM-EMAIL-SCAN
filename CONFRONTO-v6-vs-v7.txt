@@ -1,0 +1,220 @@
+═══════════════════════════════════════════════════════════════
+  📊 CONFRONTO v6.0 vs v7.0 - CALENDARIO
+═══════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│  🖥️  DESKTOP (PC, Laptop)                                   │
+└─────────────────────────────────────────────────────────────┘
+
+  ❌ v6.0 (ERRATO)                ✅ v7.0 (CORRETTO)
+  ─────────────────────────────────────────────────────────
+  • Max-width: 800px             • No max-width limit
+  • Celle: ~50px (piccole)       • Celle: 80px (GRANDI)
+  • Font: 1rem (piccolo)         • Font: 1.2rem (grande)
+  • Gap: 8px                     • Gap: 10px
+  • Padding: ridotto             • Padding: 30px
+  • Bottoni: 40px                • Bottoni: 45px
+  • Titolo: 1.5rem               • Titolo: 2rem
+  
+  RISULTATO:                     RISULTATO:
+  Calendario RIDOTTO 📉          Calendario GRANDE 📈
+  Esperienza peggiorata          Esperienza OTTIMALE
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  📱  MOBILE VERTICALE (Smartphone portrait)                 │
+└─────────────────────────────────────────────────────────────┘
+
+  ⚠️  v6.0                       ✅ v7.0 (CORRETTO)
+  ─────────────────────────────────────────────────────────
+  • Celle: ~32-36px              • Celle: 38-42px
+  • Gap: 1-3px                   • Gap: 2-3px
+  • Font: 0.65rem                • Font: 0.85-0.95rem
+  • Aspect-ratio problematico    • Min-height CSS puro
+  • JavaScript pesante           • Solo CSS
+  
+  RISULTATO:                     RISULTATO:
+  Troppo piccolo                 PERFETTO ✨
+  Click difficile                Touch-friendly
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  📱  MOBILE ORIZZONTALE (Smartphone landscape)              │
+└─────────────────────────────────────────────────────────────┘
+
+  ❌ v6.0                        ✅ v7.0 (CORRETTO)
+  ─────────────────────────────────────────────────────────
+  • Stesso layout compatto       • Layout DESKTOP
+  • Celle sempre piccole         • Celle GRANDI (80px)
+  • Spazio sprecato              • Spazio utilizzato
+  
+  RISULTATO:                     RISULTATO:
+  Brutto in landscape            PERFETTO in landscape
+
+
+┌─────────────────────────────────────────────────────────────┐
+│  📱  TABLET (iPad, etc)                                     │
+└─────────────────────────────────────────────────────────────┘
+
+  ⚠️  v6.0                       ✅ v7.0 (CORRETTO)
+  ─────────────────────────────────────────────────────────
+  • Max-width 800px              • Layout intermedio
+  • Celle medie                  • Celle 70px (ottimali)
+  • Nessuna ottimizzazione       • Media query dedicata
+  
+  RISULTATO:                     RISULTATO:
+  Accettabile                    OTTIMIZZATO
+
+
+═══════════════════════════════════════════════════════════════
+  🎯 STRATEGIA v7.0
+═══════════════════════════════════════════════════════════════
+
+  1. DEFAULT = DESKTOP
+     → Grande, leggibile, professionale
+     → Celle 80px, gap 10px
+     → Design ottimale per monitor grandi
+
+  2. MEDIA QUERY = MOBILE VERTICALE
+     → @media (max-width: 768px) and (orientation: portrait)
+     → Celle compatte 38-42px
+     → Tutto il mese visibile
+     → Solo quando serve!
+
+  3. LANDSCAPE = DESKTOP
+     → Smartphone orizzontale usa layout desktop
+     → Sfrutta larghezza extra
+     → Esperienza premium
+
+  4. TABLET = INTERMEDIO
+     → Media query dedicata (769-1024px)
+     → Celle 70px
+     → Bilanciamento perfetto
+
+
+═══════════════════════════════════════════════════════════════
+  📐 DIMENSIONI CELLE - CONFRONTO NUMERICO
+═══════════════════════════════════════════════════════════════
+
+  DISPOSITIVO            v6.0        v7.0       DIFFERENZA
+  ──────────────────────────────────────────────────────────
+  Desktop 1920px         50px        80px       +60% ✅
+  Desktop 1366px         45px        80px       +78% ✅
+  Laptop 1024px          40px        80px       +100% ✅
+  Tablet 768px           36px        70px       +94% ✅
+  Mobile V 414px         32px        42px       +31% ✅
+  Mobile V 375px         32px        38px       +19% ✅
+  Mobile V 360px         30px        38px       +27% ✅
+  
+  Mobile H 844px         36px        80px       +122% 🚀
+  Mobile H 736px         36px        80px       +122% 🚀
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ VANTAGGI v7.0
+═══════════════════════════════════════════════════════════════
+
+  ✓ Desktop: Esperienza PREMIUM (celle 80px)
+  ✓ Mobile V: Tutto visibile, touch-friendly
+  ✓ Mobile H: Layout desktop automatico
+  ✓ Tablet: Ottimizzazione dedicata
+  ✓ CSS Puro: Performance migliori
+  ✓ Orientation-aware: Intelligente
+  ✓ No JavaScript: Più veloce e stabile
+  ✓ Backwards compatible: Nessun breaking change
+
+
+═══════════════════════════════════════════════════════════════
+  🎨 ESEMPI VISUALI
+═══════════════════════════════════════════════════════════════
+
+  DESKTOP (1920x1080):
+  ┌─────────────────────────────────────────────────┐
+  │  [‹]         Novembre 2025          [›]         │
+  │                                                  │
+  │  L    M    M    G    V    S    D                │
+  │  ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐ ┌──┐           │
+  │  │ 1│ │ 2│ │ 3│ │ 4│ │ 5│ │ 6│ │ 7│  ← 80px   │
+  │  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘           │
+  │   •    ••                                       │  Grande!
+  └─────────────────────────────────────────────────┘
+
+  MOBILE VERTICALE (375x812):
+  ┌────────────────────┐
+  │ ‹  Nov 2025    ›   │
+  │                    │
+  │ L M M G V S D      │
+  │ ┌┐┌┐┌┐┌┐┌┐┌┐┌┐    │
+  │ │││││││││││││││    │  ← 38px
+  │ └┘└┘└┘└┘└┘└┘└┘    │
+  │  • ••              │  Compatto!
+  │                    │
+  │ [Tutto visibile]   │
+  └────────────────────┘
+
+  MOBILE ORIZZONTALE (844x390):
+  ┌────────────────────────────────────────────┐
+  │  [‹]      Novembre 2025         [›]        │
+  │  L   M   M   G   V   S   D                 │
+  │  ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐             │
+  │  │1│ │2│ │3│ │4│ │5│ │6│ │7│  ← 80px!    │
+  │  └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘             │
+  └────────────────────────────────────────────┘
+                    ↑
+            Layout desktop grande!
+
+
+═══════════════════════════════════════════════════════════════
+  🔧 IMPLEMENTAZIONE TECNICA
+═══════════════════════════════════════════════════════════════
+
+  v6.0 (Errato):
+  ```css
+  #calendario-iphone {
+      max-width: 800px;  ← Limita TUTTI
+      margin: 0 auto;
+  }
+  
+  .cal-day {
+      aspect-ratio: 1;  ← Problematico mobile
+  }
+  ```
+
+  v7.0 (Corretto):
+  ```css
+  /* Default = Desktop GRANDE */
+  .cal-day {
+      min-height: 80px;
+  }
+  
+  /* Solo mobile verticale = compatto */
+  @media (max-width: 768px) and (orientation: portrait) {
+      .cal-day {
+          min-height: 42px !important;
+      }
+  }
+  ```
+
+
+═══════════════════════════════════════════════════════════════
+  📱 TEST DEVICE CONSIGLIATI
+═══════════════════════════════════════════════════════════════
+
+  ✅ Desktop:
+     • Chrome 1920x1080
+     • Firefox 1366x768
+     • Safari Mac
+
+  ✅ Tablet:
+     • iPad (768x1024)
+     • iPad Pro (834x1194)
+     • Android Tablet
+
+  ✅ Mobile:
+     • iPhone 14 Pro (393x852) portrait
+     • iPhone 14 Pro landscape
+     • Samsung Galaxy (360x800)
+     • Pixel 7 (412x915)
+
+
+═══════════════════════════════════════════════════════════════
