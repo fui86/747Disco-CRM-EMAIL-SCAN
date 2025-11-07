@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Test Calendario Mobile v4.0</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+        
+        #info {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: #2b1e1a;
+        }
+        
+        #info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .success { color: #28a745; font-weight: bold; }
+        .error { color: #dc3545; font-weight: bold; }
+        .info { color: #007bff; }
+    </style>
+</head>
+<body>
+
+<div id="info">
+    <h3>🧪 Test Calendario Mobile v4.0 NUCLEAR</h3>
+    <p class="info">Larghezza schermo: <strong id="width-display">-</strong></p>
+    <p class="info">Dispositivo: <strong id="device-type">-</strong></p>
+    <p id="status">⏳ Caricamento...</p>
+</div>
+
+<!-- CALENDARIO SIMULATO (IDENTICO A QUELLO VERO) -->
+<div id="calendario-eventi" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
+    
+    <!-- Header Calendario -->
+    <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px;">
+        
+        <!-- Selettori -->
+        <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <label style="color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 600;">
+                📅 Vai a:
+            </label>
+            <select style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; font-size: 0.95rem; min-width: 140px;">
+                <option>Novembre</option>
+            </select>
+            <select style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; font-size: 0.95rem; min-width: 100px;">
+                <option>2024</option>
+            </select>
+            <button style="background: rgba(0, 122, 255, 0.3); border: 2px solid rgba(0, 122, 255, 0.6); color: white; padding: 10px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700;">
+                📍 Oggi
+            </button>
+        </div>
+        
+        <!-- Navigazione -->
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; font-size: 1.2rem;">‹</button>
+            <div style="text-align: center;">
+                <h2 id="calendario-titolo" style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+                    Novembre 2024
+                </h2>
+                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                    5 eventi questo mese
+                </p>
+            </div>
+            <button style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; font-size: 1.2rem;">›</button>
+        </div>
+        
+    </div>
+    
+    <div style="padding: 20px;">
+        
+        <!-- Griglia Calendario -->
+        <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px;">
+            
+            <!-- Intestazioni -->
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Lun</div>
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Mar</div>
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Mer</div>
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Gio</div>
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Ven</div>
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Sab</div>
+            <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">Dom</div>
+            
+            <!-- Celle vuote -->
+            <div></div>
+            <div></div>
+            <div></div>
+            <div></div>
+            
+            <!-- Giorni (simulati con onclick per test) -->
+            <div onclick="alert('Giorno 1')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">1</div>
+            <div onclick="alert('Giorno 2')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">2</div>
+            <div onclick="alert('Giorno 3')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">3</div>
+            
+            <div onclick="alert('Giorno 4')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e5e5ea; color: #000; border-radius: 50%; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                4
+                <div style="display: flex; gap: 2px; margin-top: 2px;">
+                    <div style="width: 5px; height: 5px; background: #34c759; border-radius: 50%;"></div>
+                </div>
+            </div>
+            
+            <div onclick="alert('Giorno 5')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">5</div>
+            <div onclick="alert('Giorno 6')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">6</div>
+            <div onclick="alert('Giorno 7')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #007aff; color: white; border-radius: 50%; cursor: pointer; font-weight: 700; font-size: 0.9rem; border: 2px solid #007aff;">7</div>
+            
+            <!-- Seconda settimana -->
+            <div onclick="alert('Giorno 8')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">8</div>
+            <div onclick="alert('Giorno 9')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">9</div>
+            <div onclick="alert('Giorno 10')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">10</div>
+            <div onclick="alert('Giorno 11')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">11</div>
+            <div onclick="alert('Giorno 12')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #e5e5ea; color: #000; border-radius: 50%; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                12
+                <div style="display: flex; gap: 2px; margin-top: 2px;">
+                    <div style="width: 5px; height: 5px; background: #007aff; border-radius: 50%;"></div>
+                </div>
+            </div>
+            <div onclick="alert('Giorno 13')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">13</div>
+            <div onclick="alert('Giorno 14')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">14</div>
+            
+            <!-- Altre settimane simulate (abbreviato) -->
+            <div onclick="alert('Giorno 15')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">15</div>
+            <div onclick="alert('Giorno 16')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">16</div>
+            <div onclick="alert('Giorno 17')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">17</div>
+            <div onclick="alert('Giorno 18')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">18</div>
+            <div onclick="alert('Giorno 19')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">19</div>
+            <div onclick="alert('Giorno 20')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">20</div>
+            <div onclick="alert('Giorno 21')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">21</div>
+            
+            <div onclick="alert('Giorno 22')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">22</div>
+            <div onclick="alert('Giorno 23')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">23</div>
+            <div onclick="alert('Giorno 24')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">24</div>
+            <div onclick="alert('Giorno 25')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">25</div>
+            <div onclick="alert('Giorno 26')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">26</div>
+            <div onclick="alert('Giorno 27')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">27</div>
+            <div onclick="alert('Giorno 28')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">28</div>
+            
+            <div onclick="alert('Giorno 29')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">29</div>
+            <div onclick="alert('Giorno 30')" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: transparent; color: #8e8e93; border-radius: 50%; cursor: pointer; font-weight: 400; font-size: 0.9rem;">30</div>
+            
+        </div>
+        
+    </div>
+</div>
+
+<!-- LOG CONSOLE VISIBILE -->
+<div id="console-log" style="background: #2b2b2b; color: #00ff00; padding: 15px; border-radius: 10px; font-family: 'Courier New', monospace; font-size: 12px; max-height: 300px; overflow-y: auto;">
+    <div style="color: #00ff00; margin-bottom: 10px; font-weight: bold;">📋 CONSOLE LOG:</div>
+</div>
+
+<script>
+/**
+ * NUCLEAR OPTION - v4.0
+ * IDENTICO allo script in main-page.php
+ */
+(function() {
+    'use strict';
+    
+    // Funzione log personalizzata che mostra anche su pagina
+    function log(msg, type = 'info') {
+        const colors = {
+            info: '#00ff00',
+            success: '#00ff00',
+            error: '#ff0000',
+            warning: '#ffff00'
+        };
+        
+        console.log(msg);
+        
+        const logDiv = document.getElementById('console-log');
+        const line = document.createElement('div');
+        line.style.color = colors[type] || '#00ff00';
+        line.style.marginBottom = '5px';
+        line.textContent = msg;
+        logDiv.appendChild(line);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    
+    // Update info display
+    const width = window.innerWidth;
+    document.getElementById('width-display').textContent = width + 'px';
+    document.getElementById('device-type').textContent = width <= 576 ? 'Mobile Piccolo' : (width <= 768 ? 'Tablet/Mobile' : 'Desktop');
+    
+    const isMobile = width <= 768;
+    const isSmallMobile = width <= 576;
+    
+    log('[Calendario v4] Width: ' + width + ' Mobile: ' + isMobile);
+    
+    if (!isMobile) {
+        document.getElementById('status').innerHTML = '<span class="info">ℹ️ Desktop rilevato - Nessuna modifica applicata</span>';
+        return;
+    }
+    
+    document.getElementById('status').innerHTML = '<span class="success">🔥 Mobile rilevato - Attivazione Nuclear Mode...</span>';
+    
+    function initMobileCalendar() {
+        const calendario = document.getElementById('calendario-eventi');
+        if (!calendario) {
+            log('[Calendario v4] ❌ Elemento non trovato', 'error');
+            document.getElementById('status').innerHTML = '<span class="error">❌ Calendario non trovato!</span>';
+            return;
+        }
+        
+        log('[Calendario v4] 🔥 NUCLEAR MODE ATTIVO - Rimozione inline styles...');
+        
+        // Dimensioni
+        const cellSize = isSmallMobile ? '36px' : '40px';
+        const fontSize = isSmallMobile ? '0.7rem' : '0.75rem';
+        const gap = isSmallMobile ? '2px' : '3px';
+        
+        log('[Calendario v4] Dimensioni celle: ' + cellSize);
+        
+        // 1. HEADER
+        const header = calendario.children[0];
+        if (header) {
+            header.style.padding = '15px 10px';
+            const selettori = header.children[0];
+            if (selettori) {
+                selettori.style.gap = '8px';
+                selettori.style.marginBottom = '10px';
+                const label = selettori.querySelector('label');
+                if (label) label.style.display = 'none';
+            }
+        }
+        
+        // 2. SELECT
+        const selects = calendario.querySelectorAll('select');
+        selects.forEach(function(select) {
+            select.style.padding = '8px 10px';
+            select.style.fontSize = '0.8rem';
+            select.style.minWidth = isSmallMobile ? '100px' : '120px';
+        });
+        
+        // 3. BOTTONI
+        const buttons = calendario.querySelectorAll('button');
+        buttons.forEach(function(btn) {
+            if (btn.textContent.includes('Oggi')) {
+                btn.style.padding = '8px 12px';
+                btn.style.fontSize = '0.8rem';
+            } else {
+                btn.style.padding = '8px 10px';
+                btn.style.fontSize = '1rem';
+            }
+        });
+        
+        // 4. TITOLO
+        const titolo = document.getElementById('calendario-titolo');
+        if (titolo) {
+            titolo.style.fontSize = isSmallMobile ? '1.1rem' : '1.3rem';
+        }
+        
+        // 5. CONTAINER
+        const container = calendario.children[1];
+        if (container) {
+            container.style.padding = isSmallMobile ? '10px' : '15px';
+        }
+        
+        // 6. GRIGLIA
+        const griglia = container ? container.children[0] : null;
+        if (griglia) {
+            griglia.style.gap = gap;
+            griglia.style.marginBottom = '15px';
+        }
+        
+        // 7. INTESTAZIONI
+        const intestazioni = griglia ? Array.from(griglia.children).slice(0, 7) : [];
+        intestazioni.forEach(function(int) {
+            int.style.fontSize = '0.65rem';
+            int.style.padding = '5px 0';
+        });
+        
+        // 8. CELLE GIORNI - CRUCIALE
+        const celle = calendario.querySelectorAll('div[onclick]');
+        log('[Calendario v4] Trovate ' + celle.length + ' celle giorni');
+        
+        celle.forEach(function(cella) {
+            // RIMUOVI aspect-ratio
+            cella.style.aspectRatio = 'auto';
+            
+            // FORZA dimensioni
+            cella.style.width = cellSize;
+            cella.style.height = cellSize;
+            cella.style.minHeight = cellSize;
+            cella.style.maxHeight = cellSize;
+            cella.style.fontSize = fontSize;
+            cella.style.padding = '0';
+            cella.style.display = 'flex';
+            cella.style.flexDirection = 'column';
+            cella.style.alignItems = 'center';
+            cella.style.justifyContent = 'center';
+            
+            // Pallini
+            const pallini = cella.querySelector('div[style*="display: flex"]');
+            if (pallini) {
+                pallini.style.marginTop = '2px';
+                pallini.style.gap = '2px';
+                const dots = pallini.querySelectorAll('div');
+                dots.forEach(function(dot) {
+                    dot.style.width = '3px';
+                    dot.style.height = '3px';
+                });
+            }
+        });
+        
+        // VERIFICA
+        setTimeout(function() {
+            if (celle.length > 0) {
+                const h = celle[0].offsetHeight;
+                const w = celle[0].offsetWidth;
+                log('[Calendario v4] ✅ Celle ridimensionate: ' + w + 'x' + h + 'px', 'success');
+                
+                if (h > 50) {
+                    log('[Calendario v4] ❌ FALLITO! Altezza ancora: ' + h + 'px', 'error');
+                    document.getElementById('status').innerHTML = '<span class="error">❌ FALLITO - Altezza: ' + h + 'px (troppo grande)</span>';
+                } else {
+                    log('[Calendario v4] 🎉 SUCCESS! Calendario compatto attivo!', 'success');
+                    document.getElementById('status').innerHTML = '<span class="success">✅ SUCCESS! Celle: ' + w + 'x' + h + 'px</span>';
+                }
+            }
+        }, 100);
+    }
+    
+    // Esegui
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileCalendar);
+    } else {
+        initMobileCalendar();
+    }
+})();
+</script>
+
+<div style="background: white; padding: 20px; border-radius: 10px; margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <h3 style="margin-top: 0; color: #2b1e1a;">📖 Istruzioni:</h3>
+    <ol style="color: #495057; line-height: 1.8;">
+        <li>Se sei su <strong>mobile</strong> e vedi <span class="success">"SUCCESS"</span> sopra = <strong>Funziona!</strong></li>
+        <li>Se vedi <span class="error">"FALLITO"</span> = Problema con il codice</li>
+        <li>Controlla che i <strong>giorni del calendario</strong> siano piccoli (~36-40px)</li>
+        <li>Verifica che <strong>tutto il mese sia visibile</strong> senza scroll</li>
+        <li>Se funziona qui, funzionerà anche su WordPress!</li>
+    </ol>
+    
+    <p style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; margin: 20px 0 0 0;">
+        <strong>💡 Importante:</strong> Questo è un test standalone. Il vero calendario WordPress userà lo stesso identico JavaScript, quindi se funziona qui, funzionerà anche lì!
+    </p>
+</div>
+
+</body>
+</html>

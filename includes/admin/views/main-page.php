@@ -1362,52 +1362,168 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <!-- ============================================================================ -->
-<!-- MOBILE CALENDAR v3.0 - CACHE BUSTER: <?php echo time(); ?> -->
+<!-- MOBILE CALENDAR v4.0 NUCLEAR - CACHE BUSTER: <?php echo time(); ?> -->
 <!-- ============================================================================ -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script>
 /**
- * FORCE MOBILE CSS RELOAD - v3.0
- * Questo script forza il browser a riconoscere i nuovi stili mobile
+ * NUCLEAR OPTION - v4.0
+ * Rimuove FORZATAMENTE inline styles e applica CSS mobile
  */
 (function() {
     'use strict';
     
-    // Debug: verifica se siamo su mobile
     const isMobile = window.innerWidth <= 768;
-    console.log('[Calendario] Device width:', window.innerWidth, '- Mobile:', isMobile);
+    const isSmallMobile = window.innerWidth <= 576;
     
-    if (isMobile) {
-        // Forza applicazione CSS mobile
-        document.addEventListener('DOMContentLoaded', function() {
-            const calendario = document.getElementById('calendario-eventi');
+    console.log('[Calendario v4] Width:', window.innerWidth, 'Mobile:', isMobile);
+    
+    if (!isMobile) return; // Desktop = no modifiche
+    
+    // Aspetta che DOM sia pronto
+    function initMobileCalendar() {
+        const calendario = document.getElementById('calendario-eventi');
+        if (!calendario) {
+            console.warn('[Calendario v4] Elemento non trovato');
+            return;
+        }
+        
+        console.log('[Calendario v4] 🔥 NUCLEAR MODE ATTIVO - Rimozione inline styles...');
+        
+        // Dimensioni basate su larghezza
+        const cellSize = isSmallMobile ? '36px' : '40px';
+        const fontSize = isSmallMobile ? '0.7rem' : '0.75rem';
+        const gap = isSmallMobile ? '2px' : '3px';
+        
+        // 1. HEADER - Rimuovi padding eccessivo
+        const header = calendario.children[0];
+        if (header) {
+            header.style.padding = '15px 10px';
             
-            if (calendario) {
-                console.log('[Calendario] Applicazione stili mobile forzata');
+            // Selettori mese/anno
+            const selettori = header.children[0];
+            if (selettori) {
+                selettori.style.gap = '8px';
+                selettori.style.marginBottom = '10px';
                 
-                // Forza repaint completo
-                calendario.style.display = 'none';
-                calendario.offsetHeight; // Trigger reflow
-                calendario.style.display = '';
-                
-                // Verifica altezza celle dopo repaint
-                setTimeout(function() {
-                    const celle = calendario.querySelectorAll('div[onclick]');
-                    if (celle.length > 0) {
-                        const altezza = celle[0].offsetHeight;
-                        console.log('[Calendario] Altezza cella giorno:', altezza + 'px', 
-                                    '(Target: 32-36px su mobile)');
-                        
-                        if (altezza > 45) {
-                            console.warn('[Calendario] ⚠️ CSS mobile NON applicato! Altezza troppo grande.');
-                            console.warn('[Calendario] Svuota la cache del browser!');
-                        } else {
-                            console.log('[Calendario] ✅ CSS mobile applicato correttamente!');
-                        }
-                    }
-                }, 500);
+                // Label "Vai a:"
+                const label = selettori.querySelector('label');
+                if (label) label.style.display = 'none';
+            }
+        }
+        
+        // 2. SELECT - Ridimensiona
+        const selects = calendario.querySelectorAll('select');
+        selects.forEach(function(select) {
+            select.style.padding = '8px 10px';
+            select.style.fontSize = '0.8rem';
+            select.style.minWidth = isSmallMobile ? '100px' : '120px';
+        });
+        
+        // 3. BOTTONI - Riduci
+        const buttons = calendario.querySelectorAll('button');
+        buttons.forEach(function(btn) {
+            if (btn.textContent.includes('Oggi')) {
+                btn.style.padding = '8px 12px';
+                btn.style.fontSize = '0.8rem';
+            } else {
+                btn.style.padding = '8px 10px';
+                btn.style.fontSize = '1rem';
             }
         });
+        
+        // 4. TITOLO - Riduci
+        const titolo = document.getElementById('calendario-titolo');
+        if (titolo) {
+            titolo.style.fontSize = isSmallMobile ? '1.1rem' : '1.3rem';
+        }
+        
+        // 5. CONTAINER GRIGLIA - Riduci padding
+        const container = calendario.children[1];
+        if (container) {
+            container.style.padding = isSmallMobile ? '10px' : '15px';
+        }
+        
+        // 6. GRIGLIA - Riduci gap
+        const griglia = container ? container.children[0] : null;
+        if (griglia) {
+            griglia.style.gap = gap;
+            griglia.style.marginBottom = '15px';
+        }
+        
+        // 7. INTESTAZIONI GIORNI - Riduci
+        const intestazioni = griglia ? Array.from(griglia.children).slice(0, 7) : [];
+        intestazioni.forEach(function(int) {
+            int.style.fontSize = '0.65rem';
+            int.style.padding = '5px 0';
+        });
+        
+        // 8. CELLE GIORNI - QUESTO È IL PIÙ IMPORTANTE
+        const celle = calendario.querySelectorAll('div[onclick]');
+        console.log('[Calendario v4] Trovate', celle.length, 'celle giorni');
+        
+        celle.forEach(function(cella) {
+            // RIMUOVI aspect-ratio che causa problemi
+            cella.style.aspectRatio = 'auto';
+            
+            // FORZA dimensioni esatte
+            cella.style.width = cellSize;
+            cella.style.height = cellSize;
+            cella.style.minHeight = cellSize;
+            cella.style.maxHeight = cellSize;
+            cella.style.fontSize = fontSize;
+            cella.style.padding = '0';
+            cella.style.display = 'flex';
+            cella.style.flexDirection = 'column';
+            cella.style.alignItems = 'center';
+            cella.style.justifyContent = 'center';
+            
+            // Pallini eventi
+            const pallini = cella.querySelector('div[style*="display: flex"]');
+            if (pallini) {
+                pallini.style.marginTop = '2px';
+                pallini.style.gap = '2px';
+                
+                const dots = pallini.querySelectorAll('div');
+                dots.forEach(function(dot) {
+                    dot.style.width = '3px';
+                    dot.style.height = '3px';
+                });
+            }
+        });
+        
+        // Verifica risultato
+        setTimeout(function() {
+            if (celle.length > 0) {
+                const h = celle[0].offsetHeight;
+                const w = celle[0].offsetWidth;
+                console.log('[Calendario v4] ✅ Celle ridimensionate:', w + 'x' + h + 'px');
+                
+                if (h > 50) {
+                    console.error('[Calendario v4] ❌ FALLITO! Altezza ancora:', h + 'px');
+                } else {
+                    console.log('[Calendario v4] 🎉 SUCCESS! Calendario compatto attivo!');
+                }
+            }
+        }, 100);
     }
+    
+    // Esegui quando DOM è pronto
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileCalendar);
+    } else {
+        initMobileCalendar();
+    }
+    
+    // Riesegui su resize (rotate)
+    let resizeTimer;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {
+            if (window.innerWidth <= 768) {
+                initMobileCalendar();
+            }
+        }, 250);
+    });
 })();
 </script>
