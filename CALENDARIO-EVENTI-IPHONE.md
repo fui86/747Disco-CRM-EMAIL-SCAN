@@ -48,7 +48,10 @@ https://gestionale.747disco.it/wp-admin/admin.php?page=disco747-crm
 
 ### **1. Vista Mensile**
 - Mostra il mese corrente all'apertura
-- Naviga tra i mesi con i pulsanti ‹ ›
+- **Menu a tendina Mese**: Selezione diretta (Gennaio-Dicembre)
+- **Menu a tendina Anno**: Selezione diretta (range 2024-2027)
+- **Pulsante "📍 Oggi"**: Torna istantaneamente al mese corrente
+- Naviga tra i mesi con i pulsanti ‹ › (navigazione rapida)
 - Visualizza solo preventivi **attivi** e **confermati** (NO annullati)
 
 ### **2. Click su un Giorno**
@@ -130,11 +133,22 @@ ORDER BY data_evento ASC
 
 **Scenario:** Verificare disponibilità dicembre/gennaio
 
-**Passi:**
+**Metodo 1 - Menu a Tendina (VELOCE):**
+1. Click sul menu a tendina "Mese"
+2. Scegli "Dicembre" dal menu
+3. La pagina ricarica istantaneamente a dicembre
+4. Per anno successivo, cambia anche il menu "Anno"
+
+**Metodo 2 - Frecce (RAPIDO):**
 1. Click su › (freccia destra) per mese successivo
 2. Click su ‹ (freccia sinistra) per mese precedente
 3. La pagina ricarica con il nuovo mese
-4. URL cambia: `?cal_month=12&cal_year=2025`
+
+**Metodo 3 - Pulsante Oggi:**
+1. Click su "📍 Oggi"
+2. Torna immediatamente al mese corrente
+
+**URL:** Cambia automaticamente: `?cal_month=12&cal_year=2025`
 
 ---
 

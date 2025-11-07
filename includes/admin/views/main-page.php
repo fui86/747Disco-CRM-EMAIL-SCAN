@@ -83,28 +83,63 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     <div id="calendario-eventi" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
         
         <!-- Header Calendario -->
-        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px; display: flex; justify-content: space-between; align-items: center;">
-            <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
-                ‹
-            </button>
-            <div style="text-align: center;">
-                <h2 id="calendario-titolo" style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px;">
+            
+            <!-- Selettori Mese e Anno -->
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <label style="color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 600;">
+                    📅 Vai a:
+                </label>
+                
+                <select id="calendario-select-mese" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; min-width: 140px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
                     <?php 
                     $mesi_nomi = array(
                         1 => 'Gennaio', 2 => 'Febbraio', 3 => 'Marzo', 4 => 'Aprile',
                         5 => 'Maggio', 6 => 'Giugno', 7 => 'Luglio', 8 => 'Agosto',
                         9 => 'Settembre', 10 => 'Ottobre', 11 => 'Novembre', 12 => 'Dicembre'
                     );
-                    echo $mesi_nomi[$calendario_mese] . ' ' . $calendario_anno;
+                    foreach ($mesi_nomi as $num => $nome):
                     ?>
-                </h2>
-                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                    <?php echo count($eventi_calendario); ?> eventi questo mese
-                </p>
+                        <option value="<?php echo $num; ?>" <?php selected($calendario_mese, $num); ?> style="background: #1d1d1f; color: white;">
+                            <?php echo $nome; ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                
+                <select id="calendario-select-anno" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; min-width: 100px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                    <?php 
+                    $anno_corrente = date('Y');
+                    for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
+                    ?>
+                        <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?> style="background: #1d1d1f; color: white;">
+                            <?php echo $anno; ?>
+                        </option>
+                    <?php endfor; ?>
+                </select>
+                
+                <button onclick="vaiOggi()" style="background: rgba(0, 122, 255, 0.3); border: 2px solid rgba(0, 122, 255, 0.6); color: white; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: all 0.3s;" onmouseover="this.style.background='rgba(0, 122, 255, 0.5)'" onmouseout="this.style.background='rgba(0, 122, 255, 0.3)'">
+                    📍 Oggi
+                </button>
             </div>
-            <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
-                ›
-            </button>
+            
+            <!-- Navigazione Frecce -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    ‹
+                </button>
+                <div style="text-align: center;">
+                    <h2 id="calendario-titolo" style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+                        <?php echo $mesi_nomi[$calendario_mese] . ' ' . $calendario_anno; ?>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        <?php echo count($eventi_calendario); ?> eventi questo mese
+                    </p>
+                </div>
+                <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    ›
+                </button>
+            </div>
+            
         </div>
         
         <div style="padding: 20px;">
@@ -190,6 +225,29 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
     // Dati eventi dal PHP
     const eventiPerData = <?php echo json_encode($eventi_per_data); ?>;
     
+    // Funzione: Vai a mese/anno selezionato dai menu a tendina
+    function vaiAMese() {
+        const mese = document.getElementById('calendario-select-mese').value;
+        const anno = document.getElementById('calendario-select-anno').value;
+        
+        const params = new URLSearchParams(window.location.search);
+        params.set('cal_month', mese);
+        params.set('cal_year', anno);
+        window.location.search = params.toString();
+    }
+    
+    // Funzione: Vai a oggi (mese e anno correnti)
+    function vaiOggi() {
+        const params = new URLSearchParams(window.location.search);
+        const meseOggi = <?php echo date('n'); ?>;
+        const annoOggi = <?php echo date('Y'); ?>;
+        
+        params.set('cal_month', meseOggi);
+        params.set('cal_year', annoOggi);
+        window.location.search = params.toString();
+    }
+    
+    // Funzione: Cambio mese con frecce (mantiene compatibilità)
     function cambioMese(delta) {
         const params = new URLSearchParams(window.location.search);
         const meseCorrente = parseInt(params.get('cal_month') || <?php echo date('n'); ?>);
@@ -991,13 +1049,28 @@ document.addEventListener('DOMContentLoaded', function() {
     
     #calendario-eventi [style*="padding: 25px 30px"] {
         padding: 20px 15px !important;
-        flex-direction: column !important;
-        gap: 15px !important;
+    }
+    
+    /* Selettori mese/anno responsive */
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+        gap: 10px !important;
+        margin-bottom: 15px !important;
+    }
+    
+    #calendario-select-mese,
+    #calendario-select-anno {
+        padding: 8px 12px !important;
+        font-size: 0.85rem !important;
+        min-width: 120px !important;
     }
     
     #calendario-eventi button {
         padding: 8px 12px !important;
-        font-size: 1rem !important;
+        font-size: 0.85rem !important;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] label {
+        font-size: 0.8rem !important;
     }
     
     #calendario-eventi h2 {
@@ -1049,6 +1122,24 @@ document.addEventListener('DOMContentLoaded', function() {
 @media (max-width: 576px) {
     #calendario-eventi {
         margin: 0 0 20px 0;
+    }
+    
+    /* Selettori mese/anno stacked verticalmente */
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    
+    #calendario-select-mese,
+    #calendario-select-anno {
+        width: 100% !important;
+        min-width: auto !important;
+        max-width: 250px;
+    }
+    
+    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
+        width: 100%;
+        max-width: 250px;
     }
     
     #calendario-eventi h2 {
