@@ -269,11 +269,14 @@
             container.style.padding = isSmallMobile ? '10px' : '15px';
         }
         
-        // 6. GRIGLIA
+        // 6. GRIGLIA - FORZA GRID LAYOUT
         const griglia = container ? container.children[0] : null;
         if (griglia) {
+            griglia.style.display = 'grid';
+            griglia.style.gridTemplateColumns = 'repeat(7, 1fr)';
             griglia.style.gap = gap;
             griglia.style.marginBottom = '15px';
+            log('[Calendario v4.1] Grid layout forzato: 7 colonne');
         }
         
         // 7. INTESTAZIONI

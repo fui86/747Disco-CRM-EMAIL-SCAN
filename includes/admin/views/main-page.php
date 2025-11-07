@@ -1362,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <!-- ============================================================================ -->
-<!-- MOBILE CALENDAR v4.1 RESPONSIVE - CACHE BUSTER: <?php echo time(); ?> -->
+<!-- MOBILE CALENDAR v4.1.1 GRID FIX - CACHE BUSTER: <?php echo time(); ?> -->
 <!-- ============================================================================ -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script>
@@ -1445,11 +1445,14 @@ document.addEventListener('DOMContentLoaded', function() {
             container.style.padding = isSmallMobile ? '10px' : '15px';
         }
         
-        // 6. GRIGLIA - Riduci gap
+        // 6. GRIGLIA - Riduci gap + FORZA GRID LAYOUT
         const griglia = container ? container.children[0] : null;
         if (griglia) {
+            griglia.style.display = 'grid';
+            griglia.style.gridTemplateColumns = 'repeat(7, 1fr)';
             griglia.style.gap = gap;
             griglia.style.marginBottom = '15px';
+            console.log('[Calendario v4.1] Grid layout forzato: 7 colonne');
         }
         
         // 7. INTESTAZIONI GIORNI - Riduci
