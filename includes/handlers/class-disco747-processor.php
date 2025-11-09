@@ -49,7 +49,7 @@ class Disco747_Processor {
             wp_mkdir_p($this->upload_dir);
         }
         
-        $this->log('Ã°Å¸Å¡â‚¬ [747Disco-Processor] v11.6.2 inizializzato');
+        $this->log('ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ [747Disco-Processor] v11.6.2 inizializzato');
     }
 
     /**
@@ -65,7 +65,7 @@ class Disco747_Processor {
             // STEP 1: Valida dati
             $this->log('[747Disco-Create] STEP 1: Validazione dati');
             $data = $this->validate_and_sanitize_data($post_data);
-            $this->log('[747Disco-Create] âœ… Dati validati');
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ Dati validati');
             
             // STEP 2: Genera nomi file
             $this->log('[747Disco-Create] STEP 2: Generazione nomi file');
@@ -84,45 +84,56 @@ class Disco747_Processor {
             $excel_path = $year_month_dir . $filename_base . '.xlsx';
             $pdf_path = $year_month_dir . $filename_base . '.pdf';
             
-            $this->log('[747Disco-Create] âœ… Percorsi: ' . $filename_base);
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ Percorsi: ' . $filename_base);
             
             // STEP 3: Genera Excel
             $this->log('[747Disco-Create] STEP 3: Generazione Excel');
             if (!$this->generate_excel_file($excel_path, $data)) {
                 throw new Exception('Errore generazione Excel');
             }
-            $this->log('[747Disco-Create] âœ… Excel generato: ' . basename($excel_path));
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ Excel generato: ' . basename($excel_path));
             
             // STEP 4: Genera PDF
             $this->log('[747Disco-Create] STEP 4: Generazione PDF');
             if (!$this->generate_pdf_file($pdf_path, $data)) {
                 throw new Exception('Errore generazione PDF');
             }
-            $this->log('[747Disco-Create] âœ… PDF generato: ' . basename($pdf_path));
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ PDF generato: ' . basename($pdf_path));
             
             // STEP 5: Upload su Google Drive
             $this->log('[747Disco-Create] STEP 5: Upload su Google Drive');
             $uploaded_urls = $this->upload_to_storage($excel_path, $pdf_path, $data['data_evento']);
-            $this->log('[747Disco-Create] âœ… Upload completato');
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ Upload completato');
             
             // STEP 6: Salva database
             $this->log('[747Disco-Create] STEP 6: Salvataggio database');
             $preventivo_id = $this->save_to_database($data, $uploaded_urls);
-            $this->log('[747Disco-Create] âœ… Salvato con ID: ' . $preventivo_id);
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ Salvato con ID: ' . $preventivo_id);
+            
+            // 🚀 HOOK: Lancia evento preventivo creato/confermato (per funnel automation)
+            if ($data['stato'] === 'confermato' && $data['acconto'] > 0) {
+                // Se è confermato, lancia hook conferma (stoppa pre-conferma, avvia pre-evento)
+                do_action('disco747_preventivo_confirmed', $preventivo_id);
+                $this->log('[747Disco-Create] 🎯 Hook disco747_preventivo_confirmed lanciato (ID: ' . $preventivo_id . ')');
+            } else {
+                // Se NON è confermato, lancia hook creazione (avvia funnel pre-conferma)
+                do_action('disco747_preventivo_created', $preventivo_id);
+                $this->log('[747Disco-Create] 🎯 Hook disco747_preventivo_created lanciato (ID: ' . $preventivo_id . ')');
+            }
             
             // STEP 7: Upsert dashboard
             $this->log('[747Disco-Create] STEP 7: Upsert dashboard');
             $this->upsert_dashboard($preventivo_id, $data, $uploaded_urls);
-            $this->log('[747Disco-Create] âœ… Dashboard aggiornata');
+            $this->log('[747Disco-Create] Ã¢Å“â€¦ Dashboard aggiornata');
             
             // STEP 8: Messaggi automatici
             if (($data['send_mode'] ?? 'none') !== 'none') {
                 $this->log('[747Disco-Create] STEP 8: Invio messaggi');
                 $this->handle_automatic_communications($preventivo_id, $data);
-                $this->log('[747Disco-Create] âœ… Messaggi inviati');
+                $this->log('[747Disco-Create] Ã¢Å“â€¦ Messaggi inviati');
             }
             
-            $this->log('[747Disco-Create] ========== âœ…âœ…âœ… SUCCESSO! ID: ' . $preventivo_id . ' ==========');
+            $this->log('[747Disco-Create] ========== Ã¢Å“â€¦Ã¢Å“â€¦Ã¢Å“â€¦ SUCCESSO! ID: ' . $preventivo_id . ' ==========');
             
             // Prepara risposta completa con tutti i dati necessari
             $response_data = array(
@@ -153,7 +164,7 @@ class Disco747_Processor {
             return $response_data;
             
         } catch (Exception $e) {
-            $this->log('[747Disco-Create] âŒ ERRORE: ' . $e->getMessage(), 'ERROR');
+            $this->log('[747Disco-Create] Ã¢ÂÅ’ ERRORE: ' . $e->getMessage(), 'ERROR');
             
             return array(
                 'success' => false,
@@ -246,7 +257,7 @@ class Disco747_Processor {
      */
     private function generate_excel_file($excel_path, $data) {
         if (!$this->excel_generator) {
-            $this->log('[747Disco-Create] âš ï¸ Excel generator non disponibile', 'WARNING');
+            $this->log('[747Disco-Create] Ã¢Å¡Â Ã¯Â¸Â Excel generator non disponibile', 'WARNING');
             return false;
         }
         
@@ -274,7 +285,7 @@ class Disco747_Processor {
      */
     private function generate_pdf_file($pdf_path, $data) {
         if (!$this->pdf_generator) {
-            $this->log('[747Disco-Create] âš ï¸ PDF generator non disponibile', 'WARNING');
+            $this->log('[747Disco-Create] Ã¢Å¡Â Ã¯Â¸Â PDF generator non disponibile', 'WARNING');
             return false;
         }
         
@@ -304,7 +315,7 @@ class Disco747_Processor {
         $uploaded_urls = array();
         
         if (!$this->storage_manager) {
-            $this->log('[747Disco-Create] âš ï¸ Storage manager non disponibile', 'WARNING');
+            $this->log('[747Disco-Create] Ã¢Å¡Â Ã¯Â¸Â Storage manager non disponibile', 'WARNING');
             return $uploaded_urls;
         }
         
@@ -320,7 +331,7 @@ class Disco747_Processor {
                 $excel_url = $this->storage_manager->upload_file($excel_path, $folder_path);
                 if ($excel_url) {
                     $uploaded_urls['excel_url'] = $excel_url;
-                    $this->log('[747Disco-Create] âœ… Excel su Drive: ' . basename($excel_path));
+                    $this->log('[747Disco-Create] Ã¢Å“â€¦ Excel su Drive: ' . basename($excel_path));
                 }
             }
             
@@ -329,11 +340,11 @@ class Disco747_Processor {
                 $pdf_url = $this->storage_manager->upload_file($pdf_path, $folder_path);
                 if ($pdf_url) {
                     $uploaded_urls['pdf_url'] = $pdf_url;
-                    $this->log('[747Disco-Create] âœ… PDF su Drive: ' . basename($pdf_path));
+                    $this->log('[747Disco-Create] Ã¢Å“â€¦ PDF su Drive: ' . basename($pdf_path));
                 }
             }
             
-            // URL compatibilitÃ 
+            // URL compatibilitÃƒÂ 
             if (!empty($uploaded_urls)) {
                 $uploaded_urls['googledrive_url'] = $uploaded_urls['pdf_url'] ?? $uploaded_urls['excel_url'] ?? '';
             }

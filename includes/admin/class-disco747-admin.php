@@ -57,15 +57,11 @@ class Disco747_Admin {
             add_action('admin_notices', array($this, 'show_admin_notices'));
             add_filter('plugin_action_links_' . plugin_basename(DISCO747_CRM_PLUGIN_FILE), array($this, 'add_plugin_action_links'));
             
-            // ❌ DISABILITATO: Usa handler in class-disco747-excel-scan-handler.php con lock
-            // add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan'));
-            
+            add_action('wp_ajax_disco747_batch_scan_excel', array($this, 'handle_batch_scan'));
             add_action('wp_ajax_disco747_get_preventivo', array($this, 'handle_get_preventivo'));
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
             add_action('wp_ajax_disco747_get_funnel_sequence', array($this, 'handle_get_funnel_sequence'));
-            // ❌ DISABILITATO: Usa handler in class-disco747-excel-scan-handler.php
-            // add_action('wp_ajax_disco747_unlock_scan', array($this, 'handle_unlock_scan'));
             
             $this->hooks_registered = true;
             $this->log('Hook WordPress registrati (incluso batch scan)');
@@ -77,8 +73,8 @@ class Disco747_Admin {
     public function add_admin_menu() {
         try {
             add_menu_page(
-                __('PreventiviParty', 'disco747'),
-                __('PreventiviParty', 'disco747'),
+                __('747Disco-CRM', 'disco747'),
+                __('747Disco-CRM', 'disco747'),
                 $this->min_capability,
                 'disco747-crm',
                 array($this, 'render_main_dashboard'),
@@ -87,64 +83,64 @@ class Disco747_Admin {
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Impostazioni', 'disco747'),
-                __('Impostazioni', 'disco747'),
-                $this->min_capability,
-                'disco747-settings',
-                array($this, 'render_settings_page')
-            );
-            add_submenu_page(
-                'disco747-crm',
-                __('Messaggi Automatici', 'disco747'),
-                __('Messaggi Automatici', 'disco747'),
-                $this->min_capability,
-                'disco747-messages',
-                array($this, 'render_messages_page')
-            );
-            add_submenu_page(
-                'disco747-crm',
-                __('Scansione Excel Auto', 'disco747'),
-                __('Scansione Excel Auto', 'disco747'),
-                $this->min_capability,
-                'disco747-scan-excel',
-                array($this, 'render_scan_excel_page')
-            );
-            add_submenu_page(
-                'disco747-crm',
-                __('View Database', 'disco747'),
-                __('📊 View Database', 'disco747'),
+                __('📊 Database Preventivi', 'disco747'),
+                __('📊 Database Preventivi', 'disco747'),
                 $this->min_capability,
                 'disco747-view-preventivi',
                 array($this, 'render_view_preventivi_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Analisi Finanziaria', 'disco747'),
-                __('💰 Analisi Finanziaria', 'disco747'),
+                __('📂 Scansione file GDrive', 'disco747'),
+                __('📂 Scansione file GDrive', 'disco747'),
+                $this->min_capability,
+                'disco747-scan-excel',
+                array($this, 'render_scan_excel_page')
+            );
+            add_submenu_page(
+                'disco747-crm',
+                __('💰 KPI Finanziari', 'disco747'),
+                __('💰 KPI Finanziari', 'disco747'),
                 $this->min_capability,
                 'disco747-financial',
                 array($this, 'render_financial_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Automazione Funnel', 'disco747'),
-                __('🚀 Automazione Funnel', 'disco747'),
+                __('💬 Configurazioni Email/Whatsapp', 'disco747'),
+                __('💬 Configurazioni Email/Whatsapp', 'disco747'),
+                $this->min_capability,
+                'disco747-messages',
+                array($this, 'render_messages_page')
+            );
+            add_submenu_page(
+                'disco747-crm',
+                __('🚀 Configurazioni Funnel', 'disco747'),
+                __('🚀 Configurazioni Funnel', 'disco747'),
                 $this->min_capability,
                 'disco747-funnel',
                 array($this, 'render_funnel_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Diagnostica Date Excel', 'disco747'),
-                __('🔍 Diagnostica Date', 'disco747'),
+                __('☁️ Impostazioni Cloud', 'disco747'),
+                __('☁️ Impostazioni Cloud', 'disco747'),
+                $this->min_capability,
+                'disco747-settings',
+                array($this, 'render_settings_page')
+            );
+            add_submenu_page(
+                'disco747-crm',
+                __('🔍 Diagnostica Cella Data', 'disco747'),
+                __('🔍 Diagnostica Cella Data', 'disco747'),
                 $this->min_capability,
                 'disco747-diagnostic',
                 array($this, 'render_diagnostic_page')
             );
             add_submenu_page(
                 'disco747-crm',
-                __('Debug Struttura Excel', 'disco747'),
-                __('🔬 Debug Struttura', 'disco747'),
+                __('🔬 Debug Excel analizzati', 'disco747'),
+                __('🔬 Debug Excel analizzati', 'disco747'),
                 $this->min_capability,
                 'disco747-debug-structure',
                 array($this, 'render_debug_structure_page')
@@ -152,8 +148,8 @@ class Disco747_Admin {
             if (get_option('disco747_debug_mode', false)) {
                 add_submenu_page(
                     'disco747-crm',
-                    __('Debug & Test', 'disco747'),
-                    __('Debug & Test', 'disco747'),
+                    __('🐛 Debug & Test', 'disco747'),
+                    __('🐛 Debug & Test', 'disco747'),
                     $this->min_capability,
                     'disco747-debug',
                     array($this, 'render_debug_page')
@@ -177,14 +173,11 @@ class Disco747_Admin {
             if (strpos($hook_suffix, 'disco747-scan-excel') !== false) {
                 $this->log('EXCEL SCAN RILEVATO!');
                 
-                // ✅ FORZA REFRESH CACHE: Usa timestamp invece di versione
-                $js_version = $this->asset_version . '.' . time();
-                
                 wp_enqueue_script(
                     'disco747-excel-scan-js',
                     DISCO747_CRM_PLUGIN_URL . 'assets/js/excel-scan.js',
                     array('jquery'),
-                    $js_version, // Timestamp dinamico per forzare refresh
+                    $this->asset_version,
                     true
                 );
                 
@@ -300,7 +293,7 @@ class Disco747_Admin {
             
             if (!empty($access_token) && !empty($refresh_token) && $storage_type === 'googledrive') {
                 $is_googledrive_configured = true;
-                $this->log('✅ CONFIGURATO via token (priorità 1)');
+                $this->log('âœ… CONFIGURATO via token (prioritÃ  1)');
             } else {
                 if ($this->storage_manager) {
                     $gd_handler = $this->storage_manager->get_active_handler();
@@ -401,24 +394,6 @@ class Disco747_Admin {
 
         } catch (\Exception $e) {
             $this->log('Errore handle_batch_scan: ' . $e->getMessage(), 'error');
-            wp_send_json_error(array('message' => $e->getMessage()));
-        }
-    }
-    
-    public function handle_unlock_scan() {
-        try {
-            if (!current_user_can($this->min_capability)) {
-                throw new \Exception('Permessi insufficienti');
-            }
-            
-            // Rilascia il lock
-            delete_transient('disco747_scan_lock');
-            error_log('[747Disco-Admin] 🔓 LOCK forzatamente rilasciato da utente');
-            
-            wp_send_json_success(array('message' => '✅ Lock rilasciato con successo!'));
-            
-        } catch (\Exception $e) {
-            $this->log('Errore handle_unlock_scan: ' . $e->getMessage(), 'error');
             wp_send_json_error(array('message' => $e->getMessage()));
         }
     }

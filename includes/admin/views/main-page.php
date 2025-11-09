@@ -1,176 +1,296 @@
 <?php
 /**
- * Dashboard Principale 747 Disco CRM - VERSIONE MINIMALISTA
+ * Dashboard Principale 747 Disco CRM - ENHANCED iOS STYLE
  * 
  * FEATURES:
- * - Solo link di navigazione rapida
- * - Nessun dato/statistica visualizzato
- * - Design pulito e veloce
+ * - Filtri mese/anno sopra al calendario
+ * - Pulsante grande Nuovo Preventivo
+ * - Grafici andamento (Conferme, Annullamenti, Attivi)
+ * - Calendario settimanale iOS
+ * - Pulsante Modifica negli eventi
  * 
  * @package    Disco747_CRM
  * @subpackage Admin/Views
- * @version    12.1.0
+ * @version    14.0.0
  */
 
 if (!defined('ABSPATH')) exit;
 
 $current_user = wp_get_current_user();
 $user_name = $current_user->display_name ?? 'Utente';
-$version = DISCO747_CRM_VERSION ?? '11.8.0';
+$version = '14.0.0';
+
+// Carica tabella preventivi
+global $wpdb;
+$table = $wpdb->prefix . 'disco747_preventivi';
+
+// Parametri filtro calendario
+$calendario_mese = isset($_GET['cal_month']) ? intval($_GET['cal_month']) : date('n');
+$calendario_anno = isset($_GET['cal_year']) ? intval($_GET['cal_year']) : date('Y');
+
+// Carica eventi del mese selezionato
+$primo_giorno = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-01";
+$ultimo_giorno = date('Y-m-t', strtotime($primo_giorno));
+
+$eventi_calendario = $wpdb->get_results($wpdb->prepare(
+    "SELECT * FROM {$table} 
+     WHERE data_evento BETWEEN %s AND %s 
+     AND stato IN ('attivo', 'confermato')
+     ORDER BY data_evento ASC",
+    $primo_giorno,
+    $ultimo_giorno
+), ARRAY_A);
+
+// Raggruppa eventi per data
+$eventi_per_data = array();
+foreach ($eventi_calendario as $evento) {
+    $data = date('Y-m-d', strtotime($evento['data_evento']));
+    if (!isset($eventi_per_data[$data])) {
+        $eventi_per_data[$data] = array();
+    }
+    $eventi_per_data[$data][] = $evento;
+}
+
+// Statistiche per il mese corrente del calendario
+$stats_totali = $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM {$table} WHERE data_evento BETWEEN %s AND %s",
+    $primo_giorno,
+    $ultimo_giorno
+));
+
+$stats_confermati = $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM {$table} WHERE stato = 'confermato' AND data_evento BETWEEN %s AND %s",
+    $primo_giorno,
+    $ultimo_giorno
+));
+
+$stats_attivi = $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM {$table} WHERE stato = 'attivo' AND data_evento BETWEEN %s AND %s",
+    $primo_giorno,
+    $ultimo_giorno
+));
+
+$stats_annullati = $wpdb->get_var($wpdb->prepare(
+    "SELECT COUNT(*) FROM {$table} WHERE stato = 'annullato' AND data_evento BETWEEN %s AND %s",
+    $primo_giorno,
+    $ultimo_giorno
+));
+
+// Percentuali sul mese corrente
+$perc_confermati = $stats_totali > 0 ? round(($stats_confermati / $stats_totali) * 100) : 0;
+$perc_attivi = $stats_totali > 0 ? round(($stats_attivi / $stats_totali) * 100) : 0;
+$perc_annullati = $stats_totali > 0 ? round(($stats_annullati / $stats_totali) * 100) : 0;
+
+$mesi_nomi = array(
+    1 => 'Gennaio', 2 => 'Febbraio', 3 => 'Marzo', 4 => 'Aprile',
+    5 => 'Maggio', 6 => 'Giugno', 7 => 'Luglio', 8 => 'Agosto',
+    9 => 'Settembre', 10 => 'Ottobre', 11 => 'Novembre', 12 => 'Dicembre'
+);
 ?>
 
 <div class="wrap disco747-dashboard-enhanced" style="max-width: 1600px; margin: 20px auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
     
     <!-- ============================================================================ -->
-    <!-- HEADER con Pulsante Nuovo Preventivo in evidenza -->
+    <!-- HEADER PRINCIPALE -->
     <!-- ============================================================================ -->
-    <div style="background: linear-gradient(135deg, #2b1e1a 0%, #c28a4d 50%, #2b1e1a 100%); color: white; padding: 35px 40px; border-radius: 20px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(43, 30, 26, 0.4); position: relative; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, #2b1e1a 0%, #c28a4d 50%, #2b1e1a 100%); color: white; padding: 30px 40px; border-radius: 20px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(43, 30, 26, 0.4); position: relative; overflow: hidden;">
         
         <!-- Decorazioni -->
         <div style="position: absolute; top: -80px; right: -80px; width: 250px; height: 250px; background: rgba(255,215,0,0.15); border-radius: 50%; opacity: 0.6;"></div>
         <div style="position: absolute; bottom: -60px; left: -60px; width: 200px; height: 200px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
         
-        <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 25px;">
-            <div>
-                <h1 style="margin: 0 0 12px 0; font-size: 3rem; font-weight: 800; text-shadow: 3px 3px 6px rgba(0,0,0,0.4); letter-spacing: -1px;">
-                    🎉 747 Disco CRM
-                </h1>
-                <p style="margin: 0; font-size: 1.3rem; opacity: 0.95; font-weight: 400; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">
-                    Benvenuto, <?php echo esc_html($user_name); ?>! · PreventiviParty Enhanced v<?php echo esc_html($version); ?>
-                </p>
-            </div>
-            
-            <!-- PULSANTE NUOVO PREVENTIVO IN EVIDENZA -->
-            <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=new_preventivo')); ?>" 
-               class="btn-nuovo-preventivo"
-               style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 18px 35px; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 1.2rem; box-shadow: 0 6px 25px rgba(40, 167, 69, 0.5); transition: all 0.3s ease; display: inline-block; border: 3px solid rgba(255,255,255,0.3);">
-                <span style="font-size: 1.4rem; margin-right: 8px;">➕</span> NUOVO PREVENTIVO
-            </a>
+        <div style="position: relative; z-index: 2; text-align: center;">
+            <h1 style="margin: 0 0 10px 0; font-size: 2.5rem; font-weight: 800; text-shadow: 3px 3px 6px rgba(0,0,0,0.4); letter-spacing: -1px;">
+                🎉 747 Disco CRM
+            </h1>
+            <p style="margin: 0; font-size: 1.1rem; opacity: 0.95; font-weight: 400; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">
+                Benvenuto, <?php echo esc_html($user_name); ?>! · Dashboard iOS v<?php echo esc_html($version); ?>
+            </p>
         </div>
     </div>
 
     <!-- ============================================================================ -->
-    <!-- CALENDARIO EVENTI STILE IPHONE -->
+    <!-- PULSANTE NUOVO PREVENTIVO GRANDE -->
     <!-- ============================================================================ -->
-    <?php
-    // Carica eventi del mese corrente (solo attivi e confermati)
-    $calendario_mese = isset($_GET['cal_month']) ? intval($_GET['cal_month']) : date('n');
-    $calendario_anno = isset($_GET['cal_year']) ? intval($_GET['cal_year']) : date('Y');
-    
-    $primo_giorno = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-01";
-    $ultimo_giorno = date('Y-m-t', strtotime($primo_giorno));
-    
-    $eventi_calendario = $wpdb->get_results($wpdb->prepare(
-        "SELECT * FROM {$table} 
-         WHERE data_evento BETWEEN %s AND %s 
-         AND stato IN ('attivo', 'confermato')
-         ORDER BY data_evento ASC",
-        $primo_giorno,
-        $ultimo_giorno
-    ), ARRAY_A);
-    
-    // Raggruppa eventi per data
-    $eventi_per_data = array();
-    foreach ($eventi_calendario as $evento) {
-        $data = date('Y-m-d', strtotime($evento['data_evento']));
-        if (!isset($eventi_per_data[$data])) {
-            $eventi_per_data[$data] = array();
-        }
-        $eventi_per_data[$data][] = $evento;
-    }
-    ?>
-    
-    <div id="calendario-eventi" style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; margin-bottom: 30px;">
+    <div style="margin-bottom: 30px;">
+        <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=new_preventivo')); ?>" 
+           class="btn-nuovo-preventivo-big"
+           style="display: block; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 25px 40px; border-radius: 25px; text-decoration: none; font-weight: 700; font-size: 1.5rem; box-shadow: 0 8px 30px rgba(40, 167, 69, 0.4); transition: all 0.3s ease; text-align: center; border: 3px solid rgba(255,255,255,0.3);">
+            <span style="font-size: 2rem; margin-right: 12px;">➕</span> CREA NUOVO PREVENTIVO
+        </a>
+    </div>
+
+    <!-- ============================================================================ -->
+    <!-- GRAFICI ANDAMENTO -->
+    <!-- ============================================================================ -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
         
-        <!-- Header Calendario -->
-        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 25px 30px;">
-            
-            <!-- Selettori Mese e Anno -->
-            <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-                <label style="color: rgba(255,255,255,0.8); font-size: 0.9rem; font-weight: 600;">
-                    📅 Vai a:
-                </label>
-                
-                <select id="calendario-select-mese" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; min-width: 140px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
-                    <?php 
-                    $mesi_nomi = array(
-                        1 => 'Gennaio', 2 => 'Febbraio', 3 => 'Marzo', 4 => 'Aprile',
-                        5 => 'Maggio', 6 => 'Giugno', 7 => 'Luglio', 8 => 'Agosto',
-                        9 => 'Settembre', 10 => 'Ottobre', 11 => 'Novembre', 12 => 'Dicembre'
-                    );
-                    foreach ($mesi_nomi as $num => $nome):
-                    ?>
-                        <option value="<?php echo $num; ?>" <?php selected($calendario_mese, $num); ?> style="background: #1d1d1f; color: white;">
-                            <?php echo $nome; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                
-                <select id="calendario-select-anno" onchange="vaiAMese()" style="background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 0.95rem; font-weight: 600; min-width: 100px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
-                    <?php 
-                    $anno_corrente = date('Y');
-                    for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
-                    ?>
-                        <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?> style="background: #1d1d1f; color: white;">
-                            <?php echo $anno; ?>
-                        </option>
-                    <?php endfor; ?>
-                </select>
-                
-                <button onclick="vaiOggi()" style="background: rgba(0, 122, 255, 0.3); border: 2px solid rgba(0, 122, 255, 0.6); color: white; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: all 0.3s;" onmouseover="this.style.background='rgba(0, 122, 255, 0.5)'" onmouseout="this.style.background='rgba(0, 122, 255, 0.3)'">
-                    📍 Oggi
-                </button>
+        <!-- Grafico Confermati -->
+        <div style="background: linear-gradient(135deg, #34c759 0%, #30d158 100%); color: white; padding: 25px; border-radius: 16px; box-shadow: 0 6px 20px rgba(52, 199, 89, 0.3); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+            <div style="position: relative; z-index: 2;">
+                <div style="font-size: 2.5rem; margin-bottom: 5px;">✅</div>
+                <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;"><?php echo $stats_confermati; ?></div>
+                <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 10px;">Confermati</div>
+                <div style="background: rgba(255,255,255,0.25); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: white; height: 100%; width: <?php echo $perc_confermati; ?>%; transition: width 1s ease;"></div>
+                </div>
+                <div style="font-size: 0.75rem; margin-top: 5px; opacity: 0.9;"><?php echo $perc_confermati; ?>% del totale</div>
             </div>
+        </div>
+
+        <!-- Grafico Attivi -->
+        <div style="background: linear-gradient(135deg, #007aff 0%, #5ac8fa 100%); color: white; padding: 25px; border-radius: 16px; box-shadow: 0 6px 20px rgba(0, 122, 255, 0.3); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+            <div style="position: relative; z-index: 2;">
+                <div style="font-size: 2.5rem; margin-bottom: 5px;">⏳</div>
+                <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;"><?php echo $stats_attivi; ?></div>
+                <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 10px;">Attivi</div>
+                <div style="background: rgba(255,255,255,0.25); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: white; height: 100%; width: <?php echo $perc_attivi; ?>%; transition: width 1s ease;"></div>
+                </div>
+                <div style="font-size: 0.75rem; margin-top: 5px; opacity: 0.9;"><?php echo $perc_attivi; ?>% del totale</div>
+            </div>
+        </div>
+
+        <!-- Grafico Annullati -->
+        <div style="background: linear-gradient(135deg, #ff3b30 0%, #ff453a 100%); color: white; padding: 25px; border-radius: 16px; box-shadow: 0 6px 20px rgba(255, 59, 48, 0.3); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+            <div style="position: relative; z-index: 2;">
+                <div style="font-size: 2.5rem; margin-bottom: 5px;">❌</div>
+                <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;"><?php echo $stats_annullati; ?></div>
+                <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 10px;">Annullati</div>
+                <div style="background: rgba(255,255,255,0.25); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: white; height: 100%; width: <?php echo $perc_annullati; ?>%; transition: width 1s ease;"></div>
+                </div>
+                <div style="font-size: 0.75rem; margin-top: 5px; opacity: 0.9;"><?php echo $perc_annullati; ?>% del totale</div>
+            </div>
+        </div>
+
+        <!-- Grafico Totali -->
+        <div style="background: linear-gradient(135deg, #c28a4d 0%, #d4a574 100%); color: white; padding: 25px; border-radius: 16px; box-shadow: 0 6px 20px rgba(194, 138, 77, 0.3); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+            <div style="position: relative; z-index: 2;">
+                <div style="font-size: 2.5rem; margin-bottom: 5px;">📊</div>
+                <div style="font-size: 2rem; font-weight: 700; margin-bottom: 5px;"><?php echo $stats_totali; ?></div>
+                <div style="font-size: 0.9rem; opacity: 0.95; margin-bottom: 10px;">Totali Mese</div>
+                <div style="background: rgba(255,255,255,0.25); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: white; height: 100%; width: 100%; transition: width 1s ease;"></div>
+                </div>
+                <div style="font-size: 0.75rem; margin-top: 5px; opacity: 0.9;"><?php echo $mesi_nomi[$calendario_mese]; ?> <?php echo $calendario_anno; ?></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================================ -->
+    <!-- FILTRI CALENDARIO (MESE E ANNO) -->
+    <!-- ============================================================================ -->
+    <div style="background: #f5f5f7; padding: 20px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
+            <label style="font-weight: 600; color: #1d1d1f; font-size: 0.95rem;">
+                📅 Filtra Calendario:
+            </label>
             
-            <!-- Navigazione Frecce -->
+            <select id="filtro-mese" onchange="applicaFiltroCalendario()" style="background: white; border: 2px solid #e5e5e7; color: #1d1d1f; padding: 10px 15px; border-radius: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 600; min-width: 150px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007aff'" onmouseout="this.style.borderColor='#e5e5e7'">
+                <?php foreach ($mesi_nomi as $num => $nome): ?>
+                    <option value="<?php echo $num; ?>" <?php selected($calendario_mese, $num); ?>>
+                        <?php echo $nome; ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            
+            <select id="filtro-anno" onchange="applicaFiltroCalendario()" style="background: white; border: 2px solid #e5e5e7; color: #1d1d1f; padding: 10px 15px; border-radius: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 600; min-width: 120px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007aff'" onmouseout="this.style.borderColor='#e5e5e7'">
+                <?php 
+                $anno_corrente = date('Y');
+                for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
+                ?>
+                    <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?>>
+                        <?php echo $anno; ?>
+                    </option>
+                <?php endfor; ?>
+            </select>
+            
+            <button onclick="vaiOggi()" style="background: #007aff; border: none; color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 700; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);" onmouseover="this.style.background='#0051d5'; this.style.transform='translateY(-2px)'" onmouseout="this.style.background='#007aff'; this.style.transform='translateY(0)'">
+                🔵 Vai a Oggi
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================================================ -->
+    <!-- CALENDARIO EVENTI STILE IPHONE - LAYOUT SETTIMANALE -->
+    <!-- ============================================================================ -->
+    <div id="calendario-eventi" class="calendario-ios" style="background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 30px; max-width: 100%;">
+        
+        <!-- Header Calendario iOS Style -->
+        <div style="background: linear-gradient(135deg, #1d1d1f 0%, #000000 100%); padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            
+            <!-- Navigazione Mese -->
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <button onclick="cambioMese(-1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                <button onclick="cambioMese(-1)" class="ios-nav-btn" style="background: none; border: none; color: #007aff; padding: 8px 12px; cursor: pointer; font-size: 1.3rem; transition: all 0.2s; border-radius: 8px;" onmouseover="this.style.background='rgba(0, 122, 255, 0.1)'" onmouseout="this.style.background='none'">
                     ‹
                 </button>
-                <div style="text-align: center;">
-                    <h2 id="calendario-titolo" style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
+                
+                <div style="text-align: center; flex: 1;">
+                    <h2 id="calendario-titolo" style="margin: 0; font-size: 1.4rem; font-weight: 700; color: white; letter-spacing: -0.5px;">
                         <?php echo $mesi_nomi[$calendario_mese] . ' ' . $calendario_anno; ?>
                     </h2>
-                    <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                        <?php echo count($eventi_calendario); ?> eventi questo mese
+                    <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.6); font-size: 0.85rem; font-weight: 500;">
+                        <?php echo count($eventi_calendario); ?> eventi
                     </p>
                 </div>
-                <button onclick="cambioMese(1)" style="background: rgba(255,255,255,0.1); border: none; color: white; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 1.2rem; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                
+                <button onclick="cambioMese(1)" class="ios-nav-btn" style="background: none; border: none; color: #007aff; padding: 8px 12px; cursor: pointer; font-size: 1.3rem; transition: all 0.2s; border-radius: 8px;" onmouseover="this.style.background='rgba(0, 122, 255, 0.1)'" onmouseout="this.style.background='none'">
                     ›
                 </button>
             </div>
-            
         </div>
         
-        <div style="padding: 20px;">
+        <!-- Calendario Settimanale iOS Style -->
+        <div style="padding: 0;">
             
-            <!-- Griglia Calendario -->
-            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px;">
-                
-                <!-- Intestazioni giorni settimana -->
+            <!-- Intestazioni Giorni Settimana -->
+            <div class="ios-header-giorni" style="display: grid; grid-template-columns: repeat(7, 1fr); background: #f9f9f9; border-bottom: 1px solid #e5e5e7; padding: 8px 0;">
                 <?php 
-                $giorni_settimana = array('Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom');
+                $giorni_settimana = array('L', 'M', 'M', 'G', 'V', 'S', 'D');
                 foreach ($giorni_settimana as $giorno): 
                 ?>
-                    <div style="text-align: center; font-weight: 700; color: #8e8e93; font-size: 0.75rem; padding: 10px 0; text-transform: uppercase;">
+                    <div style="text-align: center; font-weight: 600; color: #8e8e93; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">
                         <?php echo $giorno; ?>
                     </div>
                 <?php endforeach; ?>
+            </div>
+            
+            <!-- Settimane del Mese (Layout iOS) -->
+            <?php
+            $primo_giorno_settimana = date('N', strtotime($primo_giorno)); // 1=Lun, 7=Dom
+            $giorni_nel_mese = date('t', strtotime($primo_giorno));
+            $oggi = date('Y-m-d');
+            
+            $giorno_corrente = 1;
+            $settimana_num = 0;
+            
+            // Genera settimane (massimo 6 righe per coprire tutti i casi)
+            while ($giorno_corrente <= $giorni_nel_mese || $settimana_num == 0) {
+                $settimana_num++;
+                echo '<div class="settimana-ios" style="display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid #e5e5e7;">';
                 
-                <!-- Celle giorni -->
-                <?php
-                $primo_giorno_settimana = date('N', strtotime($primo_giorno)); // 1=Lun, 7=Dom
-                $giorni_nel_mese = date('t', strtotime($primo_giorno));
-                $oggi = date('Y-m-d');
-                
-                // Celle vuote per allineare il primo giorno
-                for ($i = 1; $i < $primo_giorno_settimana; $i++) {
-                    echo '<div></div>';
-                }
-                
-                // Giorni del mese
-                for ($giorno = 1; $giorno <= $giorni_nel_mese; $giorno++) {
-                    $data_corrente = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-" . sprintf('%02d', $giorno);
+                for ($giorno_settimana = 1; $giorno_settimana <= 7; $giorno_settimana++) {
+                    
+                    // Prima settimana: aggiungi celle vuote prima del primo giorno
+                    if ($settimana_num == 1 && $giorno_settimana < $primo_giorno_settimana) {
+                        echo '<div class="giorno-vuoto" style="background: #fafafa; min-height: 60px;"></div>';
+                        continue;
+                    }
+                    
+                    // Se abbiamo finito i giorni del mese, celle vuote
+                    if ($giorno_corrente > $giorni_nel_mese) {
+                        echo '<div class="giorno-vuoto" style="background: #fafafa; min-height: 60px;"></div>';
+                        continue;
+                    }
+                    
+                    // Giorno valido
+                    $data_corrente = "{$calendario_anno}-" . sprintf('%02d', $calendario_mese) . "-" . sprintf('%02d', $giorno_corrente);
                     $ha_eventi = isset($eventi_per_data[$data_corrente]);
                     $numero_eventi = $ha_eventi ? count($eventi_per_data[$data_corrente]) : 0;
                     $is_oggi = $data_corrente === $oggi;
@@ -188,1172 +308,551 @@ $version = DISCO747_CRM_VERSION ?? '11.8.0';
                         }
                     }
                     
-                    $bg_color = $is_oggi ? '#007aff' : ($ha_eventi ? '#e5e5ea' : 'transparent');
-                    $text_color = $is_oggi ? 'white' : ($ha_eventi ? '#000' : '#8e8e93');
-                    $border = $is_oggi ? '2px solid #007aff' : 'none';
-                    ?>
-                    <div onclick="mostraEventi('<?php echo $data_corrente; ?>')" 
-                         style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: <?php echo $bg_color; ?>; color: <?php echo $text_color; ?>; border-radius: 50%; cursor: <?php echo $ha_eventi ? 'pointer' : 'default'; ?>; font-weight: <?php echo $is_oggi ? '700' : ($ha_eventi ? '600' : '400'); ?>; font-size: 0.9rem; position: relative; transition: all 0.2s; border: <?php echo $border; ?>;"
-                         onmouseover="<?php echo $ha_eventi ? "this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" : ''; ?>"
-                         onmouseout="<?php echo $ha_eventi ? "this.style.transform='scale(1)'; this.style.boxShadow='none';" : ''; ?>">
-                        <?php echo $giorno; ?>
-                        <?php if ($ha_eventi): ?>
-                            <div style="display: flex; gap: 2px; margin-top: 2px;">
-                                <?php if ($confermati > 0): ?>
-                                    <div style="width: 5px; height: 5px; background: #34c759; border-radius: 50%;" title="<?php echo $confermati; ?> confermati"></div>
-                                <?php endif; ?>
-                                <?php if ($attivi > 0): ?>
-                                    <div style="width: 5px; height: 5px; background: #007aff; border-radius: 50%;" title="<?php echo $attivi; ?> attivi"></div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                <?php } ?>
-            </div>
-            
-            <!-- Area eventi del giorno selezionato -->
-            <div id="eventi-giorno" style="display: none; border-top: 2px solid #e5e5ea; padding-top: 20px;">
-                <h3 id="eventi-giorno-titolo" style="margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 700; color: #1d1d1f;"></h3>
-                <div id="eventi-giorno-lista"></div>
-            </div>
-            
-        </div>
-    </div>
-    
-    <!-- JavaScript per il calendario -->
-    <script>
-    // Dati eventi dal PHP
-    const eventiPerData = <?php echo json_encode($eventi_per_data); ?>;
-    
-    // Funzione: Vai a mese/anno selezionato dai menu a tendina
-    function vaiAMese() {
-        const mese = document.getElementById('calendario-select-mese').value;
-        const anno = document.getElementById('calendario-select-anno').value;
-        
-        const params = new URLSearchParams(window.location.search);
-        params.set('cal_month', mese);
-        params.set('cal_year', anno);
-        window.location.search = params.toString();
-    }
-    
-    // Funzione: Vai a oggi (mese e anno correnti)
-    function vaiOggi() {
-        const params = new URLSearchParams(window.location.search);
-        const meseOggi = <?php echo date('n'); ?>;
-        const annoOggi = <?php echo date('Y'); ?>;
-        
-        params.set('cal_month', meseOggi);
-        params.set('cal_year', annoOggi);
-        window.location.search = params.toString();
-    }
-    
-    // Funzione: Cambio mese con frecce (mantiene compatibilità)
-    function cambioMese(delta) {
-        const params = new URLSearchParams(window.location.search);
-        const meseCorrente = parseInt(params.get('cal_month') || <?php echo date('n'); ?>);
-        const annoCorrente = parseInt(params.get('cal_year') || <?php echo date('Y'); ?>);
-        
-        let nuovoMese = meseCorrente + delta;
-        let nuovoAnno = annoCorrente;
-        
-        if (nuovoMese < 1) {
-            nuovoMese = 12;
-            nuovoAnno--;
-        } else if (nuovoMese > 12) {
-            nuovoMese = 1;
-            nuovoAnno++;
-        }
-        
-        params.set('cal_month', nuovoMese);
-        params.set('cal_year', nuovoAnno);
-        window.location.search = params.toString();
-    }
-    
-    function mostraEventi(data) {
-        const eventi = eventiPerData[data];
-        if (!eventi || eventi.length === 0) return;
-        
-        const container = document.getElementById('eventi-giorno');
-        const titolo = document.getElementById('eventi-giorno-titolo');
-        const lista = document.getElementById('eventi-giorno-lista');
-        
-        // Formatta data
-        const dataObj = new Date(data + 'T00:00:00');
-        const opzioni = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        const dataFormattata = dataObj.toLocaleDateString('it-IT', opzioni);
-        
-        titolo.textContent = dataFormattata.charAt(0).toUpperCase() + dataFormattata.slice(1);
-        
-        // Costruisci lista eventi
-        lista.innerHTML = eventi.map(evento => {
-            const isConfermato = evento.stato === 'confermato' || parseFloat(evento.acconto) > 0;
-            const badge = isConfermato 
-                ? '<span style="background: #34c759; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">✅ CONFERMATO</span>'
-                : '<span style="background: #007aff; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">⏳ ATTIVO</span>';
-            
-            const whatsappNum = evento.telefono ? evento.telefono.replace(/[^0-9+]/g, '') : '';
-            const whatsappLink = whatsappNum ? (whatsappNum.startsWith('+') ? whatsappNum : '+39' + whatsappNum) : '';
-            
-            return `
-                <div style="background: #f5f5f7; border-radius: 12px; padding: 15px; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: 700; color: #1d1d1f; font-size: 1rem; margin-bottom: 5px;">
-                                ${evento.tipo_evento || 'Evento'}
-                            </div>
-                            <div style="font-size: 0.85rem; color: #8e8e93;">
-                                ${evento.nome_cliente || 'Cliente'}
-                            </div>
-                        </div>
-                        <div>
-                            ${badge}
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        ${whatsappLink ? `
-                            <a href="https://wa.me/${whatsappLink}" target="_blank" 
-                               style="background: #25D366; color: white; padding: 8px 15px; border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;"
-                               onmouseover="this.style.transform='scale(1.05)'"
-                               onmouseout="this.style.transform='scale(1)'">
-                                📱 WhatsApp
-                            </a>
-                        ` : ''}
-                        ${evento.email ? `
-                            <a href="mailto:${evento.email}" 
-                               style="background: #007aff; color: white; padding: 8px 15px; border-radius: 20px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;"
-                               onmouseover="this.style.transform='scale(1.05)'"
-                               onmouseout="this.style.transform='scale(1)'">
-                                ✉️ Email
-                            </a>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        container.style.display = 'block';
-        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    </script>
-
-    <!-- ============================================================================ -->
-    <!-- SEZIONE INSIGHTS: Link Analisi Finanziaria + Eventi Imminenti -->
-    <!-- ============================================================================ -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 35px;">
-        
-        <!-- ============= STATISTICHE & AZIONI RAPIDE ============= -->
-        <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px 30px;">
-                <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
-                    📊 Statistiche & Azioni
-                </h2>
-                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
-                    Panoramica rapida e scorciatoie
-                </p>
-            </div>
-            
-            <div style="padding: 25px;">
-                
-                <!-- Statistiche Rapide -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                    // Stile iOS
+                    $bg_color = 'white';
+                    $text_color = '#1d1d1f';
+                    $numero_style = '';
                     
-                    <!-- Preventivi Totali -->
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
-                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            📋 Totali
-                        </div>
-                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
-                            <?php echo number_format($stats['total']); ?>
-                        </div>
-                    </div>
+                    if ($is_oggi) {
+                        $numero_style = 'background: #007aff; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;';
+                    } elseif ($ha_eventi) {
+                        $text_color = '#c28a4d';
+                    }
                     
-                    <!-- Preventivi Attivi -->
-                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
-                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            🔵 Attivi
-                        </div>
-                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
-                            <?php echo number_format($stats['attivi']); ?>
-                        </div>
-                    </div>
+                    $cursor = $ha_eventi ? 'pointer' : 'default';
+                    $onclick = $ha_eventi ? "mostraEventi('$data_corrente')" : '';
                     
-                    <!-- Preventivi Confermati -->
-                    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
-                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            ✅ Confermati
-                        </div>
-                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
-                            <?php echo number_format($stats['confermati']); ?>
-                        </div>
-                    </div>
+                    echo "<div class='giorno-ios' onclick=\"$onclick\" data-date=\"$data_corrente\" style=\"background: $bg_color; color: $text_color; padding: 10px 4px; text-align: center; cursor: $cursor; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; position: relative; min-height: 60px;\" onmouseover=\"if(this.onclick) {this.style.background='#f5f5f7';}\" onmouseout=\"this.style.background='$bg_color';\">";
                     
-                    <!-- Questo Mese -->
-                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); padding: 20px; border-radius: 12px; color: white; text-align: center;">
-                        <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-                            📆 Questo Mese
-                        </div>
-                        <div style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
-                            <?php echo number_format($stats['this_month']); ?>
-                        </div>
-                    </div>
+                    // Numero giorno
+                    echo "<span style=\"$numero_style font-size: 0.95rem; font-weight: " . ($is_oggi ? '700' : '500') . ";\">$giorno_corrente</span>";
                     
-                </div>
-                
-                <!-- Azioni Rapide -->
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                    <h3 style="margin: 0 0 15px 0; font-size: 0.9rem; font-weight: 700; color: #495057; text-transform: uppercase; letter-spacing: 0.5px;">
-                        ⚡ Azioni Rapide
-                    </h3>
-                    <div style="display: grid; gap: 10px;">
+                    // Pallini eventi (massimo 3)
+                    if ($ha_eventi) {
+                        echo '<div style="display: flex; gap: 3px; align-items: center; justify-content: center; min-height: 6px;">';
                         
-                        <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=new_preventivo'); ?>" 
-                           style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);"
-                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(40, 167, 69, 0.3)'"
-                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(40, 167, 69, 0.2)'">
-                            <span style="font-size: 1.5rem;">➕</span>
-                            <span>Nuovo Preventivo</span>
-                        </a>
-                        
-                        <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
-                           style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);"
-                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(0, 123, 255, 0.3)'"
-                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(0, 123, 255, 0.2)'">
-                            <span style="font-size: 1.5rem;">📊</span>
-                            <span>View Database</span>
-                        </a>
-                        
-                        <a href="<?php echo admin_url('admin.php?page=disco747-scan-excel'); ?>" 
-                           style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(111, 66, 193, 0.2);"
-                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(111, 66, 193, 0.3)'"
-                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(111, 66, 193, 0.2)'">
-                            <span style="font-size: 1.5rem;">🔄</span>
-                            <span>Scansione Excel</span>
-                        </a>
-                        
-                        <a href="<?php echo admin_url('admin.php?page=disco747-financial'); ?>" 
-                           style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 15px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 12px; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);"
-                           onmouseover="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 16px rgba(255, 193, 7, 0.3)'"
-                           onmouseout="this.style.transform='translateX(0)'; this.style.boxShadow='0 2px 8px rgba(255, 193, 7, 0.2)'">
-                            <span style="font-size: 1.5rem;">💰</span>
-                            <span>Analisi Finanziaria</span>
-                        </a>
-                        
-                    </div>
-                </div>
-                
-                <!-- Info Rapide -->
-                <div style="background: #e7f3ff; border-left: 4px solid #007bff; padding: 15px; border-radius: 8px;">
-                    <div style="display: flex; align-items: start; gap: 12px;">
-                        <div style="font-size: 1.5rem;">💡</div>
-                        <div>
-                            <div style="font-weight: 700; color: #0056b3; margin-bottom: 5px; font-size: 0.9rem;">
-                                Tasso di Conversione
-                            </div>
-                            <div style="color: #495057; font-size: 0.85rem;">
-                                <?php 
-                                $tasso = $stats['total'] > 0 ? round(($stats['confermati'] / $stats['total']) * 100, 1) : 0;
-                                echo $tasso; 
-                                ?>% dei preventivi vengono confermati
-                                <span style="color: #6c757d;">(<?php echo $stats['confermati']; ?>/<?php echo $stats['total']; ?>)</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-        </div>
-        
-        <!-- ============= EVENTI IMMINENTI ============= -->
-        <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden;">
-            <div style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 25px 30px;">
-                <h2 style="margin: 0; font-size: 1.6rem; font-weight: 700; color: white;">
-                    ⚡ Eventi Imminenti
-                </h2>
-                <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">
-                    Prossimi 14 giorni · <?php echo count($eventi_imminenti); ?> eventi
-                </p>
-            </div>
-            
-            <div style="padding: 25px; max-height: 520px; overflow-y: auto;">
-                <?php if (empty($eventi_imminenti)): ?>
-                    <div style="text-align: center; padding: 80px 20px; color: #6c757d;">
-                        <div style="font-size: 4rem; margin-bottom: 15px; opacity: 0.2;">😴</div>
-                        <h3 style="margin: 0 0 8px 0; font-size: 1.3rem; color: #495057;">Nessun Evento Imminente</h3>
-                        <p style="margin: 0; font-size: 0.95rem;">I prossimi 14 giorni sono liberi</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($eventi_imminenti as $evento): 
-                        $is_confermato = floatval($evento['acconto']) > 0;
-                        $is_annullato = $evento['stato'] === 'annullato';
-                        $giorni_mancanti = floor((strtotime($evento['data_evento']) - time()) / (60 * 60 * 24));
-                        
-                        // Colore urgenza
-                        if ($giorni_mancanti <= 3) {
-                            $urgenza_color = '#dc3545';
-                            $urgenza_bg = '#ffe6e6';
-                            $urgenza_text = 'URGENTE';
-                        } elseif ($giorni_mancanti <= 7) {
-                            $urgenza_color = '#ff9800';
-                            $urgenza_bg = '#fff8e6';
-                            $urgenza_text = 'Vicino';
-                        } else {
-                            $urgenza_color = '#28a745';
-                            $urgenza_bg = '#e8f5e9';
-                            $urgenza_text = 'Programmato';
+                        // Pallini dorati per confermati
+                        $totali_da_mostrare = min($confermati + $attivi, 3);
+                        for ($i = 0; $i < min($confermati, $totali_da_mostrare); $i++) {
+                            echo '<div style="width: 5px; height: 5px; border-radius: 50%; background: #c28a4d;"></div>';
                         }
-                    ?>
-                    <div style="background: white; border: 2px solid <?php echo $urgenza_color; ?>; border-radius: 12px; padding: 18px; margin-bottom: 15px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.06);" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.12)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.06)'">
                         
-                        <!-- Header Evento -->
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                            <div style="flex: 1;">
-                                <h4 style="margin: 0 0 5px 0; font-size: 1.1rem; font-weight: 700; color: #2b1e1a;">
-                                    <?php echo esc_html($evento['nome_cliente']); ?>
-                                </h4>
-                                <div style="font-size: 0.8rem; color: #6c757d;">
-                                    #<?php echo esc_html($evento['preventivo_id'] ?? $evento['id']); ?> · <?php echo esc_html($evento['tipo_evento']); ?>
-                                </div>
-                            </div>
-                            <div style="text-align: right;">
-                                <?php if ($is_annullato): ?>
-                                    <span style="background: #dc3545; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
-                                        ❌ ANNULLATO
-                                    </span>
-                                <?php elseif ($is_confermato): ?>
-                                    <span style="background: #28a745; color: white; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
-                                        ✅ OK
-                                    </span>
-                                <?php else: ?>
-                                    <span style="background: #ffc107; color: #2b1e1a; padding: 4px 10px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;">
-                                        ⏳ ATTIVO
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        </div>
+                        // Pallini grigi per attivi (solo se c'è spazio)
+                        $rimanenti = $totali_da_mostrare - $confermati;
+                        for ($i = 0; $i < min($attivi, $rimanenti); $i++) {
+                            echo '<div style="width: 4px; height: 4px; border-radius: 50%; background: #8e8e93;"></div>';
+                        }
                         
-                        <!-- Data e Urgenza -->
-                        <div style="background: <?php echo $urgenza_bg; ?>; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid <?php echo $urgenza_color; ?>;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div style="font-size: 1.3rem; font-weight: 800; color: <?php echo $urgenza_color; ?>; margin-bottom: 3px;">
-                                        <?php echo date('d/m/Y', strtotime($evento['data_evento'])); ?>
-                                    </div>
-                                    <div style="font-size: 0.8rem; color: #6c757d;">
-                                        <?php echo ($giorni_mancanti == 0) ? 'OGGI!' : ($giorni_mancanti == 1 ? 'DOMANI!' : "Tra {$giorni_mancanti} giorni"); ?>
-                                    </div>
-                                </div>
-                                <div style="background: <?php echo $urgenza_color; ?>; color: white; padding: 6px 12px; border-radius: 10px; font-size: 0.75rem; font-weight: 700;">
-                                    <?php echo $urgenza_text; ?>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Dettagli Rapidi -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; font-size: 0.85rem;">
-                            <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
-                                <div style="color: #6c757d; font-size: 0.75rem; margin-bottom: 3px;">Menu</div>
-                                <div style="font-weight: 700; color: #495057;"><?php echo esc_html($evento['tipo_menu']); ?></div>
-                            </div>
-                            <div style="background: #f8f9fa; padding: 8px; border-radius: 6px; text-align: center;">
-                                <div style="color: #6c757d; font-size: 0.75rem; margin-bottom: 3px;">Invitati</div>
-                                <div style="font-weight: 700; color: #495057;"><?php echo esc_html($evento['numero_invitati']); ?> pax</div>
-                            </div>
-                        </div>
-                        
-                        <!-- Importo -->
-                        <div style="background: linear-gradient(135deg, #c28a4d 0%, #a67339 100%); padding: 12px; border-radius: 8px; margin-bottom: 12px; text-align: center;">
-                            <div style="color: rgba(255,255,255,0.8); font-size: 0.75rem; margin-bottom: 3px;">Importo</div>
-                            <div style="color: white; font-size: 1.5rem; font-weight: 800;">
-                                €<?php echo number_format(floatval($evento['importo_totale']), 0, ',', '.'); ?>
-                            </div>
-                            <?php if ($is_confermato): ?>
-                                <div style="color: rgba(255,255,255,0.9); font-size: 0.75rem; margin-top: 4px;">
-                                    Saldo: €<?php echo number_format(floatval($evento['importo_totale']) - floatval($evento['acconto']), 0, ',', '.'); ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <!-- Azioni -->
-                        <div style="display: flex; gap: 8px;">
-                            <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=edit_preventivo&edit_id=' . $evento['id'])); ?>" 
-                               style="flex: 1; background: #007bff; color: white; padding: 8px; border-radius: 6px; text-align: center; text-decoration: none; font-weight: 600; font-size: 0.8rem;">
-                                ✏️ Gestisci
-                            </a>
-                            <?php 
-                            // Formatta numero per WhatsApp (rimuovi spazi, trattini, parentesi)
-                            $whatsapp_number = preg_replace('/[^0-9+]/', '', $evento['telefono']);
-                            // Se non inizia con +, aggiungi prefisso Italia
-                            if (substr($whatsapp_number, 0, 1) !== '+') {
-                                $whatsapp_number = '+39' . $whatsapp_number;
-                            }
-                            ?>
-                            <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
-                               target="_blank"
-                               title="Apri chat WhatsApp con <?php echo esc_attr($evento['nome_cliente']); ?>"
-                               style="background: #25D366; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; justify-content: center;">
-                                📱
-                            </a>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
+                        echo '</div>';
+                    }
+                    
+                    echo '</div>';
+                    
+                    $giorno_corrente++;
+                }
+                
+                echo '</div>'; // Fine settimana
+                
+                // Esci se abbiamo finito i giorni
+                if ($giorno_corrente > $giorni_nel_mese) {
+                    break;
+                }
+            }
+            ?>
+            
         </div>
+        
+        <!-- Area eventi del giorno selezionato -->
+        <div id="eventi-giorno" style="display: none; border-top: 2px solid #e5e5ea; padding: 20px; background: #f9f9f9;">
+            <h3 id="eventi-giorno-titolo" style="margin: 0 0 15px 0; font-size: 1.1rem; font-weight: 700; color: #1d1d1f;"></h3>
+            <div id="eventi-giorno-lista"></div>
+        </div>
+        
     </div>
 
     <!-- ============================================================================ -->
-    <!-- STATISTICHE PRINCIPALI -->
+    <!-- LINK RAPIDI -->
     <!-- ============================================================================ -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 25px; margin-bottom: 35px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px;">
         
-        <!-- Totale Preventivi -->
-        <div class="stat-card" style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; padding: 30px; border-radius: 18px; text-align: center; box-shadow: 0 8px 25px rgba(108, 117, 125, 0.3); transition: all 0.3s;">
-            <div style="font-size: 1rem; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                Totale Preventivi
-            </div>
-            <div style="font-size: 3.5rem; font-weight: 800; margin: 15px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
-                <?php echo number_format($stats['total']); ?>
-            </div>
-            <div style="font-size: 1.3rem; opacity: 0.8;">📋</div>
-        </div>
-        
-        <!-- Preventivi Attivi -->
-        <div class="stat-card" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; padding: 30px; border-radius: 18px; text-align: center; box-shadow: 0 8px 25px rgba(255, 193, 7, 0.3); transition: all 0.3s;">
-            <div style="font-size: 1rem; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                In Attesa
-            </div>
-            <div style="font-size: 3.5rem; font-weight: 800; margin: 15px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
-                <?php echo number_format($stats['attivi']); ?>
-            </div>
-            <div style="font-size: 1.3rem; opacity: 0.8;">⏳</div>
-        </div>
-        
-        <!-- Preventivi Confermati -->
-        <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; border-radius: 18px; text-align: center; box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3); transition: all 0.3s;">
-            <div style="font-size: 1rem; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                Confermati
-            </div>
-            <div style="font-size: 3.5rem; font-weight: 800; margin: 15px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
-                <?php echo number_format($stats['confermati']); ?>
-            </div>
-            <div style="font-size: 1.3rem; opacity: 0.8;">✅</div>
-        </div>
-        
-        <!-- Questo Mese -->
-        <div class="stat-card" style="background: linear-gradient(135deg, #c28a4d 0%, #a67339 100%); color: white; padding: 30px; border-radius: 18px; text-align: center; box-shadow: 0 8px 25px rgba(194, 138, 77, 0.3); transition: all 0.3s;">
-            <div style="font-size: 1rem; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                Questo Mese
-            </div>
-            <div style="font-size: 3.5rem; font-weight: 800; margin: 15px 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">
-                <?php echo number_format($stats['this_month']); ?>
-            </div>
-            <div style="font-size: 0.9rem; opacity: 0.8; margin-top: 5px;">
-                <?php echo date('F Y'); ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================================================ -->
-    <!-- GRAFICI STATISTICHE -->
-    <!-- ============================================================================ -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 30px; margin-bottom: 35px;">
-        
-        <!-- Grafico: Preventivi per Mese -->
-        <div style="background: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
-            <h3 style="margin: 0 0 25px 0; font-size: 1.4rem; color: #2b1e1a; font-weight: 700; border-bottom: 3px solid #007bff; padding-bottom: 12px;">
-                📈 Andamento Preventivi (Ultimi 6 Mesi)
-            </h3>
-            <canvas id="chart-preventivi-mese" style="max-height: 250px;"></canvas>
-        </div>
-        
-        <!-- Grafico: Conferme vs Non Confermati -->
-        <div style="background: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);">
-            <h3 style="margin: 0 0 25px 0; font-size: 1.4rem; color: #2b1e1a; font-weight: 700; border-bottom: 3px solid #28a745; padding-bottom: 12px;">
-                🎯 Tasso di Conferma (Ultimi 30 Giorni)
-            </h3>
-            <canvas id="chart-conferme" style="max-height: 250px;"></canvas>
-        </div>
-    </div>
-
-    <!-- ============================================================================ -->
-    <!-- ULTIMI PREVENTIVI CREATI -->
-    <!-- ============================================================================ -->
-    <div style="background: white; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); margin-bottom: 35px; overflow: hidden;">
-        
-        <div style="background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); padding: 25px 35px;">
-            <h2 style="margin: 0; font-size: 1.8rem; font-weight: 700; color: white;">
-                🕐 Ultimi Preventivi Creati
-            </h2>
-            <p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.9); font-size: 1rem;">
-                I 10 preventivi più recenti, ordinati per data di creazione
-            </p>
-        </div>
-        
-        <div style="padding: 25px; overflow-x: auto;">
-            <?php if (empty($preventivi_recenti)): ?>
-                <div style="text-align: center; padding: 40px; color: #6c757d;">
-                    <p style="font-size: 1.1rem; margin: 0;">Nessun preventivo disponibile</p>
-                </div>
-            <?php else: ?>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                            <th style="padding: 15px; text-align: left; font-weight: 700; color: #495057; font-size: 0.95rem;">ID</th>
-                            <th style="padding: 15px; text-align: left; font-weight: 700; color: #495057; font-size: 0.95rem;">Cliente</th>
-                            <th style="padding: 15px; text-align: left; font-weight: 700; color: #495057; font-size: 0.95rem;">Evento</th>
-                            <th style="padding: 15px; text-align: center; font-weight: 700; color: #495057; font-size: 0.95rem;">Data Evento</th>
-                            <th style="padding: 15px; text-align: center; font-weight: 700; color: #495057; font-size: 0.95rem;">Menu</th>
-                            <th style="padding: 15px; text-align: right; font-weight: 700; color: #495057; font-size: 0.95rem;">Importo</th>
-                            <th style="padding: 15px; text-align: center; font-weight: 700; color: #495057; font-size: 0.95rem;">Stato</th>
-                            <th style="padding: 15px; text-align: center; font-weight: 700; color: #495057; font-size: 0.95rem;">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($preventivi_recenti as $prev): 
-                            $is_confermato = floatval($prev['acconto']) > 0;
-                            $is_annullato = $prev['stato'] === 'annullato';
-                        ?>
-                        <tr style="border-bottom: 1px solid #dee2e6; transition: background 0.2s;" onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='white'">
-                            <td style="padding: 15px;">
-                                <strong style="color: #6f42c1; font-size: 1rem;">
-                                    #<?php echo esc_html($prev['preventivo_id'] ?? $prev['id']); ?>
-                                </strong>
-                            </td>
-                            <td style="padding: 15px;">
-                                <div style="font-weight: 700; color: #2b1e1a; margin-bottom: 3px;">
-                                    <?php echo esc_html($prev['nome_cliente']); ?>
-                                </div>
-                                <div style="font-size: 0.85rem; color: #6c757d;">
-                                    <?php echo esc_html($prev['email']); ?>
-                                </div>
-                            </td>
-                            <td style="padding: 15px; color: #495057;">
-                                <?php echo esc_html($prev['tipo_evento']); ?>
-                            </td>
-                            <td style="padding: 15px; text-align: center; font-weight: 600; color: #2b1e1a;">
-                                <?php echo date('d/m/Y', strtotime($prev['data_evento'])); ?>
-                            </td>
-                            <td style="padding: 15px; text-align: center;">
-                                <span style="background: #e9ecef; padding: 5px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #495057;">
-                                    <?php echo esc_html($prev['tipo_menu']); ?>
-                                </span>
-                            </td>
-                            <td style="padding: 15px; text-align: right;">
-                                <div style="font-weight: 700; color: #28a745; font-size: 1.1rem;">
-                                    €<?php echo number_format(floatval($prev['importo_totale']), 2, ',', '.'); ?>
-                                </div>
-                                <?php if ($is_confermato): ?>
-                                <div style="font-size: 0.8rem; color: #6c757d; margin-top: 3px;">
-                                    Acc: €<?php echo number_format(floatval($prev['acconto']), 2, ',', '.'); ?>
-                                </div>
-                                <?php endif; ?>
-                            </td>
-                            <td style="padding: 15px; text-align: center;">
-                                <?php if ($is_annullato): ?>
-                                    <span style="background: #dc3545; color: white; padding: 6px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700;">
-                                        ❌ Annullato
-                                    </span>
-                                <?php elseif ($is_confermato): ?>
-                                    <span style="background: #28a745; color: white; padding: 6px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700;">
-                                        ✅ Confermato
-                                    </span>
-                                <?php else: ?>
-                                    <span style="background: #ffc107; color: #2b1e1a; padding: 6px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700;">
-                                        ⏳ Attivo
-                                    </span>
-                                <?php endif; ?>
-                            </td>
-                            <td style="padding: 15px; text-align: center;">
-                                <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm&action=edit_preventivo&edit_id=' . $prev['id'])); ?>" 
-                                   style="background: #007bff; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-block;">
-                                    ✏️ Modifica
-                                </a>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- ============================================================================ -->
-    <!-- LINK GESTIONE COMPLETA -->
-    <!-- ============================================================================ -->
-    <div style="text-align: center; margin-bottom: 35px;">
-        <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-view-preventivi')); ?>" 
-           style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; padding: 15px 40px; border-radius: 30px; text-decoration: none; font-weight: 700; font-size: 1.1rem; box-shadow: 0 6px 20px rgba(23, 162, 184, 0.4); display: inline-block; transition: all 0.3s;">
-            📊 Visualizza Tutti i Preventivi nel Database
+        <!-- Card Gestione Preventivi -->
+        <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
+           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 16px; text-decoration: none; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); transition: all 0.3s; display: block;"
+           onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 30px rgba(102, 126, 234, 0.4)';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(102, 126, 234, 0.3)';">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">📋</div>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.3rem; font-weight: 700;">Gestione Preventivi</h3>
+            <p style="margin: 0; opacity: 0.9; font-size: 0.95rem;">Visualizza, modifica, filtra</p>
         </a>
+
+        <!-- Card Impostazioni -->
+        <a href="<?php echo admin_url('admin.php?page=disco747-settings'); ?>" 
+           style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 30px; border-radius: 16px; text-decoration: none; box-shadow: 0 8px 20px rgba(240, 147, 251, 0.3); transition: all 0.3s; display: block;"
+           onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 30px rgba(240, 147, 251, 0.4)';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(240, 147, 251, 0.3)';">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">⚙️</div>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.3rem; font-weight: 700;">Impostazioni</h3>
+            <p style="margin: 0; opacity: 0.9; font-size: 0.95rem;">Storage, API, Configurazione</p>
+        </a>
+
+        <!-- Card Messaggi -->
+        <a href="<?php echo admin_url('admin.php?page=disco747-messages'); ?>" 
+           style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; border-radius: 16px; text-decoration: none; box-shadow: 0 8px 20px rgba(79, 172, 254, 0.3); transition: all 0.3s; display: block;"
+           onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 12px 30px rgba(79, 172, 254, 0.4)';"
+           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(79, 172, 254, 0.3)';">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">💬</div>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.3rem; font-weight: 700;">Messaggi Automatici</h3>
+            <p style="margin: 0; opacity: 0.9; font-size: 0.95rem;">Email, WhatsApp, Template</p>
+        </a>
+
     </div>
 
 </div>
 
 <!-- ============================================================================ -->
-<!-- CHART.JS per Grafici -->
-<!-- ============================================================================ -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // ========================================================================
-    // GRAFICO 1: Preventivi per Mese
-    // ========================================================================
-    const ctxMese = document.getElementById('chart-preventivi-mese');
-    if (ctxMese) {
-        new Chart(ctxMese, {
-            type: 'line',
-            data: {
-                labels: <?php echo json_encode(array_column($chart_data['preventivi_per_mese'], 'month')); ?>,
-                datasets: [{
-                    label: 'Preventivi',
-                    data: <?php echo json_encode(array_column($chart_data['preventivi_per_mese'], 'count')); ?>,
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    borderColor: '#007bff',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#007bff',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        titleFont: {
-                            size: 14,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: 13
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1,
-                            font: {
-                                size: 12,
-                                weight: '600'
-                            }
-                        },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            font: {
-                                size: 11,
-                                weight: '600'
-                            }
-                        },
-                        grid: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        });
-    }
-    
-    // ========================================================================
-    // GRAFICO 2: Conferme vs Non Confermati (Donut Chart)
-    // ========================================================================
-    const ctxConferme = document.getElementById('chart-conferme');
-    if (ctxConferme) {
-        const confermati = <?php echo $chart_data['confermati']; ?>;
-        const nonConfermati = <?php echo $chart_data['non_confermati']; ?>;
-        const total = confermati + nonConfermati;
-        const percentage = total > 0 ? Math.round((confermati / total) * 100) : 0;
-        
-        new Chart(ctxConferme, {
-            type: 'doughnut',
-            data: {
-                labels: ['✅ Confermati', '⏳ Da Confermare'],
-                datasets: [{
-                    data: [confermati, nonConfermati],
-                    backgroundColor: [
-                        'rgba(40, 167, 69, 0.8)',
-                        'rgba(255, 193, 7, 0.8)'
-                    ],
-                    borderColor: [
-                        '#28a745',
-                        '#ffc107'
-                    ],
-                    borderWidth: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            font: {
-                                size: 13,
-                                weight: '600'
-                            },
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        padding: 12,
-                        callbacks: {
-                            label: function(context) {
-                                const value = context.parsed;
-                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                return context.label + ': ' + value + ' (' + percentage + '%)';
-                            }
-                        }
-                    }
-                },
-                cutout: '65%'
-            }
-        });
-        
-        // Aggiungi percentuale al centro
-        const chartContainer = ctxConferme.parentElement;
-        const centerText = document.createElement('div');
-        centerText.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;';
-        centerText.innerHTML = '<div style="font-size: 2.5rem; font-weight: 800; color: #28a745; line-height: 1;">' + percentage + '%</div><div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px; font-weight: 600;">Confermati</div>';
-        chartContainer.style.position = 'relative';
-        chartContainer.appendChild(centerText);
-    }
-    
-});
-</script>
-
-<!-- ============================================================================ -->
-<!-- CSS CUSTOM -->
+<!-- STILI CSS iOS -->
 <!-- ============================================================================ -->
 <style>
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Pulsante Nuovo Preventivo Grande */
+.btn-nuovo-preventivo-big:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 40px rgba(40, 167, 69, 0.5);
 }
 
-.disco747-dashboard-enhanced .stat-card:hover {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 12px 35px rgba(0,0,0,0.2) !important;
+/* Animazioni iOS */
+.giorno-ios {
+    -webkit-tap-highlight-color: transparent;
 }
 
-
-.disco747-dashboard-enhanced .btn-nuovo-preventivo:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 10px 35px rgba(40, 167, 69, 0.7) !important;
+.giorno-ios:active {
+    transform: scale(0.95);
 }
 
-.disco747-dashboard-enhanced a[style*="background:"]:hover {
-    filter: brightness(110%);
-    transform: translateY(-2px);
-}
-
-.disco747-dashboard-enhanced table tr:hover {
-    background: #f8f9fa !important;
-}
-
-
-/* ============================================================================ */
-/* RESPONSIVE DESIGN */
-/* ============================================================================ */
-
-@media (max-width: 1200px) {
-    .disco747-dashboard-enhanced [style*="grid-template-columns: repeat(auto-fill, minmax(340px, 1fr))"] {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+/* iOS Touch Optimization */
+@media (hover: none) and (pointer: coarse) {
+    .giorno-ios {
+        min-height: 48px !important;
     }
 }
 
-@media (max-width: 992px) {
-    .disco747-dashboard-enhanced [style*="grid-template-columns: repeat(auto-fit, minmax(450px, 1fr))"] {
-        grid-template-columns: 1fr !important;
-    }
+/* Animazione barre grafici */
+@keyframes fillBar {
+    from { width: 0%; }
 }
 
-@media (max-width: 768px) {
-    .disco747-dashboard-enhanced h1 {
-        font-size: 2rem !important;
-    }
-    
-    .disco747-dashboard-enhanced [style*="font-size: 3.5rem"] {
-        font-size: 2.5rem !important;
-    }
-    
-    .disco747-dashboard-enhanced [style*="grid-template-columns"] {
-        grid-template-columns: 1fr !important;
-    }
-    
-    .filtri-rapidi {
-        justify-content: center !important;
-        width: 100%;
-    }
-    
-    .disco747-dashboard-enhanced table {
-        font-size: 0.85rem;
-    }
-    
-    .disco747-dashboard-enhanced table th,
-    .disco747-dashboard-enhanced table td {
-        padding: 10px 8px !important;
-    }
-    
-    /* Nascondi colonne meno importanti su mobile */
-    .disco747-dashboard-enhanced table th:nth-child(3),
-    .disco747-dashboard-enhanced table td:nth-child(3),
-    .disco747-dashboard-enhanced table th:nth-child(5),
-    .disco747-dashboard-enhanced table td:nth-child(5) {
-        display: none;
-    }
-}
+/* ============================================ */
+/* RESPONSIVE - MOBILE FIRST */
+/* ============================================ */
 
-@media (max-width: 576px) {
-    .disco747-dashboard-enhanced .preventivo-card {
-        padding: 15px !important;
-    }
-    
-    .btn-nuovo-preventivo {
-        padding: 15px 25px !important;
-        font-size: 1rem !important;
-        width: 100%;
-        text-align: center;
-    }
-}
-
-/* ============================================================================ */
-/* CALENDARIO RESPONSIVE - MOBILE COMPATTO v2.0 */
-/* Last Update: <?php echo date('Y-m-d H:i:s'); ?> */
-/* ============================================================================ */
-
-/* Tablet e Mobile - Calendario Compatto Stile iPhone */
-@media (max-width: 768px) {
-    #calendario-eventi {
-        margin: 0 0 20px 0;
-        border-radius: 12px !important;
+/* Mobile Portrait (320px - 480px) */
+@media (max-width: 480px) {
+    .disco747-dashboard-enhanced {
+        margin: 10px auto !important;
+        padding: 0 10px;
     }
     
     /* Header compatto */
-    #calendario-eventi [style*="padding: 25px 30px"] {
-        padding: 12px 10px !important;
+    .disco747-dashboard-enhanced > div:first-child {
+        padding: 20px 20px !important;
+        border-radius: 15px !important;
+        margin-bottom: 20px !important;
     }
     
-    /* Selettori mese/anno compatti */
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
-        gap: 6px !important;
-        margin-bottom: 10px !important;
-        padding: 0 5px;
+    .disco747-dashboard-enhanced h1 {
+        font-size: 1.8rem !important;
     }
     
-    #calendario-select-mese,
-    #calendario-select-anno {
-        padding: 6px 10px !important;
-        font-size: 0.75rem !important;
-        min-width: 100px !important;
-        border-radius: 6px !important;
+    .disco747-dashboard-enhanced > div:first-child p {
+        font-size: 0.9rem !important;
     }
     
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
-        padding: 6px 12px !important;
-        font-size: 0.75rem !important;
-        border-radius: 6px !important;
-    }
-    
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] label {
-        font-size: 0.7rem !important;
-        display: none; /* Nascondi "Vai a:" per risparmiare spazio */
-    }
-    
-    /* Navigazione frecce compatta */
-    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
-        padding: 6px 10px !important;
-        font-size: 1rem !important;
-    }
-    
-    #calendario-eventi h2 {
+    /* Pulsante grande responsive */
+    .btn-nuovo-preventivo-big {
+        padding: 18px 25px !important;
         font-size: 1.1rem !important;
     }
     
-    #calendario-eventi p {
-        font-size: 0.7rem !important;
-        margin-top: 2px !important;
+    /* Grafici a colonna singola */
+    .disco747-dashboard-enhanced > div:nth-child(3) {
+        grid-template-columns: 1fr !important;
     }
     
-    /* Griglia calendario molto compatta */
-    #calendario-eventi [style*="padding: 20px"] {
-        padding: 10px 8px !important;
+    /* Filtri compatti */
+    .disco747-dashboard-enhanced > div:nth-child(4) > div {
+        flex-direction: column !important;
+        gap: 10px !important;
     }
     
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
-        gap: 2px !important;
-        margin-bottom: 12px !important;
+    #filtro-mese,
+    #filtro-anno {
+        width: 100% !important;
+        min-width: auto !important;
     }
     
-    /* Intestazioni giorni ultra compatte */
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
-        font-size: 0.6rem !important;
-        padding: 5px 0 !important;
-    }
-    
-    /* Giorni compatti ma touch-friendly (min 36px) */
-    #calendario-eventi [style*="aspect-ratio: 1"] {
-        font-size: 0.7rem !important;
-        min-height: 36px !important;
-        padding: 2px !important;
-    }
-    
-    /* Pallini eventi più piccoli */
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"] {
-        width: 3px !important;
-        height: 3px !important;
-        margin-top: 1px !important;
-    }
-    
-    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
-        margin-top: 1px !important;
-        gap: 1px !important;
-    }
-    
-    /* Eventi giorno compatti */
-    #eventi-giorno {
-        padding-top: 12px !important;
-        margin-top: 12px !important;
-    }
-    
-    #eventi-giorno-titolo {
-        font-size: 0.9rem !important;
-        margin-bottom: 10px !important;
-    }
-    
-    #eventi-giorno-lista > div {
-        padding: 10px !important;
-        margin-bottom: 6px !important;
-    }
-    
-    #eventi-giorno-lista a {
-        padding: 6px 10px !important;
-        font-size: 0.7rem !important;
-    }
-}
-
-/* Mobile Piccolo - Ultra Compatto Stile Agenda iPhone */
-@media (max-width: 576px) {
+    /* Calendario iOS compatto */
     #calendario-eventi {
-        margin: 0 0 15px 0;
+        border-radius: 15px !important;
+        margin-bottom: 20px !important;
     }
     
-    /* Header ultra compatto */
-    #calendario-eventi [style*="padding: 25px 30px"] {
-        padding: 10px 8px !important;
+    #calendario-eventi > div:first-child {
+        padding: 15px 10px !important;
     }
     
-    /* Selettori inline orizzontali compatti */
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] {
-        flex-direction: row !important;
-        gap: 4px !important;
-        margin-bottom: 8px !important;
-        padding: 0 3px;
-        justify-content: center !important;
+    #calendario-titolo {
+        font-size: 1.1rem !important;
     }
     
-    #calendario-select-mese,
-    #calendario-select-anno {
-        padding: 5px 8px !important;
-        font-size: 0.7rem !important;
-        min-width: 85px !important;
-        width: auto !important;
-    }
-    
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
-        padding: 5px 10px !important;
-        font-size: 0.7rem !important;
-        width: auto !important;
-    }
-    
-    /* Titolo e contatore compatti */
-    #calendario-eventi h2 {
-        font-size: 1rem !important;
-    }
-    
-    #calendario-eventi p {
-        font-size: 0.65rem !important;
-        margin-top: 1px !important;
-    }
-    
-    /* Navigazione frecce mini */
-    #calendario-eventi [style*="display: flex; justify-content: space-between"] button {
-        padding: 5px 8px !important;
-        font-size: 0.9rem !important;
-    }
-    
-    /* Griglia calendario ultra compatta */
-    #calendario-eventi [style*="padding: 20px"] {
-        padding: 8px 5px !important;
-    }
-    
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] {
-        gap: 1px !important;
-        margin-bottom: 10px !important;
+    .ios-nav-btn {
+        font-size: 1.5rem !important;
+        padding: 4px 8px !important;
     }
     
     /* Intestazioni giorni mini */
-    #calendario-eventi [style*="grid-template-columns: repeat(7, 1fr)"] > div {
-        font-size: 0.55rem !important;
-        padding: 3px 0 !important;
-        letter-spacing: -0.3px;
-    }
-    
-    /* Giorni mini ma touch-friendly (32px - minimo iOS) */
-    #calendario-eventi [style*="aspect-ratio: 1"] {
+    .ios-header-giorni > div {
         font-size: 0.65rem !important;
-        min-height: 32px !important;
-        padding: 1px !important;
-        font-weight: 500 !important;
+        padding: 6px 0 !important;
     }
     
-    /* Pallini eventi micro */
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 5px"],
-    #calendario-eventi [style*="aspect-ratio: 1"] [style*="width: 3px"] {
-        width: 2.5px !important;
-        height: 2.5px !important;
-        margin-top: 0px !important;
+    /* Giorni iOS touch-friendly */
+    .giorno-ios,
+    .giorno-vuoto {
+        min-height: 48px !important;
+        padding: 6px 2px !important;
     }
     
-    #calendario-eventi [style*="aspect-ratio: 1"] > div:last-child {
-        margin-top: 0px !important;
-        gap: 1px !important;
-    }
-    
-    /* Eventi giorno ultra compatti */
-    #eventi-giorno {
-        padding-top: 10px !important;
-        margin-top: 10px !important;
-    }
-    
-    #eventi-giorno-titolo {
-        font-size: 0.85rem !important;
-        margin-bottom: 8px !important;
-    }
-    
-    #eventi-giorno-lista > div {
-        padding: 8px !important;
-        margin-bottom: 5px !important;
-        border-radius: 8px !important;
-    }
-    
-    #eventi-giorno-lista [style*="font-weight: 700"] {
+    .giorno-ios span {
         font-size: 0.85rem !important;
     }
     
-    #eventi-giorno-lista [style*="font-size: 0.85rem"] {
-        font-size: 0.7rem !important;
+    /* Pallini eventi mini */
+    .giorno-ios > div:last-child > div {
+        width: 4px !important;
+        height: 4px !important;
     }
     
-    #eventi-giorno-lista a {
-        padding: 5px 8px !important;
-        font-size: 0.65rem !important;
-        border-radius: 12px !important;
+    /* Link rapidi a colonna singola */
+    .disco747-dashboard-enhanced > div:last-child {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+    
+    .disco747-dashboard-enhanced > div:last-child a {
+        padding: 20px !important;
+    }
+    
+    .disco747-dashboard-enhanced > div:last-child h3 {
+        font-size: 1.1rem !important;
     }
 }
 
-/* Mobile Extra Piccolo - Massima Compattezza */
-@media (max-width: 400px) {
-    #calendario-eventi {
-        margin: 0 0 12px 0;
+/* Tablet (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .disco747-dashboard-enhanced {
+        margin: 15px auto !important;
     }
     
-    /* Header minimale */
-    #calendario-eventi [style*="padding: 25px 30px"] {
-        padding: 8px 5px !important;
+    .btn-nuovo-preventivo-big {
+        padding: 20px 30px !important;
+        font-size: 1.3rem !important;
     }
     
-    /* Selettori mini */
-    #calendario-select-mese,
-    #calendario-select-anno {
-        padding: 4px 6px !important;
-        font-size: 0.65rem !important;
-        min-width: 75px !important;
+    #calendario-titolo {
+        font-size: 1.3rem !important;
     }
     
-    #calendario-eventi [style*="gap: 15px; margin-bottom: 20px"] button {
-        padding: 4px 8px !important;
-        font-size: 0.65rem !important;
+    .giorno-ios,
+    .giorno-vuoto {
+        min-height: 55px !important;
     }
     
-    /* Titolo mini */
-    #calendario-eventi h2 {
-        font-size: 0.9rem !important;
+    /* Grafici 2 colonne */
+    .disco747-dashboard-enhanced > div:nth-child(3) {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
     
-    #calendario-eventi p {
-        font-size: 0.6rem !important;
-    }
-    
-    /* Griglia ultra compatta */
-    #calendario-eventi [style*="padding: 20px"] {
-        padding: 6px 3px !important;
-    }
-    
-    /* Giorni mini (30px - limite minimo touch) */
-    #calendario-eventi [style*="aspect-ratio: 1"] {
-        font-size: 0.6rem !important;
-        min-height: 30px !important;
+    /* Link rapidi 2 colonne */
+    .disco747-dashboard-enhanced > div:last-child {
+        grid-template-columns: repeat(2, 1fr) !important;
     }
 }
 
-/* Desktop Large */
-@media (min-width: 1400px) {
-    #calendario-eventi [style*="aspect-ratio: 1"] {
-        font-size: 1rem !important;
+/* Desktop Large (1200px+) */
+@media (min-width: 1200px) {
+    .giorno-ios,
+    .giorno-vuoto {
+        min-height: 70px !important;
     }
     
-    #calendario-eventi [style*="width: 5px"] {
+    .giorno-ios span {
+        font-size: 1.05rem !important;
+    }
+    
+    .giorno-ios > div:last-child > div {
         width: 6px !important;
         height: 6px !important;
     }
 }
 
-/* Animazione caricamento */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-.loading-state {
-    animation: pulse 1.5s ease-in-out infinite;
+/* Print Styles */
+@media print {
+    .btn-nuovo-preventivo-big,
+    .ios-nav-btn,
+    #filtro-mese,
+    #filtro-anno,
+    button {
+        display: none !important;
+    }
 }
 </style>
 
-<!-- Cache Buster: <?php echo time(); ?> -->
+<!-- ============================================================================ -->
+<!-- JAVASCRIPT -->
+<!-- ============================================================================ -->
 <script>
-// Force CSS refresh on mobile devices
-(function() {
-    // Forza re-render del calendario su mobile
-    if (window.innerWidth <= 768) {
-        setTimeout(function() {
-            const calendario = document.getElementById('calendario-eventi');
-            if (calendario) {
-                // Forza repaint
-                calendario.style.display = 'none';
-                calendario.offsetHeight; // Trigger reflow
-                calendario.style.display = '';
-            }
-        }, 100);
+// Dati eventi dal PHP
+const eventiPerData = <?php echo json_encode($eventi_per_data); ?>;
+const mesiNomi = <?php echo json_encode($mesi_nomi); ?>;
+
+// Variabili globali
+let meseCorrente = <?php echo $calendario_mese; ?>;
+let annoCorrente = <?php echo $calendario_anno; ?>;
+
+// Funzione: Applica filtro calendario
+function applicaFiltroCalendario() {
+    const mese = document.getElementById('filtro-mese').value;
+    const anno = document.getElementById('filtro-anno').value;
+    
+    const url = new URL(window.location.href);
+    url.searchParams.set('cal_month', mese);
+    url.searchParams.set('cal_year', anno);
+    window.location.href = url.toString();
+}
+
+// Funzione: Mostra eventi del giorno selezionato CON TUTTI I PULSANTI
+function mostraEventi(data) {
+    const eventi = eventiPerData[data];
+    if (!eventi || eventi.length === 0) return;
+    
+    // Rimuovi selezione precedente
+    document.querySelectorAll('.giorno-ios').forEach(el => {
+        el.style.background = el.dataset.date === '<?php echo $oggi; ?>' ? 'white' : 'white';
+    });
+    
+    // Seleziona giorno cliccato
+    const giornoEl = document.querySelector(`.giorno-ios[data-date="${data}"]`);
+    if (giornoEl) {
+        giornoEl.style.background = '#f0f0f0';
     }
-})();
+    
+    // Formatta data
+    const dataObj = new Date(data + 'T00:00:00');
+    const giornoSettimana = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'][dataObj.getDay()];
+    const giorno = dataObj.getDate();
+    const mese = mesiNomi[dataObj.getMonth() + 1];
+    
+    const titoloFormattato = `${giornoSettimana} ${giorno} ${mese}`;
+    
+    // Aggiorna UI
+    document.getElementById('eventi-giorno-titolo').textContent = titoloFormattato + ' • ' + eventi.length + ' evento' + (eventi.length > 1 ? 'i' : '');
+    
+    // Crea lista eventi COMPLETA
+    let html = '';
+    eventi.forEach(evento => {
+        const statoClass = evento.stato === 'confermato' || parseFloat(evento.acconto) > 0 ? 'confermato' : (evento.stato === 'annullato' ? 'annullato' : 'attivo');
+        
+        let statoLabel = '';
+        let statoColor = '';
+        let statoIcon = '';
+        
+        if (statoClass === 'confermato') {
+            statoLabel = 'Confermato';
+            statoColor = '#34c759';
+            statoIcon = '✓';
+        } else if (statoClass === 'annullato') {
+            statoLabel = 'Annullato';
+            statoColor = '#ff3b30';
+            statoIcon = '✕';
+        } else {
+            statoLabel = 'Attivo';
+            statoColor = '#007aff';
+            statoIcon = '○';
+        }
+        
+        // Formatta telefono e email
+        const telefono = evento.telefono || '';
+        const email = evento.email || '';
+        const nomeCliente = evento.nome_cliente || 'Cliente';
+        const tipoEvento = evento.tipo_evento || 'Evento';
+        const tipoMenu = evento.tipo_menu || 'Menu';
+        const numeroInvitati = evento.numero_invitati || '-';
+        
+        // Link WhatsApp (formato internazionale)
+        const telefonoWA = telefono.replace(/\s+/g, '').replace(/^0/, '39'); // Rimuovi spazi e converti in formato internazionale
+        const whatsappLink = `https://wa.me/${telefonoWA}`;
+        const whatsappMessage = `https://wa.me/${telefonoWA}?text=${encodeURIComponent('Ciao ' + nomeCliente + ', ti contattiamo per il tuo evento del ' + data)}`;
+        
+        html += `
+            <div style="background: white; padding: 20px; margin-bottom: 15px; border-radius: 16px; border-left: 5px solid ${statoColor}; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                
+                <!-- Header Card -->
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-weight: 700; font-size: 1.2rem; color: #1d1d1f; margin-bottom: 5px;">
+                            ${nomeCliente}
+                        </div>
+                        <div style="font-size: 0.9rem; color: #8e8e93; margin-bottom: 3px;">
+                            🎉 ${tipoEvento}
+                        </div>
+                        <div style="font-size: 0.85rem; color: #8e8e93;">
+                            🍽️ ${tipoMenu} • 👥 ${numeroInvitati} invitati
+                        </div>
+                    </div>
+                    
+                    <!-- Badge Stato -->
+                    <span style="background: ${statoColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
+                        ${statoIcon} ${statoLabel}
+                    </span>
+                </div>
+                
+                <!-- Contatti Rapidi -->
+                <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; padding: 12px; background: #f9f9f9; border-radius: 12px;">
+                    
+                    ${telefono ? `
+                    <!-- WhatsApp -->
+                    <a href="${whatsappMessage}" 
+                       target="_blank"
+                       style="flex: 1; min-width: 45px; background: #25d366; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-size: 0.85rem; font-weight: 600; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px;"
+                       onmouseover="this.style.background='#20ba5a'; this.style.transform='translateY(-2px)'"
+                       onmouseout="this.style.background='#25d366'; this.style.transform='translateY(0)'">
+                        💬 WhatsApp
+                    </a>
+                    
+                    <!-- Telefono -->
+                    <a href="tel:${telefono}" 
+                       style="flex: 1; min-width: 45px; background: #007aff; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-size: 0.85rem; font-weight: 600; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px;"
+                       onmouseover="this.style.background='#0051d5'; this.style.transform='translateY(-2px)'"
+                       onmouseout="this.style.background='#007aff'; this.style.transform='translateY(0)'">
+                        📞 Chiama
+                    </a>
+                    ` : ''}
+                    
+                    ${email ? `
+                    <!-- Email -->
+                    <a href="mailto:${email}?subject=${encodeURIComponent('Preventivo ' + tipoEvento + ' - 747 Disco')}" 
+                       style="flex: 1; min-width: 45px; background: #5856d6; color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-size: 0.85rem; font-weight: 600; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px;"
+                       onmouseover="this.style.background='#4240b8'; this.style.transform='translateY(-2px)'"
+                       onmouseout="this.style.background='#5856d6'; this.style.transform='translateY(0)'">
+                        ✉️ Email
+                    </a>
+                    ` : ''}
+                    
+                </div>
+                
+                <!-- Azioni Principali -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                    
+                    <!-- Visualizza -->
+                    <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi&id='); ?>${evento.id}" 
+                       style="background: #007aff; color: white; padding: 12px 20px; border-radius: 12px; text-decoration: none; font-size: 0.9rem; font-weight: 600; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                       onmouseover="this.style.background='#0051d5'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0, 122, 255, 0.4)'"
+                       onmouseout="this.style.background='#007aff'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        👁️ Visualizza
+                    </a>
+                    
+                    <!-- Modifica -->
+                    <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo&id='); ?>${evento.id}" 
+                       style="background: #ff9500; color: white; padding: 12px 20px; border-radius: 12px; text-decoration: none; font-size: 0.9rem; font-weight: 600; text-align: center; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;"
+                       onmouseover="this.style.background='#ff8c00'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(255, 149, 0, 0.4)'"
+                       onmouseout="this.style.background='#ff9500'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        ✏️ Modifica
+                    </a>
+                    
+                </div>
+                
+            </div>
+        `;
+    });
+    
+    document.getElementById('eventi-giorno-lista').innerHTML = html;
+    document.getElementById('eventi-giorno').style.display = 'block';
+    
+    // Scroll all'area eventi
+    setTimeout(() => {
+        document.getElementById('eventi-giorno').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+}
+
+// Funzione: Cambia mese (avanti/indietro)
+function cambioMese(direzione) {
+    meseCorrente += direzione;
+    
+    if (meseCorrente > 12) {
+        meseCorrente = 1;
+        annoCorrente++;
+    } else if (meseCorrente < 1) {
+        meseCorrente = 12;
+        annoCorrente--;
+    }
+    
+    aggiornaCalendario();
+}
+
+// Funzione: Vai a oggi
+function vaiOggi() {
+    const oggi = new Date();
+    meseCorrente = oggi.getMonth() + 1;
+    annoCorrente = oggi.getFullYear();
+    aggiornaCalendario();
+}
+
+// Funzione: Aggiorna calendario con AJAX
+function aggiornaCalendario() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('cal_month', meseCorrente);
+    url.searchParams.set('cal_year', annoCorrente);
+    window.location.href = url.toString();
+}
+
+// Inizializzazione
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Dashboard 747 Disco iOS Enhanced caricata');
+    
+    // Sincronizza filtri con navigazione
+    document.getElementById('filtro-mese').value = meseCorrente;
+    document.getElementById('filtro-anno').value = annoCorrente;
+    
+    // Nascondi eventi quando si clicca fuori
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.giorno-ios') && !e.target.closest('#eventi-giorno')) {
+            const eventiDiv = document.getElementById('eventi-giorno');
+            if (eventiDiv && eventiDiv.style.display === 'block') {
+                eventiDiv.style.display = 'none';
+                // Reset background giorni
+                document.querySelectorAll('.giorno-ios').forEach(el => {
+                    el.style.background = 'white';
+                });
+            }
+        }
+    });
+    
+    // Animazione barre grafici
+    setTimeout(() => {
+        document.querySelectorAll('[style*="transition: width 1s"]').forEach(bar => {
+            bar.style.animation = 'fillBar 1.5s ease';
+        });
+    }, 300);
+});
+
+// Touch handling per iOS
+if ('ontouchstart' in window) {
+    document.querySelectorAll('.giorno-ios').forEach(el => {
+        el.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            if (this.onclick) {
+                this.onclick();
+            }
+        });
+    });
+}
 </script>

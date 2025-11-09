@@ -101,9 +101,9 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_test_storage', array($this, 'handle_storage_test'));
         add_action('wp_ajax_disco747_update_setting', array($this, 'handle_update_setting'));
         
-        // ❌ DISABILITATO: Batch scan Excel ora gestito da class-disco747-excel-scan-handler.php con lock
-        // add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan'));
-        // add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan'));
+        // Batch scan Excel da Google Drive
+        add_action('wp_ajax_batch_scan_excel', array($this, 'handle_batch_scan'));
+        add_action('wp_ajax_reset_and_scan_excel', array($this, 'handle_reset_and_scan'));
         
         // Template messaggi
         add_action('wp_ajax_disco747_get_templates', array($this, 'handle_get_templates'));
@@ -111,11 +111,11 @@ class Disco747_Ajax {
         add_action('wp_ajax_disco747_send_email_template', array($this, 'handle_send_email_template'));
         add_action('wp_ajax_disco747_send_whatsapp_template', array($this, 'handle_send_whatsapp_template'));
         
-        $this->log('Hook AJAX registrati (templates + send email + whatsapp)');
+        $this->log('Hook AJAX registrati (incluso batch scan + templates + send email + whatsapp)');
     }
 
     /**
-     * 🎯 Handler per batch scan di file Excel su Google Drive
+     * ðŸŽ¯ Handler per batch scan di file Excel su Google Drive
      */
     public function handle_batch_scan() {
         error_log('[747Disco-Scan] handle_batch_scan chiamato');
@@ -168,7 +168,7 @@ class Disco747_Ajax {
     }
 
     /**
-     * 🗑️ Handler per reset e scan completo
+     * ðŸ—‘ï¸ Handler per reset e scan completo
      */
     public function handle_reset_and_scan() {
         error_log('[747Disco-Scan] handle_reset_and_scan chiamato');
@@ -207,7 +207,7 @@ class Disco747_Ajax {
     }
 
     /**
-     * 📧 Handler per invio email con template
+     * ðŸ“§ Handler per invio email con template
      */
     public function handle_send_email_template() {
         try {
@@ -282,7 +282,7 @@ class Disco747_Ajax {
             if ($attach_pdf) {
                 $this->log('[Email] PDF richiesto - verifico esistenza...');
                 
-                // Controlla se esiste già un PDF nel database
+                // Controlla se esiste giÃ  un PDF nel database
                 if (!empty($preventivo['pdf_url'])) {
                     $pdf_path = $preventivo['pdf_url'];
                     $this->log('[Email] PDF path dal DB: ' . $pdf_path);
@@ -330,7 +330,7 @@ class Disco747_Ajax {
                         $pdf_path = $pdf_generator->generate_pdf($pdf_data);
                         
                         if ($pdf_path && file_exists($pdf_path)) {
-                            $this->log('[Email] ✅ PDF generato con successo: ' . basename($pdf_path));
+                            $this->log('[Email] âœ… PDF generato con successo: ' . basename($pdf_path));
                             
                             // Aggiorna database con path PDF
                             $wpdb->update(
@@ -341,14 +341,14 @@ class Disco747_Ajax {
                                 array('%d')
                             );
                         } else {
-                            $this->log('[Email] ❌ ERRORE: PDF non generato o file non trovato', 'ERROR');
+                            $this->log('[Email] âŒ ERRORE: PDF non generato o file non trovato', 'ERROR');
                             $pdf_path = null;
                         }
                     } else {
-                        $this->log('[Email] ❌ PDF Generator non disponibile', 'ERROR');
+                        $this->log('[Email] âŒ PDF Generator non disponibile', 'ERROR');
                     }
                 } else {
-                    $this->log('[Email] ✅ PDF esistente trovato: ' . basename($pdf_path));
+                    $this->log('[Email] âœ… PDF esistente trovato: ' . basename($pdf_path));
                 }
             }
             
@@ -362,7 +362,9 @@ class Disco747_Ajax {
                 $this->log('[Email] Nessun PDF da allegare');
             }
             
-            $result = $email_manager->send_preventivo_email($email_data, $pdf_path);
+            // Passa template_id nelle options
+            $options = array('template_id' => $template_id);
+            $result = $email_manager->send_preventivo_email($email_data, $pdf_path, $options);
             
             if ($result) {
                 // Log invio email nel database
@@ -390,7 +392,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * 💬 Handler per invio WhatsApp con template
+     * ðŸ’¬ Handler per invio WhatsApp con template
      */
     public function handle_send_whatsapp_template() {
         try {
@@ -437,9 +439,9 @@ class Disco747_Ajax {
             
             // Template WhatsApp
             $templates = array(
-                '1' => "Ciao {{nome}}! 🎉\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} è pronto!\n\n💰 Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! 🎊",
-                '2' => "Ciao {{nome}}! 🎈\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! 📞",
-                '3' => "Ciao {{nome}}! ✅\n\nGrazie per aver confermato!\n\n📅 {{data_evento}}\n💰 Acconto: {{acconto}}\n\nCi vediamo presto! 🎉"
+                '1' => "Ciao {{nome}}! ðŸŽ‰\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} Ã¨ pronto!\n\nðŸ’° Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! ðŸŽŠ",
+                '2' => "Ciao {{nome}}! ðŸŽˆ\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! ðŸ“ž",
+                '3' => "Ciao {{nome}}! âœ…\n\nGrazie per aver confermato!\n\nðŸ“… {{data_evento}}\nðŸ’° Acconto: {{acconto}}\n\nCi vediamo presto! ðŸŽ‰"
             );
             
             $whatsapp_message = $templates[$template_id] ?? $templates['1'];
@@ -455,8 +457,8 @@ class Disco747_Ajax {
                 '{{tipo_evento}}' => $preventivo['tipo_evento'] ?? '',
                 '{{menu}}' => $preventivo['tipo_menu'] ?? '',
                 '{{numero_invitati}}' => $preventivo['numero_invitati'] ?? '',
-                '{{importo}}' => '€ ' . number_format($preventivo['importo_totale'] ?? 0, 2, ',', '.'),
-                '{{acconto}}' => '€ ' . number_format($preventivo['acconto'] ?? 0, 2, ',', '.'),
+                '{{importo}}' => 'â‚¬ ' . number_format($preventivo['importo_totale'] ?? 0, 2, ',', '.'),
+                '{{acconto}}' => 'â‚¬ ' . number_format($preventivo['acconto'] ?? 0, 2, ',', '.'),
                 '{{preventivo_id}}' => $preventivo['preventivo_id'] ?? ''
             );
             
@@ -492,7 +494,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * 📋 Handler per ottenere template disponibili
+     * ðŸ“‹ Handler per ottenere template disponibili
      */
     public function handle_get_templates() {
         try {
@@ -500,19 +502,40 @@ class Disco747_Ajax {
                 throw new \Exception('Nonce non valido');
             }
             
-            // Template email predefiniti
-            $email_templates = array(
-                array('id' => '1', 'name' => 'Template 1 - Standard'),
-                array('id' => '2', 'name' => 'Template 2 - Promozionale'),
-                array('id' => '3', 'name' => 'Template 3 - Formale')
-            );
+            // Leggi numero massimo di template configurati
+            $max_templates = get_option('disco747_max_templates', 5);
             
-            // Template WhatsApp predefiniti
-            $whatsapp_templates = array(
-                array('id' => '1', 'name' => 'Template 1 - Cordiale'),
-                array('id' => '2', 'name' => 'Template 2 - Promozionale'),
-                array('id' => '3', 'name' => 'Template 3 - Breve')
-            );
+            // 📧 Carica template EMAIL dalle impostazioni WordPress
+            $email_templates = array();
+            for ($i = 1; $i <= $max_templates; $i++) {
+                $name = get_option('disco747_email_name_' . $i, 'Template Email ' . $i);
+                $enabled = get_option('disco747_email_enabled_' . $i, 1);
+                
+                // Include solo i template abilitati
+                if ($enabled) {
+                    $email_templates[] = array(
+                        'id' => (string)$i,
+                        'name' => $name
+                    );
+                }
+            }
+            
+            // 💬 Carica template WHATSAPP dalle impostazioni WordPress
+            $whatsapp_templates = array();
+            for ($i = 1; $i <= $max_templates; $i++) {
+                $name = get_option('disco747_whatsapp_name_' . $i, 'Template WhatsApp ' . $i);
+                $enabled = get_option('disco747_whatsapp_enabled_' . $i, 1);
+                
+                // Include solo i template abilitati
+                if ($enabled) {
+                    $whatsapp_templates[] = array(
+                        'id' => (string)$i,
+                        'name' => $name
+                    );
+                }
+            }
+            
+            $this->log('[Templates] Caricati ' . count($email_templates) . ' template email e ' . count($whatsapp_templates) . ' template WhatsApp');
             
             wp_send_json_success(array(
                 'email' => $email_templates,
@@ -525,7 +548,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * 📝 Handler per compilare template
+     * ðŸ“ Handler per compilare template
      */
     public function handle_compile_template() {
         try {
@@ -548,7 +571,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * 📊 Salva log invio email nel database
+     * ðŸ“Š Salva log invio email nel database
      */
     private function log_email_sent($preventivo_id, $email_to, $template_id, $success, $error_message = null) {
         global $wpdb;
