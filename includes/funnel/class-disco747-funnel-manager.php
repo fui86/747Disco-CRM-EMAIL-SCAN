@@ -237,6 +237,7 @@ class Disco747_Funnel_Manager {
     
     /**
      * Invia email al cliente
+     * ✅ FIX v1.2.0: Usa template HTML professionale come classe Disco747_Email
      */
     private function send_email_to_customer($preventivo, $step) {
         $to = $preventivo->email;
@@ -247,7 +248,10 @@ class Disco747_Funnel_Manager {
         }
         
         $subject = $this->replace_variables($step->email_subject, $preventivo);
-        $body = $this->replace_variables($step->email_body, $preventivo);
+        $body_raw = $this->replace_variables($step->email_body, $preventivo);
+        
+        // ✅ FIX v1.2.0: Genera HTML completo con template professionale
+        $body_html = $this->generate_funnel_email_html($body_raw, $preventivo);
         
         // Headers
         $headers = array(
@@ -255,9 +259,6 @@ class Disco747_Funnel_Manager {
             'From: 747 Disco <info@gestionale.747disco.it>',
             'Reply-To: info@gestionale.747disco.it'
         );
-        
-        // Converti newline in <br>
-        $body_html = nl2br($body);
         
         $sent = wp_mail($to, $subject, $body_html, $headers);
         
@@ -268,6 +269,96 @@ class Disco747_Funnel_Manager {
         }
         
         return $sent;
+    }
+    
+    /**
+     * ✅ NUOVO METODO v1.2.0: Genera HTML email professionale per funnel
+     * 
+     * Usa lo stesso stile della classe Disco747_Email per coerenza grafica
+     * 
+     * @param string $content Contenuto email dal database (GIÀ con placeholder sostituiti)
+     * @param object $preventivo Dati preventivo
+     * @return string HTML completo professionale
+     * @since 1.2.0
+     */
+    private function generate_funnel_email_html($content, $preventivo) {
+        // ✅ STEP 1: Estrai CSS dal contenuto per metterlo nel <head>
+        $extracted_css = '';
+        if (preg_match_all('/<style[^>]*>(.*?)<\/style>/is', $content, $matches)) {
+            foreach ($matches[1] as $css) {
+                $extracted_css .= $css . "\n";
+            }
+            // Rimuovi i tag <style> dal body
+            $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
+        }
+        
+        // ✅ STEP 2: Rimuovi eventuali tag strutturali HTML se presenti
+        $content = preg_replace('/<!DOCTYPE[^>]*>/i', '', $content);
+        $content = preg_replace('/<\/?html[^>]*>/i', '', $content);
+        $content = preg_replace('/<\/?head[^>]*>/i', '', $content);
+        $content = preg_replace('/<\/?body[^>]*>/i', '', $content);
+        
+        // ✅ STEP 3: Pulisci spazi bianchi multipli e trim
+        $content = trim($content);
+        
+        // ✅ STEP 4: Converti newline in <br> solo se è testo semplice
+        if (strpos($content, '<div') === false && strpos($content, '<table') === false && strpos($content, '<p>') === false) {
+            $content = nl2br($content);
+        }
+        
+        // ✅ TEMPLATE HTML PROFESSIONALE (stesso stile di Disco747_Email)
+        return '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>747 Disco</title>
+    <style type="text/css">
+        /* CSS base per compatibilità email */
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; }
+        img { border: 0; max-width: 100%; height: auto; }
+        
+        /* ✅ CSS estratto dal template funnel */
+        ' . $extracted_css . '
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">
+    <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
+        
+        <!-- Logo -->
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 160px;">
+        </div>
+        
+        <!-- Header con gradiente -->
+        <div style="background: linear-gradient(135deg, #c28a4d 0%, #b8b1b3 100%); padding: 30px; border-radius: 15px; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 28px;">🎉 747 DISCO</h1>
+            <p style="margin: 10px 0 0; font-size: 16px;">Il tuo evento da sogno</p>
+        </div>
+        
+        <!-- Contenuto principale -->
+        <div style="background: white; padding: 30px; margin: 20px 0; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            ' . $content . '
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 30px; padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 100px; opacity: 0.6;">
+            </div>
+            <p style="margin: 5px 0;"><strong style="color: #c28a4d;">747 DISCO</strong></p>
+            <p style="margin: 5px 0;">Via Esempio 123, Roma</p>
+            <p style="margin: 5px 0;">📧 info@gestionale.747disco.it | 📞 +39 333 123 4567</p>
+            <p style="margin: 15px 0 5px; font-size: 11px; color: #999;">
+                Hai ricevuto questa email perché hai richiesto un preventivo.<br>
+                Se non desideri più ricevere comunicazioni, <a href="#" style="color: #c28a4d;">clicca qui</a>.
+            </p>
+        </div>
+        
+    </div>
+</body>
+</html>';
     }
     
     /**
@@ -368,23 +459,66 @@ class Disco747_Funnel_Manager {
     
     /**
      * Sostituisce variabili nel testo
+     * ✅ v1.2.1: Aggiunta gestione completa di tutti i placeholder
      */
     private function replace_variables($text, $preventivo) {
+        // ✅ Gestione sicura di tutti i campi con fallback
+        $nome_ref = isset($preventivo->nome_referente) && !empty($preventivo->nome_referente) 
+            ? $preventivo->nome_referente 
+            : (isset($preventivo->nome_cliente) ? $preventivo->nome_cliente : 'Cliente');
+        
+        $cognome_ref = isset($preventivo->cognome_referente) && !empty($preventivo->cognome_referente) 
+            ? $preventivo->cognome_referente 
+            : '';
+        
+        $importo = isset($preventivo->importo_totale) 
+            ? $preventivo->importo_totale 
+            : (isset($preventivo->importo_preventivo) ? $preventivo->importo_preventivo : 0);
+        
+        $acconto_val = isset($preventivo->acconto) ? $preventivo->acconto : 0;
+        
         $variables = array(
-            '{{nome_referente}}' => $preventivo->nome_referente ?: $preventivo->nome_cliente,
-            '{{cognome_referente}}' => $preventivo->cognome_referente ?: '',
-            '{{nome_cliente}}' => $preventivo->nome_cliente,
-            '{{tipo_evento}}' => $preventivo->tipo_evento,
-            '{{data_evento}}' => date('d/m/Y', strtotime($preventivo->data_evento)),
-            '{{numero_invitati}}' => $preventivo->numero_invitati,
-            '{{tipo_menu}}' => $preventivo->tipo_menu,
-            '{{importo_totale}}' => number_format($preventivo->importo_totale, 2, ',', '.'),
-            '{{acconto}}' => number_format($preventivo->acconto, 2, ',', '.'),
-            '{{telefono_sede}}' => '06 123456789', // Sostituisci con numero reale
-            '{{email_sede}}' => 'info@gestionale.747disco.it'
+            // Nomi e dati cliente
+            '{{nome_referente}}' => $nome_ref,
+            '{{cognome_referente}}' => $cognome_ref,
+            '{{nome_cliente}}' => isset($preventivo->nome_cliente) ? $preventivo->nome_cliente : 'Cliente',
+            '{{nome_completo}}' => trim($nome_ref . ' ' . $cognome_ref),
+            
+            // Dati evento
+            '{{tipo_evento}}' => isset($preventivo->tipo_evento) ? $preventivo->tipo_evento : '',
+            '{{data_evento}}' => isset($preventivo->data_evento) ? date('d/m/Y', strtotime($preventivo->data_evento)) : '',
+            '{{numero_invitati}}' => isset($preventivo->numero_invitati) ? $preventivo->numero_invitati : '0',
+            '{{tipo_menu}}' => isset($preventivo->tipo_menu) ? $preventivo->tipo_menu : '',
+            '{{menu}}' => isset($preventivo->tipo_menu) ? $preventivo->tipo_menu : '',
+            
+            // Orari
+            '{{orario_inizio}}' => isset($preventivo->orario_inizio) ? substr($preventivo->orario_inizio, 0, 5) : '20:30',
+            '{{orario_fine}}' => isset($preventivo->orario_fine) ? substr($preventivo->orario_fine, 0, 5) : '01:30',
+            
+            // Importi
+            '{{importo_totale}}' => number_format($importo, 2, ',', '.'),
+            '{{importo}}' => number_format($importo, 2, ',', '.'),
+            '{{acconto}}' => number_format($acconto_val, 2, ',', '.'),
+            
+            // Contatti sede
+            '{{telefono_sede}}' => '+39 333 123 4567',
+            '{{email_sede}}' => 'info@gestionale.747disco.it',
+            
+            // Contatti cliente
+            '{{email}}' => isset($preventivo->email) ? $preventivo->email : '',
+            '{{telefono}}' => isset($preventivo->telefono) ? $preventivo->telefono : '',
+            '{{cellulare}}' => isset($preventivo->telefono) ? $preventivo->telefono : ''
         );
         
-        return str_replace(array_keys($variables), array_values($variables), $text);
+        // Log per debug se ci sono placeholder non sostituiti
+        $result = str_replace(array_keys($variables), array_values($variables), $text);
+        
+        // Verifica se ci sono ancora placeholder non sostituiti
+        if (preg_match_all('/\{\{([^}]+)\}\}/', $result, $matches)) {
+            error_log("[747Disco-Funnel] ⚠️ Placeholder non sostituiti: " . implode(', ', $matches[0]));
+        }
+        
+        return $result;
     }
     
     /**
