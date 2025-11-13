@@ -282,9 +282,21 @@ class Disco747_Funnel_Manager {
      * @since 1.1.0
      */
     private function wrap_html_email($content) {
-        // Se il contenuto ha già <!DOCTYPE> o <html>, non wrappare
-        if (stripos($content, '<!DOCTYPE') !== false || stripos($content, '<html') !== false) {
+        // Se il contenuto ha già una struttura HTML completa, non wrappare
+        if (stripos($content, '<!DOCTYPE') !== false || 
+            (stripos($content, '<html') !== false && stripos($content, '</html>') !== false)) {
             return $content;
+        }
+        
+        // ✅ FIX CRITICO: Estrai e rimuovi tag <style> dal contenuto per metterli nel <head>
+        $extracted_styles = '';
+        if (preg_match_all('/<style[^>]*>(.*?)<\/style>/is', $content, $matches)) {
+            // Salva tutti i CSS trovati
+            foreach ($matches[1] as $style_content) {
+                $extracted_styles .= $style_content . "\n";
+            }
+            // Rimuovi i tag <style> dal contenuto originale
+            $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
         }
         
         // Converti newline in <br> solo se non ci sono già tag HTML complessi
@@ -335,6 +347,9 @@ class Disco747_Funnel_Manager {
             overflow: hidden;
             mso-hide: all;
         }
+        
+        /* ✅ CSS estratti dal template funnel */
+        ' . $extracted_styles . '
     </style>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
