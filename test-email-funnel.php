@@ -18,11 +18,59 @@ require_once(__DIR__ . '/wp-load.php');
 // ===================================================================
 $EMAIL_TEST = 'tua-email@test.com'; // ← CAMBIA CON LA TUA EMAIL
 $STEP_NUMBER = 1; // 1, 2 o 3 (quale template testare)
+
+// 🔐 PASSWORD TEMPORANEA (per sicurezza, modifica questa password!)
+$TEST_PASSWORD = 'test747disco'; // ← CAMBIA QUESTA PASSWORD
 // ===================================================================
 
-// Verifica che l'utente sia admin
-if (!current_user_can('manage_options')) {
-    die('❌ Accesso negato. Solo admin possono eseguire questo test.');
+// Verifica password o admin loggato
+$is_authenticated = false;
+
+// Check 1: Se loggato come admin WordPress
+if (is_user_logged_in() && current_user_can('manage_options')) {
+    $is_authenticated = true;
+}
+
+// Check 2: Se password corretta tramite URL (?password=xxx)
+if (isset($_GET['password']) && $_GET['password'] === $TEST_PASSWORD) {
+    $is_authenticated = true;
+}
+
+if (!$is_authenticated) {
+    die('
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Test Email Funnel - Accesso Richiesto</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 40px; background: #f5f5f5; text-align: center; }
+            .box { max-width: 500px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #c28a4d; margin-bottom: 20px; }
+            .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+            .info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left; }
+            code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; }
+        </style>
+    </head>
+    <body>
+        <div class="box">
+            <h1>🔒 Accesso Richiesto</h1>
+            <div class="error">
+                <strong>❌ Accesso negato</strong><br>
+                Devi essere loggato come admin WordPress o fornire la password.
+            </div>
+            <div class="info">
+                <strong>💡 Come accedere:</strong><br><br>
+                <strong>Opzione 1:</strong> Effettua il login come admin WordPress e poi ricarica questa pagina.<br><br>
+                <strong>Opzione 2:</strong> Aggiungi la password nell\'URL:<br>
+                <code>?password=' . esc_html($TEST_PASSWORD) . '</code><br><br>
+                Esempio:<br>
+                <code>https://tuosito.it/test-email-funnel.php?password=' . esc_html($TEST_PASSWORD) . '</code>
+            </div>
+        </div>
+    </body>
+    </html>
+    ');
 }
 
 // Header HTML
