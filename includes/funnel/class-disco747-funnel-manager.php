@@ -276,28 +276,35 @@ class Disco747_Funnel_Manager {
      * 
      * Usa lo stesso stile della classe Disco747_Email per coerenza grafica
      * 
-     * @param string $content Contenuto email dal database
+     * @param string $content Contenuto email dal database (GIÀ con placeholder sostituiti)
      * @param object $preventivo Dati preventivo
      * @return string HTML completo professionale
      * @since 1.2.0
      */
     private function generate_funnel_email_html($content, $preventivo) {
-        // Pulisci il contenuto: rimuovi eventuali tag <style> che causano problemi
-        $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
+        // ✅ STEP 1: Estrai CSS dal contenuto per metterlo nel <head>
+        $extracted_css = '';
+        if (preg_match_all('/<style[^>]*>(.*?)<\/style>/is', $content, $matches)) {
+            foreach ($matches[1] as $css) {
+                $extracted_css .= $css . "\n";
+            }
+            // Rimuovi i tag <style> dal body
+            $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
+        }
         
-        // Rimuovi eventuali tag DOCTYPE/HTML se presenti (pulizia)
+        // ✅ STEP 2: Rimuovi eventuali tag strutturali HTML se presenti
         $content = preg_replace('/<!DOCTYPE[^>]*>/i', '', $content);
         $content = preg_replace('/<\/?html[^>]*>/i', '', $content);
         $content = preg_replace('/<\/?head[^>]*>/i', '', $content);
         $content = preg_replace('/<\/?body[^>]*>/i', '', $content);
         
-        // Converti newline in <br> solo se è testo semplice
+        // ✅ STEP 3: Pulisci spazi bianchi multipli e trim
+        $content = trim($content);
+        
+        // ✅ STEP 4: Converti newline in <br> solo se è testo semplice
         if (strpos($content, '<div') === false && strpos($content, '<table') === false && strpos($content, '<p>') === false) {
             $content = nl2br($content);
         }
-        
-        // Nome per saluto
-        $nome = $preventivo->nome_referente ?: $preventivo->nome_cliente;
         
         // ✅ TEMPLATE HTML PROFESSIONALE (stesso stile di Disco747_Email)
         return '<!DOCTYPE html>
@@ -306,6 +313,15 @@ class Disco747_Funnel_Manager {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>747 Disco</title>
+    <style type="text/css">
+        /* CSS base per compatibilità email */
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; }
+        img { border: 0; max-width: 100%; height: auto; }
+        
+        /* ✅ CSS estratto dal template funnel */
+        ' . $extracted_css . '
+    </style>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">
     <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
@@ -443,23 +459,66 @@ class Disco747_Funnel_Manager {
     
     /**
      * Sostituisce variabili nel testo
+     * ✅ v1.2.1: Aggiunta gestione completa di tutti i placeholder
      */
     private function replace_variables($text, $preventivo) {
+        // ✅ Gestione sicura di tutti i campi con fallback
+        $nome_ref = isset($preventivo->nome_referente) && !empty($preventivo->nome_referente) 
+            ? $preventivo->nome_referente 
+            : (isset($preventivo->nome_cliente) ? $preventivo->nome_cliente : 'Cliente');
+        
+        $cognome_ref = isset($preventivo->cognome_referente) && !empty($preventivo->cognome_referente) 
+            ? $preventivo->cognome_referente 
+            : '';
+        
+        $importo = isset($preventivo->importo_totale) 
+            ? $preventivo->importo_totale 
+            : (isset($preventivo->importo_preventivo) ? $preventivo->importo_preventivo : 0);
+        
+        $acconto_val = isset($preventivo->acconto) ? $preventivo->acconto : 0;
+        
         $variables = array(
-            '{{nome_referente}}' => $preventivo->nome_referente ?: $preventivo->nome_cliente,
-            '{{cognome_referente}}' => $preventivo->cognome_referente ?: '',
-            '{{nome_cliente}}' => $preventivo->nome_cliente,
-            '{{tipo_evento}}' => $preventivo->tipo_evento,
-            '{{data_evento}}' => date('d/m/Y', strtotime($preventivo->data_evento)),
-            '{{numero_invitati}}' => $preventivo->numero_invitati,
-            '{{tipo_menu}}' => $preventivo->tipo_menu,
-            '{{importo_totale}}' => number_format($preventivo->importo_totale, 2, ',', '.'),
-            '{{acconto}}' => number_format($preventivo->acconto, 2, ',', '.'),
-            '{{telefono_sede}}' => '06 123456789', // Sostituisci con numero reale
-            '{{email_sede}}' => 'info@gestionale.747disco.it'
+            // Nomi e dati cliente
+            '{{nome_referente}}' => $nome_ref,
+            '{{cognome_referente}}' => $cognome_ref,
+            '{{nome_cliente}}' => isset($preventivo->nome_cliente) ? $preventivo->nome_cliente : 'Cliente',
+            '{{nome_completo}}' => trim($nome_ref . ' ' . $cognome_ref),
+            
+            // Dati evento
+            '{{tipo_evento}}' => isset($preventivo->tipo_evento) ? $preventivo->tipo_evento : '',
+            '{{data_evento}}' => isset($preventivo->data_evento) ? date('d/m/Y', strtotime($preventivo->data_evento)) : '',
+            '{{numero_invitati}}' => isset($preventivo->numero_invitati) ? $preventivo->numero_invitati : '0',
+            '{{tipo_menu}}' => isset($preventivo->tipo_menu) ? $preventivo->tipo_menu : '',
+            '{{menu}}' => isset($preventivo->tipo_menu) ? $preventivo->tipo_menu : '',
+            
+            // Orari
+            '{{orario_inizio}}' => isset($preventivo->orario_inizio) ? substr($preventivo->orario_inizio, 0, 5) : '20:30',
+            '{{orario_fine}}' => isset($preventivo->orario_fine) ? substr($preventivo->orario_fine, 0, 5) : '01:30',
+            
+            // Importi
+            '{{importo_totale}}' => number_format($importo, 2, ',', '.'),
+            '{{importo}}' => number_format($importo, 2, ',', '.'),
+            '{{acconto}}' => number_format($acconto_val, 2, ',', '.'),
+            
+            // Contatti sede
+            '{{telefono_sede}}' => '+39 333 123 4567',
+            '{{email_sede}}' => 'info@gestionale.747disco.it',
+            
+            // Contatti cliente
+            '{{email}}' => isset($preventivo->email) ? $preventivo->email : '',
+            '{{telefono}}' => isset($preventivo->telefono) ? $preventivo->telefono : '',
+            '{{cellulare}}' => isset($preventivo->telefono) ? $preventivo->telefono : ''
         );
         
-        return str_replace(array_keys($variables), array_values($variables), $text);
+        // Log per debug se ci sono placeholder non sostituiti
+        $result = str_replace(array_keys($variables), array_values($variables), $text);
+        
+        // Verifica se ci sono ancora placeholder non sostituiti
+        if (preg_match_all('/\{\{([^}]+)\}\}/', $result, $matches)) {
+            error_log("[747Disco-Funnel] ⚠️ Placeholder non sostituiti: " . implode(', ', $matches[0]));
+        }
+        
+        return $result;
     }
     
     /**
