@@ -237,6 +237,7 @@ class Disco747_Funnel_Manager {
     
     /**
      * Invia email al cliente
+     * ✅ FIX v1.1.0: Wrapper HTML completo per corretta visualizzazione email
      */
     private function send_email_to_customer($preventivo, $step) {
         $to = $preventivo->email;
@@ -256,8 +257,8 @@ class Disco747_Funnel_Manager {
             'Reply-To: info@gestionale.747disco.it'
         );
         
-        // Converti newline in <br>
-        $body_html = nl2br($body);
+        // ✅ FIX: Wrapper HTML completo per visualizzazione corretta
+        $body_html = $this->wrap_html_email($body);
         
         $sent = wp_mail($to, $subject, $body_html, $headers);
         
@@ -268,6 +269,98 @@ class Disco747_Funnel_Manager {
         }
         
         return $sent;
+    }
+    
+    /**
+     * ✅ NUOVO METODO v1.1.0: Wrappa il contenuto email in struttura HTML completa
+     * 
+     * Risolve il problema di CSS/HTML mostrati come testo nei client email.
+     * Aggiunge <!DOCTYPE>, <html>, <head>, <body> per compatibilità universale.
+     * 
+     * @param string $content Contenuto email (HTML o testo)
+     * @return string HTML completo e ben formato
+     * @since 1.1.0
+     */
+    private function wrap_html_email($content) {
+        // Se il contenuto ha già <!DOCTYPE> o <html>, non wrappare
+        if (stripos($content, '<!DOCTYPE') !== false || stripos($content, '<html') !== false) {
+            return $content;
+        }
+        
+        // Converti newline in <br> solo se non ci sono già tag HTML complessi
+        if (strpos($content, '<div') === false && strpos($content, '<table') === false) {
+            $content = nl2br($content);
+        }
+        
+        // Wrapper HTML completo con best practices per email
+        return '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>747 Disco</title>
+    <style type="text/css">
+        /* Reset styles per compatibilità email client */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f4f4f4;
+        }
+        table {
+            border-collapse: collapse;
+        }
+        img {
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
+            text-decoration: none;
+        }
+        a {
+            color: #c28a4d;
+            text-decoration: underline;
+        }
+        /* Preheader hidden text */
+        .preheader {
+            display: none !important;
+            visibility: hidden;
+            opacity: 0;
+            color: transparent;
+            height: 0;
+            width: 0;
+            overflow: hidden;
+            mso-hide: all;
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            ' . $content . '
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 20px 30px; text-align: center; background-color: #f8f9fa; border-top: 1px solid #e9ecef; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; font-size: 14px; color: #6c757d;">
+                                <strong style="color: #c28a4d;">747 DISCO</strong><br>
+                                📧 info@gestionale.747disco.it | 📞 +39 333 123 4567
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
     }
     
     /**
