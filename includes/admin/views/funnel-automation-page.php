@@ -47,6 +47,43 @@ if (isset($_POST['save_sequence'])) {
     // Salva/Aggiorna sequenza
     $sequence_id = intval($_POST['sequence_id'] ?? 0);
     
+    // ✅ FIX: Sanitizzazione email_body per template HTML completi
+    // Definisce tag e attributi permessi per template email HTML professionali
+    $allowed_html = array(
+        // Struttura documento
+        'html' => array(), 'head' => array(), 'body' => array(), 'title' => array(),
+        'meta' => array('charset' => true, 'name' => true, 'content' => true, 'http-equiv' => true),
+        'style' => array('type' => true),
+        '!doctype' => array('html' => true),
+        
+        // Tabelle (critiche per email HTML)
+        'table' => array('role' => true, 'width' => true, 'cellpadding' => true, 'cellspacing' => true, 'border' => true, 'style' => true, 'align' => true),
+        'tr' => array('style' => true, 'align' => true, 'valign' => true),
+        'td' => array('style' => true, 'align' => true, 'valign' => true, 'width' => true, 'height' => true, 'colspan' => true, 'rowspan' => true),
+        'th' => array('style' => true, 'align' => true, 'valign' => true, 'width' => true, 'colspan' => true, 'rowspan' => true),
+        'tbody' => array('style' => true), 'thead' => array('style' => true), 'tfoot' => array('style' => true),
+        
+        // Testo e formattazione
+        'div' => array('style' => true, 'class' => true, 'align' => true),
+        'span' => array('style' => true, 'class' => true),
+        'p' => array('style' => true, 'class' => true, 'align' => true),
+        'h1' => array('style' => true, 'class' => true), 'h2' => array('style' => true, 'class' => true),
+        'h3' => array('style' => true, 'class' => true), 'h4' => array('style' => true, 'class' => true),
+        'strong' => array('style' => true), 'b' => array('style' => true),
+        'em' => array('style' => true), 'i' => array('style' => true),
+        'u' => array('style' => true), 'br' => array(), 'hr' => array('style' => true),
+        
+        // Link e immagini
+        'a' => array('href' => true, 'style' => true, 'class' => true, 'target' => true, 'title' => true),
+        'img' => array('src' => true, 'alt' => true, 'width' => true, 'height' => true, 'style' => true, 'class' => true),
+        
+        // Liste
+        'ul' => array('style' => true), 'ol' => array('style' => true), 'li' => array('style' => true),
+        
+        // Altri
+        'center' => array(), 'blockquote' => array('style' => true)
+    );
+    
     $data = array(
         'funnel_type' => sanitize_key($_POST['funnel_type']),
         'step_number' => intval($_POST['step_number']),
@@ -55,7 +92,7 @@ if (isset($_POST['save_sequence'])) {
         'send_time' => sanitize_text_field($_POST['send_time']) . ':00',
         'email_enabled' => isset($_POST['email_enabled']) ? 1 : 0,
         'email_subject' => sanitize_text_field($_POST['email_subject']),
-        'email_body' => wp_kses_post($_POST['email_body']),
+        'email_body' => wp_kses($_POST['email_body'], $allowed_html), // ✅ Usa wp_kses con whitelist custom
         'whatsapp_enabled' => isset($_POST['whatsapp_enabled']) ? 1 : 0,
         'whatsapp_text' => sanitize_textarea_field($_POST['whatsapp_text']),
         'active' => isset($_POST['active']) ? 1 : 0
