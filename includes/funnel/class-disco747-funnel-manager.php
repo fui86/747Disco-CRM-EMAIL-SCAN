@@ -256,8 +256,9 @@ class Disco747_Funnel_Manager {
             'Reply-To: info@gestionale.747disco.it'
         );
         
-        // Converti newline in <br>
-        $body_html = nl2br($body);
+        // ✅ FIX: NON usare nl2br() per HTML completo
+        // Il template email_body contiene già HTML completo, non serve conversione
+        $body_html = $body;
         
         $sent = wp_mail($to, $subject, $body_html, $headers);
         
@@ -368,20 +369,33 @@ class Disco747_Funnel_Manager {
     
     /**
      * Sostituisce variabili nel testo
+     * ✅ FIXED: Aggiunti tutti i placeholder usati nei template email
      */
     private function replace_variables($text, $preventivo) {
         $variables = array(
+            // Nomi (con alias)
             '{{nome_referente}}' => $preventivo->nome_referente ?: $preventivo->nome_cliente,
+            '{{nome}}' => $preventivo->nome_referente ?: $preventivo->nome_cliente, // ✅ ALIAS
             '{{cognome_referente}}' => $preventivo->cognome_referente ?: '',
+            '{{cognome}}' => $preventivo->cognome_referente ?: '', // ✅ ALIAS
             '{{nome_cliente}}' => $preventivo->nome_cliente,
+            
+            // Evento
             '{{tipo_evento}}' => $preventivo->tipo_evento,
             '{{data_evento}}' => date('d/m/Y', strtotime($preventivo->data_evento)),
             '{{numero_invitati}}' => $preventivo->numero_invitati,
             '{{tipo_menu}}' => $preventivo->tipo_menu,
-            '{{importo_totale}}' => number_format($preventivo->importo_totale, 2, ',', '.'),
-            '{{acconto}}' => number_format($preventivo->acconto, 2, ',', '.'),
-            '{{telefono_sede}}' => '06 123456789', // Sostituisci con numero reale
-            '{{email_sede}}' => 'info@gestionale.747disco.it'
+            
+            // Importi
+            '{{importo_totale}}' => '€' . number_format($preventivo->importo_totale, 2, ',', '.'),
+            '{{acconto}}' => '€' . number_format($preventivo->acconto, 2, ',', '.'),
+            
+            // Metadati
+            '{{preventivo_id}}' => $preventivo->preventivo_id ?: $preventivo->id, // ✅ AGGIUNTO
+            
+            // Contatti sede
+            '{{telefono_sede}}' => '+39 347 181 1119', // ✅ AGGIORNATO con numero reale
+            '{{email_sede}}' => 'eventi@747disco.it' // ✅ AGGIORNATO
         );
         
         return str_replace(array_keys($variables), array_values($variables), $text);

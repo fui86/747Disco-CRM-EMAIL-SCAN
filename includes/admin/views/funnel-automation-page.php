@@ -44,8 +44,24 @@ $active_tab = sanitize_key($_GET['tab'] ?? 'pre_conferma');
 
 // Azioni
 if (isset($_POST['save_sequence'])) {
+    // Verifica permessi admin
+    if (!current_user_can('manage_options')) {
+        wp_die('Accesso negato');
+    }
+    
     // Salva/Aggiorna sequenza
     $sequence_id = intval($_POST['sequence_id'] ?? 0);
+    
+    // ✅ FIX DEFINITIVO: Per utenti admin fidati, salva HTML senza sanitizzazione
+    // wp_kses() NON gestisce correttamente i tag <style> (rimuove il tag ma lascia il contenuto come testo)
+    // Dato che solo admin possono accedere a questa pagina, è sicuro salvare l'HTML completo
+    
+    // Rimuove solo magic quotes se presenti
+    $email_body_raw = wp_unslash($_POST['email_body']);
+    
+    // Sanitizzazione MINIMA per sicurezza (rimuove solo script pericolosi)
+    $email_body_clean = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $email_body_raw);
+    $email_body_clean = preg_replace('/on\w+\s*=\s*["\'].*?["\']/i', '', $email_body_clean); // Rimuove onclick, onload, etc.
     
     $data = array(
         'funnel_type' => sanitize_key($_POST['funnel_type']),
@@ -55,7 +71,7 @@ if (isset($_POST['save_sequence'])) {
         'send_time' => sanitize_text_field($_POST['send_time']) . ':00',
         'email_enabled' => isset($_POST['email_enabled']) ? 1 : 0,
         'email_subject' => sanitize_text_field($_POST['email_subject']),
-        'email_body' => wp_kses_post($_POST['email_body']),
+        'email_body' => $email_body_clean, // ✅ HTML completo preservato (solo script rimossi)
         'whatsapp_enabled' => isset($_POST['whatsapp_enabled']) ? 1 : 0,
         'whatsapp_text' => sanitize_textarea_field($_POST['whatsapp_text']),
         'active' => isset($_POST['active']) ? 1 : 0
@@ -79,6 +95,26 @@ if (isset($_GET['delete_sequence'])) {
 if (isset($_GET['action']) && $_GET['action'] === 'test_cron') {
     $scheduler->process_pending_sends();
     $message = '✅ Test cron eseguito! Controlla i log.';
+}
+
+// ✅ Ricarica template Gmail-safe
+if (isset($_POST['reload_templates'])) {
+    if (!current_user_can('manage_options')) {
+        wp_die('Accesso negato');
+    }
+    
+    // Verifica nonce
+    if (!isset($_POST['reload_templates_nonce']) || !wp_verify_nonce($_POST['reload_templates_nonce'], 'reload_templates_action')) {
+        wp_die('❌ Verifica di sicurezza fallita');
+    }
+    
+    $funnel_db = new Disco747_Funnel_Database();
+    $result = $funnel_db->reload_default_templates(true); // force=true
+    if ($result) {
+        $message = '✅ Template Gmail-safe ricaricati con successo! I vecchi template corrotti sono stati sostituiti.';
+    } else {
+        $message = '⚠️ Errore durante il ricaricamento dei template.';
+    }
 }
 
 // Carica sequenze
@@ -133,6 +169,29 @@ $cron_status = $scheduler->get_cron_status();
             <p><?php echo $message; ?></p>
         </div>
     <?php endif; ?>
+    
+    <!-- ✅ FIX: Pulsante ricarica template Gmail-safe -->
+    <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); padding: 20px; border-radius: 12px; margin-bottom: 25px; color: white; border: 3px solid #c92a2a;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
+            <div style="flex: 1; min-width: 300px;">
+                <h3 style="margin: 0 0 8px 0; color: white; font-size: 18px;">
+                    🔧 Template Email Corrotti?
+                </h3>
+                <p style="margin: 0; font-size: 14px; opacity: 0.95; line-height: 1.6;">
+                    Se le email mostrano CSS come testo, usa questo pulsante per ricaricare i template <strong>Gmail-safe</strong> (senza tag &lt;style&gt;, solo CSS inline).
+                    <br><strong>Attenzione:</strong> Questa azione cancellerà tutti i template "Pre-Conferma" esistenti e li sostituirà con nuovi template professionali.
+                </p>
+            </div>
+            <div>
+                <form method="post" style="margin: 0;" onsubmit="return confirm('⚠️ ATTENZIONE!\n\nQuesta azione cancellerà TUTTI i template Pre-Conferma esistenti e li sostituirà con nuovi template Gmail-safe.\n\nI template Pre-Evento non verranno toccati.\n\nContinuare?');">
+                    <?php wp_nonce_field('reload_templates_action', 'reload_templates_nonce'); ?>
+                    <button type="submit" name="reload_templates" class="button button-primary" style="background: #1a1a1a; border-color: #000; padding: 12px 24px; font-size: 15px; font-weight: 700; height: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                        🔄 Ricarica Template Gmail-Safe
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- STATISTICHE RAPIDE -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
