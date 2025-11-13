@@ -102,6 +102,12 @@ if (isset($_POST['reload_templates'])) {
     if (!current_user_can('manage_options')) {
         wp_die('Accesso negato');
     }
+    
+    // Verifica nonce
+    if (!isset($_POST['reload_templates_nonce']) || !wp_verify_nonce($_POST['reload_templates_nonce'], 'reload_templates_action')) {
+        wp_die('❌ Verifica di sicurezza fallita');
+    }
+    
     $funnel_db = new Disco747_Funnel_Database();
     $result = $funnel_db->reload_default_templates(true); // force=true
     if ($result) {
