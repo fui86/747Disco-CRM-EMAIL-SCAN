@@ -10,9 +10,6 @@
  * 5. CANCELLA questo file dopo il test (per sicurezza)
  */
 
-// Carica WordPress
-require_once(__DIR__ . '/wp-load.php');
-
 // ===================================================================
 // CONFIGURAZIONE - Modifica qui
 // ===================================================================
@@ -23,20 +20,8 @@ $STEP_NUMBER = 1; // 1, 2 o 3 (quale template testare)
 $TEST_PASSWORD = 'test747disco'; // ← CAMBIA QUESTA PASSWORD
 // ===================================================================
 
-// Verifica password o admin loggato
-$is_authenticated = false;
-
-// Check 1: Se loggato come admin WordPress
-if (is_user_logged_in() && current_user_can('manage_options')) {
-    $is_authenticated = true;
-}
-
-// Check 2: Se password corretta tramite URL (?password=xxx)
-if (isset($_GET['password']) && $_GET['password'] === $TEST_PASSWORD) {
-    $is_authenticated = true;
-}
-
-if (!$is_authenticated) {
+// Verifica password (SEMPLICE: solo password nell'URL)
+if (!isset($_GET['password']) || $_GET['password'] !== $TEST_PASSWORD) {
     die('
     <!DOCTYPE html>
     <html>
@@ -49,29 +34,39 @@ if (!$is_authenticated) {
             h1 { color: #c28a4d; margin-bottom: 20px; }
             .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
             .info { background: #d1ecf1; color: #0c5460; padding: 15px; border-radius: 5px; margin-top: 20px; text-align: left; }
-            code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; }
+            code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 14px; }
+            .url-example { background: #fff3cd; padding: 12px; border-radius: 5px; margin-top: 15px; border: 1px solid #ffc107; }
         </style>
     </head>
     <body>
         <div class="box">
-            <h1>🔒 Accesso Richiesto</h1>
+            <h1>🔒 Password Richiesta</h1>
             <div class="error">
                 <strong>❌ Accesso negato</strong><br>
-                Devi essere loggato come admin WordPress o fornire la password.
+                Devi fornire la password nell\'URL per accedere.
             </div>
             <div class="info">
                 <strong>💡 Come accedere:</strong><br><br>
-                <strong>Opzione 1:</strong> Effettua il login come admin WordPress e poi ricarica questa pagina.<br><br>
-                <strong>Opzione 2:</strong> Aggiungi la password nell\'URL:<br>
-                <code>?password=' . esc_html($TEST_PASSWORD) . '</code><br><br>
-                Esempio:<br>
-                <code>https://tuosito.it/test-email-funnel.php?password=' . esc_html($TEST_PASSWORD) . '</code>
+                Aggiungi questo alla fine dell\'URL:<br><br>
+                <code>?password=' . htmlspecialchars($TEST_PASSWORD) . '</code>
+                
+                <div class="url-example">
+                    <strong>URL completo:</strong><br>
+                    <code>https://tuosito.it/test-email-funnel.php?password=' . htmlspecialchars($TEST_PASSWORD) . '</code>
+                </div>
+                
+                <p style="margin-top: 15px; font-size: 13px; color: #666;">
+                    <strong>Nota:</strong> Per maggiore sicurezza, cambia la password alla riga 23 del file.
+                </p>
             </div>
         </div>
     </body>
     </html>
     ');
 }
+
+// OK, password corretta! Carica WordPress
+require_once(__DIR__ . '/wp-load.php');
 
 // Header HTML
 ?>
