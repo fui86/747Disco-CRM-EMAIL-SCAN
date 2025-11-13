@@ -10,8 +10,6 @@
 
 namespace Disco747_CRM\Funnel;
 
-use Disco747_CRM\Communication\Disco747_Email;
-
 if (!defined('ABSPATH')) {
     exit('Accesso diretto non consentito');
 }
@@ -21,7 +19,6 @@ class Disco747_Funnel_Manager {
     private $sequences_table;
     private $tracking_table;
     private $preventivi_table;
-    private $email_handler;
     
     public function __construct() {
         global $wpdb;
@@ -29,9 +26,6 @@ class Disco747_Funnel_Manager {
         $this->sequences_table = $wpdb->prefix . 'disco747_funnel_sequences';
         $this->tracking_table = $wpdb->prefix . 'disco747_funnel_tracking';
         $this->preventivi_table = $wpdb->prefix . 'disco747_preventivi';
-        
-        // ✅ FIX v1.2.0: Usa la classe Email che funziona correttamente
-        $this->email_handler = new Disco747_Email();
     }
     
     /**
