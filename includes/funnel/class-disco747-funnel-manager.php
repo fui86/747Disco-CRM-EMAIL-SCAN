@@ -10,6 +10,8 @@
 
 namespace Disco747_CRM\Funnel;
 
+use Disco747_CRM\Communication\Disco747_Email;
+
 if (!defined('ABSPATH')) {
     exit('Accesso diretto non consentito');
 }
@@ -19,6 +21,7 @@ class Disco747_Funnel_Manager {
     private $sequences_table;
     private $tracking_table;
     private $preventivi_table;
+    private $email_handler;
     
     public function __construct() {
         global $wpdb;
@@ -26,6 +29,9 @@ class Disco747_Funnel_Manager {
         $this->sequences_table = $wpdb->prefix . 'disco747_funnel_sequences';
         $this->tracking_table = $wpdb->prefix . 'disco747_funnel_tracking';
         $this->preventivi_table = $wpdb->prefix . 'disco747_preventivi';
+        
+        // ✅ FIX v1.2.0: Usa la classe Email che funziona correttamente
+        $this->email_handler = new Disco747_Email();
     }
     
     /**
@@ -237,7 +243,7 @@ class Disco747_Funnel_Manager {
     
     /**
      * Invia email al cliente
-     * ✅ FIX v1.1.0: Wrapper HTML completo per corretta visualizzazione email
+     * ✅ FIX v1.2.0: Usa template HTML professionale come classe Disco747_Email
      */
     private function send_email_to_customer($preventivo, $step) {
         $to = $preventivo->email;
@@ -248,7 +254,10 @@ class Disco747_Funnel_Manager {
         }
         
         $subject = $this->replace_variables($step->email_subject, $preventivo);
-        $body = $this->replace_variables($step->email_body, $preventivo);
+        $body_raw = $this->replace_variables($step->email_body, $preventivo);
+        
+        // ✅ FIX v1.2.0: Genera HTML completo con template professionale
+        $body_html = $this->generate_funnel_email_html($body_raw, $preventivo);
         
         // Headers
         $headers = array(
@@ -256,9 +265,6 @@ class Disco747_Funnel_Manager {
             'From: 747 Disco <info@gestionale.747disco.it>',
             'Reply-To: info@gestionale.747disco.it'
         );
-        
-        // ✅ FIX: Wrapper HTML completo per visualizzazione corretta
-        $body_html = $this->wrap_html_email($body);
         
         $sent = wp_mail($to, $subject, $body_html, $headers);
         
@@ -272,108 +278,75 @@ class Disco747_Funnel_Manager {
     }
     
     /**
-     * ✅ NUOVO METODO v1.1.0: Wrappa il contenuto email in struttura HTML completa
+     * ✅ NUOVO METODO v1.2.0: Genera HTML email professionale per funnel
      * 
-     * Risolve il problema di CSS/HTML mostrati come testo nei client email.
-     * Aggiunge <!DOCTYPE>, <html>, <head>, <body> per compatibilità universale.
+     * Usa lo stesso stile della classe Disco747_Email per coerenza grafica
      * 
-     * @param string $content Contenuto email (HTML o testo)
-     * @return string HTML completo e ben formato
-     * @since 1.1.0
+     * @param string $content Contenuto email dal database
+     * @param object $preventivo Dati preventivo
+     * @return string HTML completo professionale
+     * @since 1.2.0
      */
-    private function wrap_html_email($content) {
-        // Se il contenuto ha già una struttura HTML completa, non wrappare
-        if (stripos($content, '<!DOCTYPE') !== false || 
-            (stripos($content, '<html') !== false && stripos($content, '</html>') !== false)) {
-            return $content;
-        }
+    private function generate_funnel_email_html($content, $preventivo) {
+        // Pulisci il contenuto: rimuovi eventuali tag <style> che causano problemi
+        $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
         
-        // ✅ FIX CRITICO: Estrai e rimuovi tag <style> dal contenuto per metterli nel <head>
-        $extracted_styles = '';
-        if (preg_match_all('/<style[^>]*>(.*?)<\/style>/is', $content, $matches)) {
-            // Salva tutti i CSS trovati
-            foreach ($matches[1] as $style_content) {
-                $extracted_styles .= $style_content . "\n";
-            }
-            // Rimuovi i tag <style> dal contenuto originale
-            $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
-        }
+        // Rimuovi eventuali tag DOCTYPE/HTML se presenti (pulizia)
+        $content = preg_replace('/<!DOCTYPE[^>]*>/i', '', $content);
+        $content = preg_replace('/<\/?html[^>]*>/i', '', $content);
+        $content = preg_replace('/<\/?head[^>]*>/i', '', $content);
+        $content = preg_replace('/<\/?body[^>]*>/i', '', $content);
         
-        // Converti newline in <br> solo se non ci sono già tag HTML complessi
-        if (strpos($content, '<div') === false && strpos($content, '<table') === false) {
+        // Converti newline in <br> solo se è testo semplice
+        if (strpos($content, '<div') === false && strpos($content, '<table') === false && strpos($content, '<p>') === false) {
             $content = nl2br($content);
         }
         
-        // Wrapper HTML completo con best practices per email
-        return '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>747 Disco</title>
-    <style type="text/css">
-        /* Reset styles per compatibilità email client */
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            color: #333333;
-            background-color: #f4f4f4;
-        }
-        table {
-            border-collapse: collapse;
-        }
-        img {
-            border: 0;
-            height: auto;
-            line-height: 100%;
-            outline: none;
-            text-decoration: none;
-        }
-        a {
-            color: #c28a4d;
-            text-decoration: underline;
-        }
-        /* Preheader hidden text */
-        .preheader {
-            display: none !important;
-            visibility: hidden;
-            opacity: 0;
-            color: transparent;
-            height: 0;
-            width: 0;
-            overflow: hidden;
-            mso-hide: all;
-        }
+        // Nome per saluto
+        $nome = $preventivo->nome_referente ?: $preventivo->nome_cliente;
         
-        /* ✅ CSS estratti dal template funnel */
-        ' . $extracted_styles . '
-    </style>
+        // ✅ TEMPLATE HTML PROFESSIONALE (stesso stile di Disco747_Email)
+        return '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>747 Disco</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f4f4;">
-        <tr>
-            <td align="center" style="padding: 20px 0;">
-                <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <tr>
-                        <td style="padding: 40px 30px;">
-                            ' . $content . '
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 20px 30px; text-align: center; background-color: #f8f9fa; border-top: 1px solid #e9ecef; border-radius: 0 0 8px 8px;">
-                            <p style="margin: 0; font-size: 14px; color: #6c757d;">
-                                <strong style="color: #c28a4d;">747 DISCO</strong><br>
-                                📧 info@gestionale.747disco.it | 📞 +39 333 123 4567
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">
+    <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
+        
+        <!-- Logo -->
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 160px;">
+        </div>
+        
+        <!-- Header con gradiente -->
+        <div style="background: linear-gradient(135deg, #c28a4d 0%, #b8b1b3 100%); padding: 30px; border-radius: 15px; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 28px;">🎉 747 DISCO</h1>
+            <p style="margin: 10px 0 0; font-size: 16px;">Il tuo evento da sogno</p>
+        </div>
+        
+        <!-- Contenuto principale -->
+        <div style="background: white; padding: 30px; margin: 20px 0; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            ' . $content . '
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 30px; padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 100px; opacity: 0.6;">
+            </div>
+            <p style="margin: 5px 0;"><strong style="color: #c28a4d;">747 DISCO</strong></p>
+            <p style="margin: 5px 0;">Via Esempio 123, Roma</p>
+            <p style="margin: 5px 0;">📧 info@gestionale.747disco.it | 📞 +39 333 123 4567</p>
+            <p style="margin: 15px 0 5px; font-size: 11px; color: #999;">
+                Hai ricevuto questa email perché hai richiesto un preventivo.<br>
+                Se non desideri più ricevere comunicazioni, <a href="#" style="color: #c28a4d;">clicca qui</a>.
+            </p>
+        </div>
+        
+    </div>
 </body>
 </html>';
     }
