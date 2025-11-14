@@ -273,6 +273,13 @@ $cron_status = $scheduler->get_cron_status();
                                     <?php endif; ?>
                                 </td>
                                 <td>
+                                    <!-- NUOVO: Pulsante Anteprima Email -->
+                                    <button type="button" class="button button-small" onclick="previewEmail(<?php echo $seq->id; ?>)" 
+                                            style="background:#667eea;color:#fff;border-color:#667eea;margin-right:5px;" 
+                                            title="Anteprima Email">
+                                        👁️ Anteprima
+                                    </button>
+                                    
                                     <button type="button" class="button button-small" onclick="editSequence(<?php echo $seq->id; ?>)">
                                         ✏️ Modifica
                                     </button>
@@ -639,6 +646,212 @@ function closeModal() {
 document.getElementById('sequence-modal')?.addEventListener('click', function(e) {
     if (e.target === this) {
         closeModal();
+    }
+});
+</script>
+
+<!-- ===================================================================
+     MODALE ANTEPRIMA EMAIL + TEST - AGGIUNTO PER NUOVE FUNZIONALITÀ
+     =================================================================== -->
+
+<!-- MODALE ANTEPRIMA EMAIL -->
+<div id="email-preview-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:100000;overflow-y:auto;">
+    <div style="max-width:900px;margin:40px auto;position:relative;">
+        <!-- Header Modal -->
+        <div style="background:#fff;padding:20px;border-radius:12px 12px 0 0;border-bottom:2px solid #e9ecef;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h2 style="margin:0;font-size:24px;color:#333;">
+                    📧 Anteprima Email
+                </h2>
+                <button onclick="closeEmailPreview()" style="background:none;border:none;font-size:28px;cursor:pointer;color:#666;line-height:1;">&times;</button>
+            </div>
+            
+            <!-- Oggetto Email -->
+            <div style="margin-top:15px;padding:12px;background:#f8f9fa;border-radius:8px;border-left:4px solid #007bff;">
+                <strong style="color:#0056b3;">Oggetto:</strong>
+                <span id="preview-subject" style="color:#333;margin-left:8px;"></span>
+            </div>
+            
+            <!-- Azioni -->
+            <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="showTestEmailForm()" class="button button-primary" style="background:#28a745;border-color:#28a745;">
+                    📤 Invia Email di Test
+                </button>
+                <input type="email" id="test-email-input" placeholder="tua-email@example.com" style="display:none;padding:8px 12px;border:2px solid #28a745;border-radius:6px;flex:1;min-width:250px;">
+                <button id="send-test-btn" onclick="sendTestEmail()" class="button button-primary" style="display:none;background:#28a745;border-color:#28a745;">
+                    ✅ Conferma Invio
+                </button>
+                <button onclick="hideTestEmailForm()" class="button" style="display:none;" id="cancel-test-btn">
+                    ❌ Annulla
+                </button>
+            </div>
+            
+            <!-- Messaggio test -->
+            <div id="test-email-message" style="display:none;margin-top:10px;padding:12px;border-radius:8px;"></div>
+        </div>
+        
+        <!-- Contenuto Email (iframe) -->
+        <div style="background:#fff;padding:0;border-radius:0 0 12px 12px;">
+            <iframe id="email-preview-iframe" style="width:100%;min-height:600px;border:none;border-radius:0 0 12px 12px;"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT PER ANTEPRIMA E TEST EMAIL -->
+<script>
+// Variabile globale per tenere traccia della sequenza corrente
+let currentPreviewSequenceId = null;
+
+// Mostra anteprima email
+function previewEmail(sequenceId) {
+    currentPreviewSequenceId = sequenceId;
+    
+    // Mostra modal
+    document.getElementById('email-preview-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    // Mostra loading
+    document.getElementById('preview-subject').textContent = 'Caricamento...';
+    const iframe = document.getElementById('email-preview-iframe');
+    iframe.srcdoc = '<div style="text-align:center;padding:50px;font-family:sans-serif;color:#666;">⏳ Caricamento anteprima...</div>';
+    
+    // Richiesta AJAX
+    jQuery.ajax({
+        url: ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'disco747_preview_funnel_email',
+            nonce: '<?php echo wp_create_nonce('disco747_funnel_nonce'); ?>',
+            sequence_id: sequenceId
+        },
+        success: function(response) {
+            if (response.success && response.data) {
+                document.getElementById('preview-subject').textContent = response.data.subject;
+                iframe.srcdoc = response.data.html;
+            } else {
+                iframe.srcdoc = '<div style="text-align:center;padding:50px;font-family:sans-serif;color:#d32f2f;">❌ Errore durante il caricamento dell\'anteprima</div>';
+            }
+        },
+        error: function() {
+            iframe.srcdoc = '<div style="text-align:center;padding:50px;font-family:sans-serif;color:#d32f2f;">❌ Errore di connessione</div>';
+        }
+    });
+}
+
+// Chiudi modale anteprima
+function closeEmailPreview() {
+    document.getElementById('email-preview-modal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    hideTestEmailForm();
+    currentPreviewSequenceId = null;
+}
+
+// Mostra form test email
+function showTestEmailForm() {
+    document.getElementById('test-email-input').style.display = 'block';
+    document.getElementById('send-test-btn').style.display = 'inline-block';
+    document.getElementById('cancel-test-btn').style.display = 'inline-block';
+    document.querySelector('[onclick="showTestEmailForm()"]').style.display = 'none';
+    document.getElementById('test-email-message').style.display = 'none';
+    
+    // Suggerisci email utente corrente se disponibile
+    <?php
+    $current_user = wp_get_current_user();
+    if ($current_user && $current_user->user_email) {
+        echo "document.getElementById('test-email-input').value = '{$current_user->user_email}';";
+    }
+    ?>
+}
+
+// Nascondi form test email
+function hideTestEmailForm() {
+    document.getElementById('test-email-input').style.display = 'none';
+    document.getElementById('send-test-btn').style.display = 'none';
+    document.getElementById('cancel-test-btn').style.display = 'none';
+    document.querySelector('[onclick="showTestEmailForm()"]').style.display = 'inline-block';
+    document.getElementById('test-email-input').value = '';
+    document.getElementById('test-email-message').style.display = 'none';
+}
+
+// Invia email di test
+function sendTestEmail() {
+    const testEmail = document.getElementById('test-email-input').value;
+    const messageDiv = document.getElementById('test-email-message');
+    
+    if (!testEmail || !testEmail.includes('@')) {
+        messageDiv.style.display = 'block';
+        messageDiv.style.background = '#ffebee';
+        messageDiv.style.color = '#c62828';
+        messageDiv.style.borderLeft = '4px solid #c62828';
+        messageDiv.textContent = '❌ Inserisci un indirizzo email valido';
+        return;
+    }
+    
+    // Mostra loading
+    messageDiv.style.display = 'block';
+    messageDiv.style.background = '#e3f2fd';
+    messageDiv.style.color = '#1565c0';
+    messageDiv.style.borderLeft = '4px solid #1565c0';
+    messageDiv.textContent = '⏳ Invio in corso...';
+    
+    // Disabilita pulsante
+    const sendBtn = document.getElementById('send-test-btn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = '⏳ Invio...';
+    
+    // Richiesta AJAX
+    jQuery.ajax({
+        url: ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'disco747_test_funnel_email',
+            nonce: '<?php echo wp_create_nonce('disco747_funnel_nonce'); ?>',
+            sequence_id: currentPreviewSequenceId,
+            test_email: testEmail
+        },
+        success: function(response) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = '✅ Conferma Invio';
+            
+            if (response.success) {
+                messageDiv.style.background = '#e8f5e9';
+                messageDiv.style.color = '#2e7d32';
+                messageDiv.style.borderLeft = '4px solid #2e7d32';
+                messageDiv.innerHTML = '✅ ' + response.data + '<br><small>Controlla la tua casella di posta (anche spam)</small>';
+                
+                // Nascondi form dopo 3 secondi
+                setTimeout(function() {
+                    hideTestEmailForm();
+                }, 3000);
+            } else {
+                messageDiv.style.background = '#ffebee';
+                messageDiv.style.color = '#c62828';
+                messageDiv.style.borderLeft = '4px solid #c62828';
+                messageDiv.textContent = '❌ ' + response.data;
+            }
+        },
+        error: function() {
+            sendBtn.disabled = false;
+            sendBtn.textContent = '✅ Conferma Invio';
+            messageDiv.style.background = '#ffebee';
+            messageDiv.style.color = '#c62828';
+            messageDiv.style.borderLeft = '4px solid #c62828';
+            messageDiv.textContent = '❌ Errore di connessione. Riprova.';
+        }
+    });
+}
+
+// Chiudi modale cliccando fuori
+document.getElementById('email-preview-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEmailPreview();
+    }
+});
+
+// Chiudi con ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('email-preview-modal').style.display === 'block') {
+        closeEmailPreview();
     }
 });
 </script>
