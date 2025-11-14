@@ -1,11 +1,17 @@
 <?php
 /**
- * Funnel Manager - 747 Disco CRM
- * Gestisce la logica del funnel marketing (pre-conferma e pre-evento)
+ * Funnel Manager - 747 Disco CRM - VERSIONE AGGIORNATA
+ * Gestisce la logica del funnel marketing con supporto HTML e anteprima
+ * 
+ * NOVITA:
+ * - Gestione corretta HTML con CSS inline
+ * - Anteprima email funzionante
+ * - Test invio email
+ * - Template email base per contenuti semplici
  * 
  * @package    Disco747_CRM
  * @subpackage Funnel
- * @version    1.0.0
+ * @version    2.0.0
  */
 
 namespace Disco747_CRM\Funnel;
@@ -30,15 +36,10 @@ class Disco747_Funnel_Manager {
     
     /**
      * Avvia un funnel per un preventivo
-     * 
-     * @param int $preventivo_id ID del preventivo
-     * @param string $funnel_type Tipo (pre_conferma | pre_evento)
-     * @return bool|int Tracking ID o false
      */
     public function start_funnel($preventivo_id, $funnel_type = 'pre_conferma') {
         global $wpdb;
         
-        // Verifica se esiste già un tracking attivo
         $existing = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->tracking_table} 
              WHERE preventivo_id = %d AND funnel_type = %s AND status = 'active'",
@@ -47,11 +48,10 @@ class Disco747_Funnel_Manager {
         ));
         
         if ($existing) {
-            error_log("[747Disco-Funnel] Funnel già attivo per preventivo #{$preventivo_id}");
+            error_log("[747Disco-Funnel] Funnel gia attivo per preventivo #{$preventivo_id}");
             return false;
         }
         
-        // Calcola quando inviare il primo step (giorni_offset del primo step)
         $first_step = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->sequences_table} 
              WHERE funnel_type = %s AND active = 1 
@@ -64,10 +64,8 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        // Calcola data+orario invio
         $send_time = $first_step->send_time ?? '09:00:00';
         
-        // Per funnel pre-evento usa la data evento del preventivo
         if ($funnel_type === 'pre_evento') {
             $preventivo = $wpdb->get_row($wpdb->prepare(
                 "SELECT data_evento FROM {$this->preventivi_table} WHERE id = %d",
@@ -75,17 +73,14 @@ class Disco747_Funnel_Manager {
             ));
             
             if ($preventivo && $preventivo->data_evento) {
-                // Calcola giorni prima dell'evento (es: -10 giorni)
                 $next_send_at = date('Y-m-d', strtotime($preventivo->data_evento . ' ' . $first_step->days_offset . ' days')) . ' ' . $send_time;
             } else {
                 $next_send_at = date('Y-m-d', strtotime("+{$first_step->days_offset} days")) . ' ' . $send_time;
             }
         } else {
-            // Per funnel pre-conferma usa data corrente + offset
             $next_send_at = date('Y-m-d', strtotime("+{$first_step->days_offset} days")) . ' ' . $send_time;
         }
         
-        // Crea tracking
         $inserted = $wpdb->insert(
             $this->tracking_table,
             array(
@@ -103,9 +98,8 @@ class Disco747_Funnel_Manager {
         
         if ($inserted) {
             $tracking_id = $wpdb->insert_id;
-            error_log("[747Disco-Funnel] ✅ Funnel {$funnel_type} avviato per preventivo #{$preventivo_id} (Tracking ID: {$tracking_id})");
+            error_log("[747Disco-Funnel] Funnel {$funnel_type} avviato per preventivo #{$preventivo_id} (Tracking ID: {$tracking_id})");
             
-            // Se il primo step è +0 giorni, invialo subito
             if ($first_step->days_offset == 0) {
                 $this->send_next_step($tracking_id);
             }
@@ -118,14 +112,10 @@ class Disco747_Funnel_Manager {
     
     /**
      * Invia il prossimo step del funnel
-     * 
-     * @param int $tracking_id ID tracking
-     * @return bool Success
      */
     public function send_next_step($tracking_id) {
         global $wpdb;
         
-        // Carica tracking
         $tracking = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->tracking_table} WHERE id = %d",
             $tracking_id
@@ -135,7 +125,6 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        // Carica preventivo
         $preventivo = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->preventivi_table} WHERE id = %d",
             $tracking->preventivo_id
@@ -146,7 +135,6 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        // Carica prossimo step
         $next_step_number = $tracking->current_step + 1;
         $step = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->sequences_table} 
@@ -156,7 +144,6 @@ class Disco747_Funnel_Manager {
         ));
         
         if (!$step) {
-            // Nessuno step successivo = funnel completato
             $this->complete_funnel($tracking_id);
             return true;
         }
@@ -173,7 +160,6 @@ class Disco747_Funnel_Manager {
             $whatsapp_notif_sent = $this->send_whatsapp_notification($preventivo, $step, $tracking_id);
         }
         
-        // Aggiorna log
         $emails_log = json_decode($tracking->emails_log, true) ?: array();
         $whatsapp_log = json_decode($tracking->whatsapp_log, true) ?: array();
         
@@ -193,7 +179,6 @@ class Disco747_Funnel_Manager {
             );
         }
         
-        // Calcola quando inviare il prossimo step
         $next_step_data = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->sequences_table} 
              WHERE funnel_type = %s AND step_number = %d AND active = 1",
@@ -206,16 +191,13 @@ class Disco747_Funnel_Manager {
             $send_time = $next_step_data->send_time ?? '09:00:00';
             
             if ($tracking->funnel_type === 'pre_evento') {
-                // Per pre-evento calcola dalla data evento
                 $next_send_at = date('Y-m-d', strtotime($preventivo->data_evento . ' ' . $next_step_data->days_offset . ' days')) . ' ' . $send_time;
             } else {
-                // Per pre-conferma calcola differenza giorni
                 $days_diff = $next_step_data->days_offset - $step->days_offset;
                 $next_send_at = date('Y-m-d', strtotime("+{$days_diff} days")) . ' ' . $send_time;
             }
         }
         
-        // Aggiorna tracking
         $wpdb->update(
             $this->tracking_table,
             array(
@@ -230,13 +212,13 @@ class Disco747_Funnel_Manager {
             array('%d')
         );
         
-        error_log("[747Disco-Funnel] ✅ Step {$next_step_number} inviato per tracking #{$tracking_id}");
+        error_log("[747Disco-Funnel] Step {$next_step_number} inviato per tracking #{$tracking_id}");
         
         return true;
     }
     
     /**
-     * Invia email al cliente
+     * Invia email al cliente - VERSIONE AGGIORNATA
      */
     private function send_email_to_customer($preventivo, $step) {
         $to = $preventivo->email;
@@ -247,34 +229,201 @@ class Disco747_Funnel_Manager {
         }
         
         $subject = $this->replace_variables($step->email_subject, $preventivo);
-        $body = $this->replace_variables($step->email_body, $preventivo);
+        $body_content = $this->replace_variables($step->email_body, $preventivo);
+        
+        // Wrap HTML correttamente
+        if (stripos($body_content, '<!doctype') !== false || stripos($body_content, '<html') !== false) {
+            // E' gia un documento HTML completo
+            $body_html = $body_content;
+        } else {
+            // Testo semplice o HTML parziale - wrappa con template base
+            $body_html = $this->wrap_email_template($body_content);
+        }
         
         // Headers
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
-            'From: 747 Disco <info@gestionale.747disco.it>',
-            'Reply-To: info@gestionale.747disco.it'
+            'From: 747 Disco <eventi@747disco.it>',
+            'Reply-To: eventi@747disco.it'
         );
-        
-        // Converti newline in <br>
-        $body_html = nl2br($body);
         
         $sent = wp_mail($to, $subject, $body_html, $headers);
         
         if ($sent) {
-            error_log("[747Disco-Funnel] ✉️ Email inviata a {$to}");
+            error_log("[747Disco-Funnel] Email inviata a {$to}");
         } else {
-            error_log("[747Disco-Funnel] ❌ Errore invio email a {$to}");
+            error_log("[747Disco-Funnel] Errore invio email a {$to}");
         }
         
         return $sent;
     }
     
     /**
-     * Invia email notifica WhatsApp a info@gestionale.747disco.it
+     * Wrappa contenuto email con template HTML base - NUOVO
+     */
+    private function wrap_email_template($content) {
+        // Se contiene tag HTML, usalo cosi
+        if (strip_tags($content) !== $content) {
+            $body = $content;
+        } else {
+            // Altrimenti converti newline in <br>
+            $body = nl2br($content);
+        }
+        
+        return '<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>747 Disco</title>
+</head>
+<body style="margin:0;padding:0;background:#1a1a1a;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#1a1a1a">
+        <tr>
+            <td align="center" style="padding:20px 12px">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;margin:0 auto;background:#ffffff;border-radius:12px">
+                    <tr>
+                        <td style="padding:30px">
+                            ' . $body . '
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>';
+    }
+    
+    /**
+     * Genera anteprima email HTML - NUOVO
+     */
+    public function preview_email($sequence_id, $preventivo_data = null) {
+        global $wpdb;
+        
+        $step = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->sequences_table} WHERE id = %d",
+            $sequence_id
+        ));
+        
+        if (!$step) {
+            return '<p>Sequenza non trovata</p>';
+        }
+        
+        // Dati preventivo di esempio se non forniti
+        if (!$preventivo_data) {
+            $preventivo_data = (object) array(
+                'id' => 123,
+                'nome_cliente' => 'Mario Rossi',
+                'nome_referente' => 'Mario',
+                'cognome_referente' => 'Rossi',
+                'tipo_evento' => 'Compleanno 18 anni',
+                'data_evento' => date('Y-m-d', strtotime('+30 days')),
+                'numero_invitati' => 80,
+                'tipo_menu' => 'Menu 747',
+                'importo_totale' => 2500.00,
+                'acconto' => 500.00,
+                'email' => 'cliente@example.com',
+                'telefono' => '+39 347 1811119'
+            );
+        }
+        
+        $subject = $this->replace_variables($step->email_subject, $preventivo_data);
+        $body_content = $this->replace_variables($step->email_body, $preventivo_data);
+        
+        // Wrap HTML correttamente
+        if (stripos($body_content, '<!doctype') !== false || stripos($body_content, '<html') !== false) {
+            $body_html = $body_content;
+        } else {
+            $body_html = $this->wrap_email_template($body_content);
+        }
+        
+        return array(
+            'subject' => $subject,
+            'html' => $body_html
+        );
+    }
+    
+    /**
+     * Test invio email - NUOVO
+     */
+    public function test_send_email($sequence_id, $test_email, $preventivo_data = null) {
+        global $wpdb;
+        
+        if (!is_email($test_email)) {
+            return array('success' => false, 'message' => 'Email non valida');
+        }
+        
+        $step = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->sequences_table} WHERE id = %d",
+            $sequence_id
+        ));
+        
+        if (!$step) {
+            return array('success' => false, 'message' => 'Sequenza non trovata');
+        }
+        
+        // Dati preventivo di esempio se non forniti
+        if (!$preventivo_data) {
+            $preventivo_data = (object) array(
+                'id' => 123,
+                'nome_cliente' => 'Mario Rossi',
+                'nome_referente' => 'Mario',
+                'cognome_referente' => 'Rossi',
+                'tipo_evento' => 'Compleanno 18 anni',
+                'data_evento' => date('Y-m-d', strtotime('+30 days')),
+                'numero_invitati' => 80,
+                'tipo_menu' => 'Menu 747',
+                'importo_totale' => 2500.00,
+                'acconto' => 500.00,
+                'email' => $test_email,
+                'telefono' => '+39 347 1811119'
+            );
+        }
+        
+        $subject = '[TEST] ' . $this->replace_variables($step->email_subject, $preventivo_data);
+        $body_content = $this->replace_variables($step->email_body, $preventivo_data);
+        
+        // Wrap HTML correttamente
+        if (stripos($body_content, '<!doctype') !== false || stripos($body_content, '<html') !== false) {
+            $body_html = $body_content;
+        } else {
+            $body_html = $this->wrap_email_template($body_content);
+        }
+        
+        // Aggiungi banner TEST
+        $test_banner = '<div style="background:#ff6b6b;color:#fff;padding:15px;text-align:center;font-weight:bold;border-radius:8px;margin-bottom:20px">
+            QUESTA E\' UNA EMAIL DI TEST - Dati di esempio
+        </div>';
+        
+        $body_html = str_replace('</body>', $test_banner . '</body>', $body_html);
+        
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: 747 Disco <eventi@747disco.it>',
+            'Reply-To: eventi@747disco.it'
+        );
+        
+        $sent = wp_mail($test_email, $subject, $body_html, $headers);
+        
+        if ($sent) {
+            return array(
+                'success' => true, 
+                'message' => "Email di test inviata a {$test_email}"
+            );
+        } else {
+            return array(
+                'success' => false, 
+                'message' => 'Errore durante l\'invio dell\'email di test'
+            );
+        }
+    }
+    
+    /**
+     * Invia email notifica WhatsApp
      */
     private function send_whatsapp_notification($preventivo, $step, $tracking_id) {
-        $to = 'info@gestionale.747disco.it';
+        $to = 'eventi@747disco.it';
         
         $telefono = $preventivo->telefono;
         
@@ -283,28 +432,26 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        // Formatta numero WhatsApp (rimuovi spazi, trattini)
         $whatsapp_number = preg_replace('/[^0-9+]/', '', $telefono);
         if (substr($whatsapp_number, 0, 1) !== '+') {
-            $whatsapp_number = '+39' . $whatsapp_number;
+            $whatsapp_number = '+39' . ltrim($whatsapp_number, '0');
         }
         
-        // Messaggio WhatsApp
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
-        $whatsapp_url = 'https://wa.me/' . $whatsapp_number . '?text=' . urlencode($whatsapp_message);
+        $whatsapp_message_encoded = urlencode($whatsapp_message);
+        $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
         
-        // Link per segnare come inviato
-        $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking_id=' . $tracking_id);
+        $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking=' . $tracking_id . '&step=' . $step->step_number);
         
-        $subject = "💬 Invia WhatsApp a {$preventivo->nome_cliente} - Preventivo #{$preventivo->id}";
+        $subject = "WhatsApp da inviare - Funnel Step {$step->step_number}";
         
         $body = "
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-            <div style='background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); padding: 20px; color: white; border-radius: 10px 10px 0 0;'>
-                <h2 style='margin: 0;'>⚠️ È il momento di inviare il WhatsApp!</h2>
+        <div style='max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;'>
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px 10px 0 0;'>
+                <h2 style='color: white; margin: 0;'>Notifica Funnel WhatsApp</h2>
             </div>
             
-            <div style='background: white; padding: 30px; border: 1px solid #e9ecef; border-top: none;'>
+            <div style='background: white; padding: 25px; border: 2px solid #e9ecef; border-radius: 0 0 10px 10px;'>
                 <div style='background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>
                     <strong>Cliente:</strong> {$preventivo->nome_cliente}<br>
                     <strong>Preventivo:</strong> #{$preventivo->id}<br>
@@ -324,22 +471,22 @@ class Disco747_Funnel_Manager {
                               font-size: 18px;
                               display: inline-block;
                               box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);'>
-                        📱 INVIA WHATSAPP ORA
+                        INVIA WHATSAPP ORA
                     </a>
                 </div>
                 
                 <div style='background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin: 20px 0;'>
-                    <strong style='color: #0056b3;'>📝 Preview messaggio:</strong><br><br>
+                    <strong style='color: #0056b3;'>Preview messaggio:</strong><br><br>
                     <em style='color: #495057;'>" . nl2br(htmlspecialchars($whatsapp_message)) . "</em>
                 </div>
                 
                 <hr style='border: none; border-top: 1px solid #e9ecef; margin: 30px 0;'>
                 
                 <div style='text-align: center;'>
-                    <p style='color: #6c757d; font-size: 14px;'>✅ Dopo aver inviato il WhatsApp, clicca qui per segnarlo:</p>
+                    <p style='color: #6c757d; font-size: 14px;'>Dopo aver inviato il WhatsApp, clicca qui per segnarlo:</p>
                     <a href='{$mark_sent_url}' 
                        style='color: #28a745; text-decoration: none; font-weight: bold;'>
-                        ✓ Segna come Inviato
+                        Segna come Inviato
                     </a>
                 </div>
             </div>
@@ -358,9 +505,9 @@ class Disco747_Funnel_Manager {
         $sent = wp_mail($to, $subject, $body, $headers);
         
         if ($sent) {
-            error_log("[747Disco-Funnel] 📧 Notifica WhatsApp inviata a {$to}");
+            error_log("[747Disco-Funnel] Notifica WhatsApp inviata a {$to}");
         } else {
-            error_log("[747Disco-Funnel] ❌ Errore invio notifica WhatsApp");
+            error_log("[747Disco-Funnel] Errore invio notifica WhatsApp");
         }
         
         return $sent;
@@ -373,6 +520,8 @@ class Disco747_Funnel_Manager {
         $variables = array(
             '{{nome_referente}}' => $preventivo->nome_referente ?: $preventivo->nome_cliente,
             '{{cognome_referente}}' => $preventivo->cognome_referente ?: '',
+            '{{nome}}' => $preventivo->nome_referente ?: $preventivo->nome_cliente,
+            '{{cognome}}' => $preventivo->cognome_referente ?: '',
             '{{nome_cliente}}' => $preventivo->nome_cliente,
             '{{tipo_evento}}' => $preventivo->tipo_evento,
             '{{data_evento}}' => date('d/m/Y', strtotime($preventivo->data_evento)),
@@ -380,8 +529,9 @@ class Disco747_Funnel_Manager {
             '{{tipo_menu}}' => $preventivo->tipo_menu,
             '{{importo_totale}}' => number_format($preventivo->importo_totale, 2, ',', '.'),
             '{{acconto}}' => number_format($preventivo->acconto, 2, ',', '.'),
-            '{{telefono_sede}}' => '06 123456789', // Sostituisci con numero reale
-            '{{email_sede}}' => 'info@gestionale.747disco.it'
+            '{{preventivo_id}}' => $preventivo->id,
+            '{{telefono_sede}}' => '+39 347 181 1119',
+            '{{email_sede}}' => 'eventi@747disco.it'
         );
         
         return str_replace(array_keys($variables), array_values($variables), $text);
@@ -405,51 +555,13 @@ class Disco747_Funnel_Manager {
             array('%d')
         );
         
-        error_log("[747Disco-Funnel] ✅ Funnel completato (Tracking ID: {$tracking_id})");
+        error_log("[747Disco-Funnel] Funnel completato (Tracking ID: {$tracking_id})");
         
         return true;
     }
     
     /**
-     * Pausa un funnel
-     */
-    public function pause_funnel($tracking_id) {
-        global $wpdb;
-        
-        $wpdb->update(
-            $this->tracking_table,
-            array('status' => 'paused'),
-            array('id' => $tracking_id),
-            array('%s'),
-            array('%d')
-        );
-        
-        error_log("[747Disco-Funnel] ⏸️ Funnel in pausa (Tracking ID: {$tracking_id})");
-        
-        return true;
-    }
-    
-    /**
-     * Riprendi un funnel in pausa
-     */
-    public function resume_funnel($tracking_id) {
-        global $wpdb;
-        
-        $wpdb->update(
-            $this->tracking_table,
-            array('status' => 'active'),
-            array('id' => $tracking_id),
-            array('%s'),
-            array('%d')
-        );
-        
-        error_log("[747Disco-Funnel] ▶️ Funnel ripreso (Tracking ID: {$tracking_id})");
-        
-        return true;
-    }
-    
-    /**
-     * Stoppa un funnel definitivamente
+     * Stoppa un funnel
      */
     public function stop_funnel($preventivo_id, $funnel_type) {
         global $wpdb;
@@ -469,28 +581,13 @@ class Disco747_Funnel_Manager {
             array('%d', '%s')
         );
         
-        error_log("[747Disco-Funnel] 🛑 Funnel stoppato per preventivo #{$preventivo_id}");
+        error_log("[747Disco-Funnel] Funnel stoppato per preventivo #{$preventivo_id}");
         
         return true;
     }
     
     /**
-     * Ottieni tracking per preventivo
-     */
-    public function get_tracking($preventivo_id, $funnel_type) {
-        global $wpdb;
-        
-        return $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->tracking_table} 
-             WHERE preventivo_id = %d AND funnel_type = %s 
-             ORDER BY id DESC LIMIT 1",
-            $preventivo_id,
-            $funnel_type
-        ));
-    }
-    
-    /**
-     * Ottieni tutti i tracking attivi
+     * Ottieni tracking attivi
      */
     public function get_active_trackings($funnel_type = null) {
         global $wpdb;
