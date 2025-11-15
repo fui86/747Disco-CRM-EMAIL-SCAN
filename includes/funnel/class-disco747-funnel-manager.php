@@ -457,10 +457,15 @@ class Disco747_Funnel_Manager {
             $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'UTF-8');
         }
         
-        // Codifica per WhatsApp: urlencode gestisce correttamente UTF-8
-        // Converte newline in spazi prima della codifica
-        $whatsapp_message_clean = str_replace(array("\r\n", "\r", "\n"), " ", $whatsapp_message);
-        $whatsapp_message_encoded = urlencode($whatsapp_message_clean);
+        // SOLUZIONE PERFETTA: Codifica solo caratteri speciali, preserva emoji e a capo
+        // 1. Converti a capo in codice WhatsApp
+        $whatsapp_message_encoded = str_replace(array("\r\n", "\n", "\r"), "%0A", $whatsapp_message);
+        
+        // 2. Codifica con rawurlencode (gestisce meglio UTF-8 rispetto a urlencode)
+        $whatsapp_message_encoded = rawurlencode($whatsapp_message_encoded);
+        
+        // 3. Ripristina %0A che rawurlencode ha codificato ulteriormente
+        $whatsapp_message_encoded = str_replace('%250A', '%0A', $whatsapp_message_encoded);
         
         // Crea URL WhatsApp valido
         $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
