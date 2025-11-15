@@ -451,7 +451,9 @@ class Disco747_Funnel_Manager {
         }
         
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
-        $whatsapp_message_encoded = urlencode($whatsapp_message);
+        
+        // Codifica corretta per WhatsApp: rawurlencode mantiene emoji e caratteri speciali
+        $whatsapp_message_encoded = rawurlencode($whatsapp_message);
         $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
         
         $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking=' . $tracking_id . '&step=' . $step->step_number);
