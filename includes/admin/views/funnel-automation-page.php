@@ -20,12 +20,12 @@ global $wpdb;
 $sequences_table = $wpdb->prefix . 'disco747_funnel_sequences';
 $tracking_table = $wpdb->prefix . 'disco747_funnel_tracking';
 
-// âœ… AUTO-FIX: Crea tabelle se non esistono
+// ✅ AUTO-FIX: Crea tabelle se non esistono
 $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$sequences_table}'");
 if ($table_exists !== $sequences_table) {
     $funnel_db = new Disco747_Funnel_Database();
     $funnel_db->create_tables();
-    error_log('[747Disco-Funnel] âœ… Tabelle funnel create automaticamente');
+    error_log('[747Disco-Funnel] ✅ Tabelle funnel create automaticamente');
     $auto_created = true;
 }
 
@@ -33,10 +33,10 @@ if ($table_exists !== $sequences_table) {
 $funnel_manager = new Disco747_Funnel_Manager();
 $scheduler = new Disco747_Funnel_Scheduler();
 
-// âœ… AUTO-FIX: Attiva scheduler se non attivo
+// ✅ AUTO-FIX: Attiva scheduler se non attivo
 if (!wp_next_scheduled('disco747_funnel_check_sends')) {
     $scheduler->activate();
-    error_log('[747Disco-Funnel] âœ… Scheduler attivato automaticamente');
+    error_log('[747Disco-Funnel] ✅ Scheduler attivato automaticamente');
 }
 
 // TAB attivo
@@ -63,22 +63,22 @@ if (isset($_POST['save_sequence'])) {
     
     if ($sequence_id > 0) {
         $wpdb->update($sequences_table, $data, array('id' => $sequence_id));
-        $message = 'âœ… Sequenza aggiornata con successo!';
+        $message = '✅ Sequenza aggiornata con successo!';
     } else {
         $wpdb->insert($sequences_table, $data);
-        $message = 'âœ… Sequenza creata con successo!';
+        $message = '✅ Sequenza creata con successo!';
     }
 }
 
 if (isset($_GET['delete_sequence'])) {
     $seq_id = intval($_GET['delete_sequence']);
     $wpdb->delete($sequences_table, array('id' => $seq_id));
-    $message = 'âœ… Sequenza eliminata!';
+    $message = '✅ Sequenza eliminata!';
 }
 
 if (isset($_GET['action']) && $_GET['action'] === 'test_cron') {
     $scheduler->process_pending_sends();
-    $message = 'âœ… Test cron eseguito! Controlla i log.';
+    $message = '✅ Test cron eseguito! Controlla i log.';
 }
 
 // Carica sequenze
@@ -114,7 +114,7 @@ $cron_status = $scheduler->get_cron_status();
     <!-- HEADER -->
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; margin-bottom: 30px; color: white; box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);">
         <h1 style="margin: 0; font-size: 2.5rem; font-weight: 700;">
-            ðŸš€ Automazione Funnel Marketing
+            🚀 Automazione Funnel Marketing
         </h1>
         <p style="margin: 10px 0 0 0; font-size: 1.1rem; opacity: 0.9;">
             Sistema automatico per convertire preventivi e aumentare le vendite
@@ -123,8 +123,8 @@ $cron_status = $scheduler->get_cron_status();
 
     <?php if (isset($auto_created) && $auto_created): ?>
         <div class="notice notice-success is-dismissible">
-            <p><strong>âœ… Tabelle Funnel create con successo!</strong> Il sistema Ã¨ ora operativo. Ricarica la pagina per vedere le sequenze di default.</p>
-            <p><a href="<?php echo admin_url('admin.php?page=disco747-funnel'); ?>" class="button button-primary">ðŸ”„ Ricarica Pagina</a></p>
+            <p><strong>✅ Tabelle Funnel create con successo!</strong> Il sistema è ora operativo. Ricarica la pagina per vedere le sequenze di default.</p>
+            <p><a href="<?php echo admin_url('admin.php?page=disco747-funnel'); ?>" class="button button-primary">🔄 Ricarica Pagina</a></p>
         </div>
     <?php endif; ?>
 
@@ -138,19 +138,19 @@ $cron_status = $scheduler->get_cron_status();
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
         
         <div class="kpi-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div class="kpi-icon">ðŸ“¬</div>
+            <div class="kpi-icon">📬</div>
             <div class="kpi-label">Funnel Attivi</div>
             <div class="kpi-value"><?php echo $stats['active_trackings']; ?></div>
         </div>
         
         <div class="kpi-box" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-            <div class="kpi-icon">âœ…</div>
+            <div class="kpi-icon">✅</div>
             <div class="kpi-label">Completati Oggi</div>
             <div class="kpi-value"><?php echo $stats['completed_today']; ?></div>
         </div>
         
         <div class="kpi-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-            <div class="kpi-icon">â°</div>
+            <div class="kpi-icon">⏰</div>
             <div class="kpi-label">Prossimo Check</div>
             <div class="kpi-value" style="font-size: 1.2rem;"><?php echo $cron_status['sends_check']['next_run_relative']; ?></div>
         </div>
@@ -161,19 +161,19 @@ $cron_status = $scheduler->get_cron_status();
     <div class="nav-tab-wrapper" style="margin-bottom: 20px;">
         <a href="?page=disco747-funnel&tab=pre_conferma" 
            class="nav-tab <?php echo $active_tab === 'pre_conferma' ? 'nav-tab-active' : ''; ?>">
-            ðŸŽ¯ Funnel Pre-Conferma
+            🎯 Funnel Pre-Conferma
         </a>
         <a href="?page=disco747-funnel&tab=pre_evento" 
            class="nav-tab <?php echo $active_tab === 'pre_evento' ? 'nav-tab-active' : ''; ?>">
-            ðŸŽ Funnel Pre-Evento
+            🎁 Funnel Pre-Evento
         </a>
         <a href="?page=disco747-funnel&tab=tracking" 
            class="nav-tab <?php echo $active_tab === 'tracking' ? 'nav-tab-active' : ''; ?>">
-            ðŸ“Š Tracking Attivi
+            📊 Tracking Attivi
         </a>
         <a href="?page=disco747-funnel&tab=settings" 
            class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
-            âš™ï¸ Impostazioni
+            ⚙️ Impostazioni
         </a>
     </div>
 
@@ -190,18 +190,18 @@ $cron_status = $scheduler->get_cron_status();
             <div class="disco747-card-content">
                 <h3 style="margin: 0 0 10px 0; color: #0056b3;">
                     <?php if ($active_tab === 'pre_conferma'): ?>
-                        ðŸŽ¯ Funnel Pre-Conferma
+                        🎯 Funnel Pre-Conferma
                     <?php else: ?>
-                        ðŸŽ Funnel Pre-Evento (Upselling)
+                        🎁 Funnel Pre-Evento (Upselling)
                     <?php endif; ?>
                 </h3>
                 <p style="margin: 0; color: #495057;">
                     <?php if ($active_tab === 'pre_conferma'): ?>
                         Questo funnel si attiva <strong>automaticamente</strong> quando crei un nuovo preventivo NON confermato.
-                        L'obiettivo Ã¨ convertire il preventivo in conferma con invio progressivo di email e WhatsApp.
+                        L'obiettivo è convertire il preventivo in conferma con invio progressivo di email e WhatsApp.
                     <?php else: ?>
                         Questo funnel si attiva per eventi <strong>confermati</strong> a pochi giorni dall'evento.
-                        L'obiettivo Ã¨ vendere pacchetti extra e upgrade last-minute.
+                        L'obiettivo è vendere pacchetti extra e upgrade last-minute.
                     <?php endif; ?>
                 </p>
             </div>
@@ -210,9 +210,9 @@ $cron_status = $scheduler->get_cron_status();
         <!-- Lista Sequenze -->
         <div class="disco747-card">
             <div class="disco747-card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <span>ðŸ“‹ Sequenza Step</span>
+                <span>📋 Sequenza Step</span>
                 <button type="button" class="button button-primary" onclick="showAddStepModal('<?php echo $active_tab; ?>')">
-                    âž• Aggiungi Step
+                    ➕ Aggiungi Step
                 </button>
             </div>
             <div class="disco747-card-content" style="padding: 0;">
@@ -228,10 +228,10 @@ $cron_status = $scheduler->get_cron_status();
                             <tr>
                                 <th style="width: 60px;">Step</th>
                                 <th style="width: 100px;">Timing</th>
-                                <th style="width: 80px;">â° Orario</th>
+                                <th style="width: 80px;">⏰ Orario</th>
                                 <th>Nome</th>
-                                <th style="width: 80px; text-align: center;">ðŸ“§ Email</th>
-                                <th style="width: 80px; text-align: center;">ðŸ’¬ WhatsApp</th>
+                                <th style="width: 80px; text-align: center;">📧 Email</th>
+                                <th style="width: 80px; text-align: center;">💬 WhatsApp</th>
                                 <th style="width: 80px; text-align: center;">Stato</th>
                                 <th style="width: 150px;">Azioni</th>
                             </tr>
@@ -253,16 +253,16 @@ $cron_status = $scheduler->get_cron_status();
                                 <td><?php echo esc_html($seq->step_name); ?></td>
                                 <td style="text-align: center;">
                                     <?php if ($seq->email_enabled): ?>
-                                        <span style="color: #28a745; font-size: 20px;">âœ“</span>
+                                        <span style="color: #28a745; font-size: 20px;">✓</span>
                                     <?php else: ?>
-                                        <span style="color: #dc3545; font-size: 20px;">âœ—</span>
+                                        <span style="color: #dc3545; font-size: 20px;">✗</span>
                                     <?php endif; ?>
                                 </td>
                                 <td style="text-align: center;">
                                     <?php if ($seq->whatsapp_enabled): ?>
-                                        <span style="color: #28a745; font-size: 20px;">âœ“</span>
+                                        <span style="color: #28a745; font-size: 20px;">✓</span>
                                     <?php else: ?>
-                                        <span style="color: #dc3545; font-size: 20px;">âœ—</span>
+                                        <span style="color: #dc3545; font-size: 20px;">✗</span>
                                     <?php endif; ?>
                                 </td>
                                 <td style="text-align: center;">
@@ -281,13 +281,13 @@ $cron_status = $scheduler->get_cron_status();
                                     </button>
                                     
                                     <button type="button" class="button button-small" onclick="editSequence(<?php echo $seq->id; ?>)">
-                                        âœï¸ Modifica
+                                        ✏️ Modifica
                                     </button>
                                     <a href="?page=disco747-funnel&tab=<?php echo $active_tab; ?>&delete_sequence=<?php echo $seq->id; ?>" 
                                        class="button button-small"
                                        onclick="return confirm('Sicuro di eliminare questa sequenza?')"
                                        style="color: #dc3545;">
-                                        ðŸ—‘ï¸
+                                        🗑️
                                     </a>
                                 </td>
                             </tr>
@@ -305,7 +305,7 @@ $cron_status = $scheduler->get_cron_status();
         <!-- Tracking Attivi -->
         <div class="disco747-card">
             <div class="disco747-card-header">
-                ðŸ“Š Funnel Attivi in Corso
+                📊 Funnel Attivi in Corso
             </div>
             <div class="disco747-card-content" style="padding: 0;">
                 
@@ -348,7 +348,7 @@ $cron_status = $scheduler->get_cron_status();
                                 </td>
                                 <td>
                                     <a href="?page=disco747-funnel&action=pause&tracking_id=<?php echo $track->id; ?>" class="button button-small">
-                                        â¸ï¸ Pausa
+                                        ⏸️ Pausa
                                     </a>
                                 </td>
                             </tr>
@@ -366,22 +366,22 @@ $cron_status = $scheduler->get_cron_status();
         <!-- Impostazioni -->
         <div class="disco747-card">
             <div class="disco747-card-header">
-                âš™ï¸ Impostazioni Sistema
+                ⚙️ Impostazioni Sistema
             </div>
             <div class="disco747-card-content">
                 
-                <h3>ðŸ“® Email Notifiche WhatsApp</h3>
+                <h3>📮 Email Notifiche WhatsApp</h3>
                 <p>Le notifiche per inviare WhatsApp vengono inviate a: <strong>info@gestionale.747disco.it</strong></p>
                 
                 <hr>
                 
-                <h3>â° Stato WP Cron</h3>
+                <h3>⏰ Stato WP Cron</h3>
                 <table class="form-table">
                     <tr>
                         <th>Check Invii Orario:</th>
                         <td>
                             <strong style="color: <?php echo $cron_status['sends_check']['active'] ? '#28a745' : '#dc3545'; ?>;">
-                                <?php echo $cron_status['sends_check']['active'] ? 'âœ… ATTIVO' : 'âŒ NON ATTIVO'; ?>
+                                <?php echo $cron_status['sends_check']['active'] ? '✅ ATTIVO' : '❌ NON ATTIVO'; ?>
                             </strong>
                             <br>
                             Prossimo check: <?php echo $cron_status['sends_check']['next_run']; ?>
@@ -391,7 +391,7 @@ $cron_status = $scheduler->get_cron_status();
                         <th>Check Pre-Evento Giornaliero:</th>
                         <td>
                             <strong style="color: <?php echo $cron_status['pre_evento_check']['active'] ? '#28a745' : '#dc3545'; ?>;">
-                                <?php echo $cron_status['pre_evento_check']['active'] ? 'âœ… ATTIVO' : 'âŒ NON ATTIVO'; ?>
+                                <?php echo $cron_status['pre_evento_check']['active'] ? '✅ ATTIVO' : '❌ NON ATTIVO'; ?>
                             </strong>
                             <br>
                             Prossimo check: <?php echo $cron_status['pre_evento_check']['next_run']; ?>
@@ -401,13 +401,13 @@ $cron_status = $scheduler->get_cron_status();
                 
                 <p>
                     <a href="?page=disco747-funnel&tab=settings&action=test_cron" class="button button-primary">
-                        ðŸ§ª Test Cron Manuale
+                        🧪 Test Cron Manuale
                     </a>
                 </p>
                 
                 <hr>
                 
-                <h3>ðŸ“ Variabili Disponibili nei Template</h3>
+                <h3>📝 Variabili Disponibili nei Template</h3>
                 <p>Puoi usare queste variabili nei testi di email e WhatsApp:</p>
                 <ul style="column-count: 2; column-gap: 30px;">
                     <li><code>{{nome_referente}}</code> - Nome del referente</li>
@@ -435,7 +435,7 @@ $cron_status = $scheduler->get_cron_status();
     <div style="max-width: 900px; margin: 50px auto; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
         
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 12px 12px 0 0; color: white;">
-            <h2 id="modal-title" style="margin: 0;">âž• Aggiungi Step</h2>
+            <h2 id="modal-title" style="margin: 0;">➕ Aggiungi Step</h2>
         </div>
         
         <form method="post" style="padding: 30px;">
@@ -457,7 +457,7 @@ $cron_status = $scheduler->get_cron_status();
                 </div>
                 
                 <div>
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">â° Orario Invio *</label>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">⏰ Orario Invio *</label>
                     <input type="time" name="send_time" id="edit-send-time" value="09:00" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
                     <small>A che ora del giorno inviare l'email (es: 09:00, 14:30)</small>
                 </div>
@@ -474,13 +474,13 @@ $cron_status = $scheduler->get_cron_status();
                 <div style="margin-bottom: 15px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" name="email_enabled" id="edit-email-enabled" value="1" checked style="width: 20px; height: 20px;">
-                        <span style="font-weight: 700; font-size: 1.1rem;">ðŸ“§ Email Attiva</span>
+                        <span style="font-weight: 700; font-size: 1.1rem;">📧 Email Attiva</span>
                     </label>
                 </div>
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; font-weight: 600;">Oggetto Email</label>
-                    <input type="text" name="email_subject" id="edit-email-subject" placeholder="Il tuo preventivo Ã¨ pronto!" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
+                    <input type="text" name="email_subject" id="edit-email-subject" placeholder="Il tuo preventivo è pronto!" style="width: 100%; padding: 10px; border: 2px solid #e9ecef; border-radius: 8px;">
                 </div>
                 
                 <div style="margin-top: 15px;">
@@ -494,14 +494,14 @@ $cron_status = $scheduler->get_cron_status();
                 <div style="margin-bottom: 15px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                         <input type="checkbox" name="whatsapp_enabled" id="edit-whatsapp-enabled" value="1" style="width: 20px; height: 20px;">
-                        <span style="font-weight: 700; font-size: 1.1rem;">ðŸ’¬ WhatsApp Attivo</span>
+                        <span style="font-weight: 700; font-size: 1.1rem;">💬 WhatsApp Attivo</span>
                     </label>
                 </div>
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; font-weight: 600;">Testo WhatsApp</label>
                     <textarea name="whatsapp_text" id="edit-whatsapp-text" rows="5" placeholder="Ciao {{nome_referente}}! ..." style="width: 100%; padding: 10px; border: 2px solid #10b981; border-radius: 8px; font-family: monospace;"></textarea>
-                    <small style="color: #065f46;">ðŸ“± Ti verrÃ  inviata un'email con link per aprire WhatsApp e inviare manualmente</small>
+                    <small style="color: #065f46;">📱 Ti verrà inviata un'email con link per aprire WhatsApp e inviare manualmente</small>
                 </div>
             </div>
             
@@ -509,13 +509,13 @@ $cron_status = $scheduler->get_cron_status();
             <div style="margin-bottom: 20px;">
                 <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
                     <input type="checkbox" name="active" id="edit-active" value="1" checked style="width: 20px; height: 20px;">
-                    <span style="font-weight: 600;">âœ… Step Attivo (disattiva per metterlo in pausa)</span>
+                    <span style="font-weight: 600;">✅ Step Attivo (disattiva per metterlo in pausa)</span>
                 </label>
             </div>
             
             <div style="text-align: right; border-top: 2px solid #e9ecef; padding-top: 20px;">
                 <button type="button" onclick="closeModal()" class="button" style="margin-right: 10px;">Annulla</button>
-                <button type="submit" class="button button-primary">ðŸ’¾ Salva Step</button>
+                <button type="submit" class="button button-primary">💾 Salva Step</button>
             </div>
             
         </form>
@@ -579,7 +579,7 @@ $cron_status = $scheduler->get_cron_status();
 <!-- JavaScript -->
 <script>
 function showAddStepModal(funnelType) {
-    document.getElementById('modal-title').textContent = 'âž• Aggiungi Step';
+    document.getElementById('modal-title').textContent = '➕ Aggiungi Step';
     document.getElementById('edit-sequence-id').value = '';
     document.getElementById('edit-funnel-type').value = funnelType;
     document.getElementById('edit-step-number').value = '';
@@ -597,7 +597,7 @@ function showAddStepModal(funnelType) {
 }
 
 function editSequence(sequenceId) {
-    console.log('âœï¸ Caricamento sequenza ID:', sequenceId);
+    console.log('✏️ Caricamento sequenza ID:', sequenceId);
     
     jQuery.ajax({
         url: ajaxurl,
@@ -612,7 +612,7 @@ function editSequence(sequenceId) {
                 const seq = response.data;
                 
                 // Precompila form
-                document.getElementById('modal-title').textContent = 'âœï¸ Modifica Step #' + seq.step_number;
+                document.getElementById('modal-title').textContent = '✏️ Modifica Step #' + seq.step_number;
                 document.getElementById('edit-sequence-id').value = seq.id;
                 document.getElementById('edit-funnel-type').value = seq.funnel_type;
                 document.getElementById('edit-step-number').value = seq.step_number;
@@ -629,11 +629,11 @@ function editSequence(sequenceId) {
                 // Mostra modal
                 document.getElementById('sequence-modal').style.display = 'block';
             } else {
-                alert('âŒ Errore: ' + (response.data || 'Impossibile caricare la sequenza'));
+                alert('❌ Errore: ' + (response.data || 'Impossibile caricare la sequenza'));
             }
         },
         error: function() {
-            alert('âŒ Errore di connessione al server');
+            alert('❌ Errore di connessione al server');
         }
     });
 }
