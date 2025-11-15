@@ -14,7 +14,7 @@
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================
-// MODALITÃ€ MODIFICA: Carica dati esistenti
+// MODALITÀ MODIFICA: Carica dati esistenti
 // ============================================================================
 $is_edit_mode = false;
 $edit_data = null;
@@ -218,7 +218,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2b1e1a;">
-                        🍽ï¸ Tipo Menu * <span style="color: #dc3545;">●</span>
+                        🍽️ Tipo Menu * <span style="color: #dc3545;">●</span>
                     </label>
                     <select name="tipo_menu" id="tipo_menu" required
                             style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
