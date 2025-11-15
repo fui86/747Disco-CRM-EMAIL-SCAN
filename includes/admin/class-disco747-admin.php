@@ -145,6 +145,14 @@ class Disco747_Admin {
                 'disco747-debug-structure',
                 array($this, 'render_debug_structure_page')
             );
+            add_submenu_page(
+                'disco747-crm',
+                __('🔧 Fix Emoji Template', 'disco747'),
+                __('🔧 Fix Emoji Template', 'disco747'),
+                $this->min_capability,
+                'disco747-fix-emoji',
+                array($this, 'render_fix_emoji_page')
+            );
             if (get_option('disco747_debug_mode', false)) {
                 add_submenu_page(
                     'disco747-crm',
@@ -366,6 +374,13 @@ class Disco747_Admin {
             wp_die('Non hai i permessi per accedere a questa pagina.');
         }
         require_once DISCO747_CRM_PLUGIN_DIR . 'includes/admin/views/debug-excel-structure.php';
+    }
+    
+    public function render_fix_emoji_page() {
+        if (!current_user_can($this->min_capability)) {
+            wp_die('Non hai i permessi per accedere a questa pagina.');
+        }
+        require_once DISCO747_CRM_PLUGIN_DIR . 'includes/funnel/fix-emoji-templates.php';
     }
 
     public function handle_batch_scan() {

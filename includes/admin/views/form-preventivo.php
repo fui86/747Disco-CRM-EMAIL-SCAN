@@ -14,7 +14,7 @@
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================
-// MODALITÃ€ MODIFICA: Carica dati esistenti
+// MODALITÀ MODIFICA: Carica dati esistenti
 // ============================================================================
 $is_edit_mode = false;
 $edit_data = null;
@@ -218,7 +218,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                 
                 <div>
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2b1e1a;">
-                        🍽ï¸ Tipo Menu * <span style="color: #dc3545;">●</span>
+                        🍽️ Tipo Menu * <span style="color: #dc3545;">●</span>
                     </label>
                     <select name="tipo_menu" id="tipo_menu" required
                             style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
@@ -497,7 +497,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #ffc107;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="color: #856404;">âš ï¸</span>
+                    <span style="color: #856404;">⚠️</span>
                     <small style="color: #856404; font-weight: 500;">
                         Queste note sono riservate al team e non verranno mostrate al cliente nei preventivi o nelle comunicazioni.
                     </small>
@@ -532,7 +532,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                 <!-- Pulsante Annulla -->
                 <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm')); ?>" 
                    style="background: rgba(108, 117, 125, 0.1); color: #6c757d; padding: 15px 30px; border: 2px solid #6c757d; border-radius: 25px; font-weight: 600; font-size: 16px; text-decoration: none; display: inline-block; transition: all 0.3s ease;">
-                    â† Annulla
+                    ← Annulla
                 </a>
                 
             </div>
@@ -633,7 +633,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     
     <!-- ============================================================================ -->
     <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
-    <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
+    <!-- Visibile SOLO dopo che il preventivo è stato salvato -->
     <!-- ============================================================================ -->
     
     <div id="post-creation-actions" style="display: none; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
@@ -729,7 +729,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 25px;">
                 <p style="margin: 0; color: #004085; font-size: 0.9rem;">
-                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
+                    ℹ️ L'email sarà inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
                 </p>
             </div>
             
@@ -773,7 +773,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 25px;">
                 <p style="margin: 0; color: #155724; font-size: 0.9rem;">
-                    ℹï¸ VerrÃ  aperta l'app WhatsApp con il messaggio giÃ  precompilato, pronto per essere inviato al cliente
+                    ℹ️ Verrà aperta l'app WhatsApp con il messaggio già precompilato, pronto per essere inviato al cliente
                 </p>
             </div>
             
@@ -905,7 +905,7 @@ jQuery(document).ready(function($) {
         console.log('🚀 [747Disco-AJAX] Submit form intercettato');
         
         // Disabilita pulsanti
-        $submitButtons.prop('disabled', true).html('â³ Salvataggio...');
+        $submitButtons.prop('disabled', true).html('⏳ Salvataggio...');
         
         // Raccogli dati form
         const formData = new FormData(this);
@@ -981,7 +981,7 @@ jQuery(document).ready(function($) {
         }
         
         const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Generazione PDF...');
+        $btn.prop('disabled', true).html('⏳ Generazione PDF...');
         
         const prevId = window.preventivoData.id || window.preventivoData.db_id;
         
@@ -1067,7 +1067,7 @@ jQuery(document).ready(function($) {
         }
         
         const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Invio...');
+        $btn.prop('disabled', true).html('⏳ Invio...');
         
         $.ajax({
             url: ajaxurl,
@@ -1140,7 +1140,7 @@ jQuery(document).ready(function($) {
         }
         
         const $btn = $(this);
-        $btn.prop('disabled', true).html('â³ Preparazione...');
+        $btn.prop('disabled', true).html('⏳ Preparazione...');
         
         $.ajax({
             url: ajaxurl,

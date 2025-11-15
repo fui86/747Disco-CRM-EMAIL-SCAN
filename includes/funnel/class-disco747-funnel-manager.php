@@ -423,7 +423,20 @@ class Disco747_Funnel_Manager {
      * Invia email notifica WhatsApp
      */
     private function send_whatsapp_notification($preventivo, $step, $tracking_id) {
-        $to = 'eventi@747disco.it';
+        // Recupera l'email dell'utente che ha creato il preventivo
+        $to = 'eventi@747disco.it'; // Fallback default
+        
+        if (!empty($preventivo->created_by)) {
+            $creator = get_userdata($preventivo->created_by);
+            if ($creator && !empty($creator->user_email)) {
+                $to = $creator->user_email;
+                error_log("[747Disco-Funnel] Notifica WhatsApp inviata all'utente creatore: {$to} (ID: {$preventivo->created_by})");
+            } else {
+                error_log("[747Disco-Funnel] Utente creatore non trovato (ID: {$preventivo->created_by}), uso email default");
+            }
+        } else {
+            error_log("[747Disco-Funnel] Campo created_by mancante, uso email default: {$to}");
+        }
         
         $telefono = $preventivo->telefono;
         
@@ -438,10 +451,38 @@ class Disco747_Funnel_Manager {
         }
         
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
-        $whatsapp_message_encoded = urlencode($whatsapp_message);
+        
+        // FIX EMOJI CORROTTE: Sostituisci caratteri corrotti con emoji corrette
+        $whatsapp_message = $this->fix_corrupted_emojis($whatsapp_message);
+        
+        // Assicura che il testo sia UTF-8 corretto
+        if (function_exists('mb_convert_encoding')) {
+            $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'UTF-8');
+        }
+        
+        // SOLUZIONE PERFETTA: Codifica solo caratteri speciali, preserva emoji e a capo
+        // 1. Converti a capo in codice WhatsApp
+        $whatsapp_message_encoded = str_replace(array("\r\n", "\n", "\r"), "%0A", $whatsapp_message);
+        
+        // 2. Codifica con rawurlencode (gestisce meglio UTF-8 rispetto a urlencode)
+        $whatsapp_message_encoded = rawurlencode($whatsapp_message_encoded);
+        
+        // 3. Ripristina %0A che rawurlencode ha codificato ulteriormente
+        $whatsapp_message_encoded = str_replace('%250A', '%0A', $whatsapp_message_encoded);
+        
+        // Crea URL WhatsApp valido
         $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
         
         $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking=' . $tracking_id . '&step=' . $step->step_number);
+        
+        // Prepara info utente per il corpo email
+        $creator_name = 'Admin';
+        if (!empty($preventivo->created_by)) {
+            $creator = get_userdata($preventivo->created_by);
+            if ($creator) {
+                $creator_name = $creator->display_name ?: $creator->user_login;
+            }
+        }
         
         $subject = "WhatsApp da inviare - Funnel Step {$step->step_number}";
         
@@ -449,6 +490,7 @@ class Disco747_Funnel_Manager {
         <div style='max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;'>
             <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px 10px 0 0;'>
                 <h2 style='color: white; margin: 0;'>Notifica Funnel WhatsApp</h2>
+                <p style='color: #e0e0e0; margin: 5px 0 0 0; font-size: 14px;'>Preventivo creato da: {$creator_name}</p>
             </div>
             
             <div style='background: white; padding: 25px; border: 2px solid #e9ecef; border-radius: 0 0 10px 10px;'>
@@ -511,6 +553,75 @@ class Disco747_Funnel_Manager {
         }
         
         return $sent;
+    }
+    
+    /**
+     * Ripara emoji corrotte dal database
+     */
+    private function fix_corrupted_emojis($text) {
+        // SOLUZIONE 1: Rimuovi tutti i caratteri di sostituzione Unicode (rombo con ?)
+        // Questi sono i caratteri che appaiono quando emoji non sono decodificate correttamente
+        $text = preg_replace('/\x{FFFD}/u', '', $text); // Carattere sostituzione Unicode
+        $text = str_replace('�', '', $text); // Carattere replacement
+        
+        // SOLUZIONE 2: Converti caratteri corrotti comuni in emoji corrette
+        $emoji_map = array(
+            // Pattern corrotti comuni
+            'ðŸ'‹' => '👋',
+            'ðŸŽ‰' => '🎉', 
+            'ðŸ'°' => '💰',
+            'ðŸ"ž' => '📞',
+            'ðŸ"§' => '📧',
+            'âœ…' => '✅',
+            'ðŸŽŠ' => '🎊',
+        );
+        
+        foreach ($emoji_map as $corrupted => $correct) {
+            $text = str_replace($corrupted, $correct, $text);
+        }
+        
+        // SOLUZIONE 3: Rimuovi spazi doppi lasciati dalla rimozione
+        $text = preg_replace('/\s{2,}/', ' ', $text);
+        
+        // SOLUZIONE 4: Rimuovi spazi prima della punteggiatura
+        $text = preg_replace('/\s+([!?.,])/', '$1', $text);
+        
+        error_log('[747Disco-Funnel] Messaggio dopo fix emoji: ' . substr($text, 0, 100));
+        
+        return $text;
+    }
+    
+    /**
+     * Converte emoji in testo equivalente (alternativa senza emoji)
+     */
+    private function convert_emojis_to_text($text) {
+        $emoji_to_text = array(
+            '👋' => '',
+            '🎉' => '',
+            '💰' => '',
+            '📞' => 'Tel.',
+            '📧' => 'Email:',
+            '✅' => '[OK]',
+            '🎊' => '',
+            '💎' => '',
+            '🎁' => '',
+            '⭐' => '*',
+            // Rimuovi anche caratteri corrotti
+            '�' => '',
+            'ðŸ'‹' => '',
+            'ðŸŽ‰' => '',
+            'ðŸ'°' => '',
+            'ðŸ"ž' => 'Tel.',
+            'ðŸ"§' => 'Email:',
+        );
+        
+        $text = str_replace(array_keys($emoji_to_text), array_values($emoji_to_text), $text);
+        
+        // Pulisci spazi multipli
+        $text = preg_replace('/\s{2,}/', ' ', $text);
+        $text = preg_replace('/\n\s*\n\s*\n/', "\n\n", $text); // Max 2 righe vuote
+        
+        return trim($text);
     }
     
     /**
