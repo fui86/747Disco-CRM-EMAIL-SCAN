@@ -452,14 +452,19 @@ class Disco747_Funnel_Manager {
         
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
         
-        // Codifica per WhatsApp: sostituisce solo newline e caratteri speciali, lascia emoji intatte
-        // Le emoji funzionano meglio se NON codificate nei link WhatsApp
-        $whatsapp_message_encoded = str_replace(
-            array("\n", "\r\n", "\r"),
-            array("%0A", "%0A", "%0A"),
+        // Assicura che il testo sia UTF-8 corretto
+        if (function_exists('mb_convert_encoding')) {
+            $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'UTF-8');
+        }
+        
+        // Codifica minima per WhatsApp: sostituisce solo spazi e newline
+        // Le emoji UTF-8 funzionano meglio se lasciate intatte nei link wa.me
+        $whatsapp_message = str_replace(
+            array("\r\n", "\r", "\n", " "),
+            array("%0A", "%0A", "%0A", "%20"),
             $whatsapp_message
         );
-        $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
+        $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message}";
         
         $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking=' . $tracking_id . '&step=' . $step->step_number);
         
