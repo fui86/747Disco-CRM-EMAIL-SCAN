@@ -452,6 +452,9 @@ class Disco747_Funnel_Manager {
         
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
         
+        // FIX EMOJI CORROTTE: Sostituisci caratteri corrotti con emoji corrette
+        $whatsapp_message = $this->fix_corrupted_emojis($whatsapp_message);
+        
         // Assicura che il testo sia UTF-8 corretto
         if (function_exists('mb_convert_encoding')) {
             $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'UTF-8');
@@ -550,6 +553,75 @@ class Disco747_Funnel_Manager {
         }
         
         return $sent;
+    }
+    
+    /**
+     * Ripara emoji corrotte dal database
+     */
+    private function fix_corrupted_emojis($text) {
+        // SOLUZIONE 1: Rimuovi tutti i caratteri di sostituzione Unicode (rombo con ?)
+        // Questi sono i caratteri che appaiono quando emoji non sono decodificate correttamente
+        $text = preg_replace('/\x{FFFD}/u', '', $text); // Carattere sostituzione Unicode
+        $text = str_replace('�', '', $text); // Carattere replacement
+        
+        // SOLUZIONE 2: Converti caratteri corrotti comuni in emoji corrette
+        $emoji_map = array(
+            // Pattern corrotti comuni
+            'ðŸ'‹' => '👋',
+            'ðŸŽ‰' => '🎉', 
+            'ðŸ'°' => '💰',
+            'ðŸ"ž' => '📞',
+            'ðŸ"§' => '📧',
+            'âœ…' => '✅',
+            'ðŸŽŠ' => '🎊',
+        );
+        
+        foreach ($emoji_map as $corrupted => $correct) {
+            $text = str_replace($corrupted, $correct, $text);
+        }
+        
+        // SOLUZIONE 3: Rimuovi spazi doppi lasciati dalla rimozione
+        $text = preg_replace('/\s{2,}/', ' ', $text);
+        
+        // SOLUZIONE 4: Rimuovi spazi prima della punteggiatura
+        $text = preg_replace('/\s+([!?.,])/', '$1', $text);
+        
+        error_log('[747Disco-Funnel] Messaggio dopo fix emoji: ' . substr($text, 0, 100));
+        
+        return $text;
+    }
+    
+    /**
+     * Converte emoji in testo equivalente (alternativa senza emoji)
+     */
+    private function convert_emojis_to_text($text) {
+        $emoji_to_text = array(
+            '👋' => '',
+            '🎉' => '',
+            '💰' => '',
+            '📞' => 'Tel.',
+            '📧' => 'Email:',
+            '✅' => '[OK]',
+            '🎊' => '',
+            '💎' => '',
+            '🎁' => '',
+            '⭐' => '*',
+            // Rimuovi anche caratteri corrotti
+            '�' => '',
+            'ðŸ'‹' => '',
+            'ðŸŽ‰' => '',
+            'ðŸ'°' => '',
+            'ðŸ"ž' => 'Tel.',
+            'ðŸ"§' => 'Email:',
+        );
+        
+        $text = str_replace(array_keys($emoji_to_text), array_values($emoji_to_text), $text);
+        
+        // Pulisci spazi multipli
+        $text = preg_replace('/\s{2,}/', ' ', $text);
+        $text = preg_replace('/\n\s*\n\s*\n/', "\n\n", $text); // Max 2 righe vuote
+        
+        return trim($text);
     }
     
     /**
