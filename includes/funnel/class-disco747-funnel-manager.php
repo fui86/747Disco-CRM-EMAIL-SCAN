@@ -423,7 +423,20 @@ class Disco747_Funnel_Manager {
      * Invia email notifica WhatsApp
      */
     private function send_whatsapp_notification($preventivo, $step, $tracking_id) {
-        $to = 'eventi@747disco.it';
+        // Recupera l'email dell'utente che ha creato il preventivo
+        $to = 'eventi@747disco.it'; // Fallback default
+        
+        if (!empty($preventivo->created_by)) {
+            $creator = get_userdata($preventivo->created_by);
+            if ($creator && !empty($creator->user_email)) {
+                $to = $creator->user_email;
+                error_log("[747Disco-Funnel] Notifica WhatsApp inviata all'utente creatore: {$to} (ID: {$preventivo->created_by})");
+            } else {
+                error_log("[747Disco-Funnel] Utente creatore non trovato (ID: {$preventivo->created_by}), uso email default");
+            }
+        } else {
+            error_log("[747Disco-Funnel] Campo created_by mancante, uso email default: {$to}");
+        }
         
         $telefono = $preventivo->telefono;
         
@@ -443,12 +456,22 @@ class Disco747_Funnel_Manager {
         
         $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking=' . $tracking_id . '&step=' . $step->step_number);
         
+        // Prepara info utente per il corpo email
+        $creator_name = 'Admin';
+        if (!empty($preventivo->created_by)) {
+            $creator = get_userdata($preventivo->created_by);
+            if ($creator) {
+                $creator_name = $creator->display_name ?: $creator->user_login;
+            }
+        }
+        
         $subject = "WhatsApp da inviare - Funnel Step {$step->step_number}";
         
         $body = "
         <div style='max-width: 600px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;'>
             <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 10px 10px 0 0;'>
                 <h2 style='color: white; margin: 0;'>Notifica Funnel WhatsApp</h2>
+                <p style='color: #e0e0e0; margin: 5px 0 0 0; font-size: 14px;'>Preventivo creato da: {$creator_name}</p>
             </div>
             
             <div style='background: white; padding: 25px; border: 2px solid #e9ecef; border-radius: 0 0 10px 10px;'>
