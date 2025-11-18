@@ -157,9 +157,18 @@ class Disco747_Forms {
                 if ($excel_path && file_exists($excel_path)) {
                     $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
                     if ($excel_url) {
-                        $cloud_url = $excel_url;
-                        $data['googledrive_url'] = $excel_url;
-                        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel caricato su Drive: ' . basename($excel_path));
+                        // Se è un array con file_id, salvalo
+                        if (is_array($excel_url) && isset($excel_url['file_id'])) {
+                            $cloud_url = $excel_url['url'];
+                            $data['googledrive_url'] = $excel_url['url'];
+                            $data['googledrive_file_id'] = $excel_url['file_id'];
+                            $this->log('[Forms] ✅ Excel caricato su Drive con file_id: ' . $excel_url['file_id']);
+                        } else {
+                            // Formato vecchio (solo URL)
+                            $cloud_url = $excel_url;
+                            $data['googledrive_url'] = $excel_url;
+                            $this->log('[Forms] ✅ Excel caricato su Drive (formato vecchio): ' . basename($excel_path));
+                        }
                     }
                 }
                 
@@ -317,6 +326,43 @@ class Disco747_Forms {
             "SELECT * FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ), ARRAY_A);
+        
+        // GESTIONE RINOMINA FILE SU GOOGLE DRIVE
+        $rename_success = $this->handle_google_drive_rename($edit_id, $old_preventivo, $data);
+        
+        // Se la rinomina è riuscita, NON serve rigenerare e ricaricare il file
+        if ($rename_success) {
+            $this->log('[Forms] ✅ Rinomina completata, salto rigenerazione Excel');
+            
+            // Invia risposta senza rigenerare
+            wp_send_json_success(array(
+                'message' => 'Preventivo aggiornato con successo!',
+                'preventivo_id' => $preventivo['preventivo_id'] ?? $data['preventivo_id'],
+                'id' => $edit_id,
+                'db_id' => $edit_id,
+                'is_edit_mode' => true,
+                'file_renamed' => true,
+                // Dati preventivo per JavaScript
+                'nome_referente' => $preventivo['nome_referente'] ?? $data['nome_referente'] ?? '',
+                'cognome_referente' => $preventivo['cognome_referente'] ?? $data['cognome_referente'] ?? '',
+                'nome_cliente' => $preventivo['nome_cliente'] ?? $data['nome_cliente'] ?? '',
+                'email' => $preventivo['email'] ?? $data['email'] ?? '',
+                'telefono' => $preventivo['telefono'] ?? $data['telefono'] ?? '',
+                'data_evento' => $preventivo['data_evento'] ?? $data['data_evento'] ?? '',
+                'tipo_evento' => $preventivo['tipo_evento'] ?? $data['tipo_evento'] ?? '',
+                'tipo_menu' => $preventivo['tipo_menu'] ?? $data['tipo_menu'] ?? '',
+                'numero_invitati' => $preventivo['numero_invitati'] ?? $data['numero_invitati'] ?? 0,
+                'orario_inizio' => $preventivo['orario_inizio'] ?? $data['orario_inizio'] ?? '',
+                'orario_fine' => $preventivo['orario_fine'] ?? $data['orario_fine'] ?? '',
+                'importo_totale' => $preventivo['importo_totale'] ?? $data['importo_totale'] ?? 0,
+                'acconto' => $preventivo['acconto'] ?? $data['acconto'] ?? 0,
+                'stato' => $preventivo['stato'] ?? $data['stato'] ?? 'attivo'
+            ));
+            return;
+        }
+        
+        // Se la rinomina fallisce o non serve, ALLORA rigenera + upload
+        $this->log('[Forms] Rinomina fallita o non necessaria, procedo con rigenera + upload...');
         
         // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ RIGENERA EXCEL E RICARICA SU GOOGLE DRIVE
         $this->log('[Forms] ÃƒÂ°Ã…Â¸"Ã¢â‚¬Å¾ Rigenerazione Excel per preventivo aggiornato...');
@@ -1020,6 +1066,7 @@ class Disco747_Forms {
             // Stato e URLs
             'stato' => $data['stato'] ?? 'attivo',
             'googledrive_url' => $data['googledrive_url'] ?? '',
+            'googledrive_file_id' => $data['googledrive_file_id'] ?? '',
             'excel_url' => $data['googledrive_url'] ?? '',
             'pdf_url' => '',
             
