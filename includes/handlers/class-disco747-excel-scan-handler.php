@@ -972,11 +972,20 @@ class Disco747_Excel_Scan_Handler {
             // Stato basato su acconto
             $data['stato'] = floatval($data['acconto']) > 0 ? 'confermato' : 'attivo';
             
+            // DEBUG: Log nome file prima del controllo
+            error_log("[747Disco-Scan] 🔍 DEBUG Stato - Filename: '{$filename}'");
+            error_log("[747Disco-Scan] 🔍 DEBUG Stato - Primi 3 caratteri: '" . substr($filename, 0, 3) . "'");
+            error_log("[747Disco-Scan] 🔍 DEBUG Stato - Primi 5 caratteri: '" . substr($filename, 0, 5) . "'");
+            
             // Determina prefisso dal filename per stato
             if (strpos($filename, 'CONF ') === 0) {
                 $data['stato'] = 'confermato';
+                error_log("[747Disco-Scan] ✅ Rilevato CONF - Stato: confermato");
             } elseif (strpos($filename, 'NO ') === 0) {
                 $data['stato'] = 'annullato';
+                error_log("[747Disco-Scan] ✅ Rilevato NO - Stato: annullato");
+            } else {
+                error_log("[747Disco-Scan] ⚠️ Nessun prefisso rilevato - Stato: {$data['stato']}");
             }
             
             error_log("[747Disco-Scan] Parsing completato: {$filename} - Evento: {$data['tipo_evento']}, Importo: €" . number_format($data['importo_totale'], 2));
