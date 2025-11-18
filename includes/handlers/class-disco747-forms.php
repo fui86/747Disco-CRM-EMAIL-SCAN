@@ -18,16 +18,10 @@
 namespace Disco747_CRM\Handlers;
 
 if (!defined('ABSPATH')) {
-
-// Include helper per rinomina file
-require_once __DIR__ . '/class-disco747-forms-rename-helper.php';
     exit('Accesso diretto non consentito');
 }
 
 class Disco747_Forms {
-    
-    // Trait per gestione rinomina file
-    use Disco747_Forms_Rename_Helper;
     
     private $database;
     private $excel;
@@ -1130,6 +1124,98 @@ class Disco747_Forms {
                 }
             }
         }
+    }
+    
+    /**
+     * ========================================================================
+     * HELPER: Gestisce rinomina file su Google Drive quando cambia stato
+     * ========================================================================
+     */
+    private function handle_google_drive_rename($edit_id, $old_preventivo, $new_data) {
+        global $wpdb;
+        
+        $old_file_id = $old_preventivo->googledrive_file_id ?? '';
+        
+        // Calcola vecchio e nuovo nome file
+        $old_filename_data = array(
+            'data_evento' => $old_preventivo->data_evento,
+            'tipo_evento' => $old_preventivo->tipo_evento,
+            'tipo_menu' => $old_preventivo->tipo_menu,
+            'stato' => $old_preventivo->stato,
+            'acconto' => floatval($old_preventivo->acconto)
+        );
+        $old_filename = $this->generate_filename($old_filename_data) . '.xlsx';
+        
+        $new_filename_data = array(
+            'data_evento' => $new_data['data_evento'],
+            'tipo_evento' => $new_data['tipo_evento'],
+            'tipo_menu' => $new_data['tipo_menu'],
+            'stato' => $new_data['stato'],
+            'acconto' => floatval($new_data['acconto'])
+        );
+        $new_filename = $this->generate_filename($new_filename_data) . '.xlsx';
+        
+        $filename_changed = ($old_filename !== $new_filename);
+        
+        if (!$filename_changed) {
+            $this->log("[Forms] Nome file non cambiato, nessuna rinomina necessaria");
+            return false;
+        }
+        
+        $this->log("[Forms] Nome file cambiato:");
+        $this->log("   Vecchio: {$old_filename}");
+        $this->log("   Nuovo: {$new_filename}");
+        
+        if (empty($old_file_id)) {
+            $this->log("[Forms] googledrive_file_id mancante, impossibile rinominare", 'WARNING');
+            return false;
+        }
+        
+        // Ottieni istanza GoogleDrive
+        $googledrive = $this->get_googledrive_instance();
+        
+        if (!$googledrive || !method_exists($googledrive, 'rename_file')) {
+            $this->log('[Forms] Metodo rename_file non disponibile', 'WARNING');
+            return false;
+        }
+        
+        // Rinomina file su Google Drive
+        $this->log("[Forms] Rinomina file su Google Drive (ID: {$old_file_id})...");
+        $rename_result = $googledrive->rename_file($old_file_id, $new_filename);
+        
+        if ($rename_result['success']) {
+            $this->log('[Forms] File rinominato su Google Drive con successo!');
+            return true;
+        } else {
+            $error = $rename_result['error'] ?? 'Sconosciuto';
+            $this->log("[Forms] Errore rinomina su Google Drive: {$error}", 'ERROR');
+            return false;
+        }
+    }
+    
+    /**
+     * ========================================================================
+     * HELPER: Ottiene istanza GoogleDrive
+     * ========================================================================
+     */
+    private function get_googledrive_instance() {
+        // Prova tramite storage manager
+        if ($this->storage && method_exists($this->storage, 'get_googledrive')) {
+            return $this->storage->get_googledrive();
+        }
+        
+        // Prova tramite plugin principale
+        $disco747_crm = disco747_crm();
+        if ($disco747_crm && method_exists($disco747_crm, 'get_googledrive')) {
+            return $disco747_crm->get_googledrive();
+        }
+        
+        // Prova a istanziare direttamente
+        if (class_exists('\Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+            return new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+        }
+        
+        return null;
     }
     
     /**
