@@ -45,6 +45,9 @@ class Disco747_Forms {
         // Hook AJAX solo per PDF (email e whatsapp gestiti da class-disco747-ajax.php)
         add_action('wp_ajax_disco747_generate_pdf', array($this, 'handle_generate_pdf'));
         
+        // Hook AJAX per cambio stato rapido dal calendario
+        add_action('wp_ajax_disco747_quick_change_stato', array($this, 'handle_quick_change_stato'));
+        
         add_action('disco747_cleanup_temp_files', array($this, 'cleanup_temp_files'));
         if (!wp_next_scheduled('disco747_cleanup_temp_files')) {
             wp_schedule_event(time(), 'hourly', 'disco747_cleanup_temp_files');
@@ -1123,6 +1126,107 @@ class Disco747_Forms {
                     @unlink($file);
                 }
             }
+        }
+    }
+    
+    /**
+     * ========================================================================
+     * HANDLER: Cambio stato rapido dal calendario
+     * ========================================================================
+     */
+    public function handle_quick_change_stato() {
+        try {
+            $this->log('[QuickStato] Richiesta cambio stato rapido');
+            
+            // Verifica nonce
+            if (!check_ajax_referer('disco747_quick_stato', 'nonce', false)) {
+                throw new \Exception('Nonce non valido');
+            }
+            
+            // Verifica permessi
+            if (!current_user_can('manage_options')) {
+                throw new \Exception('Permessi insufficienti');
+            }
+            
+            // Ottieni parametri
+            $preventivo_id = isset($_POST['preventivo_id']) ? intval($_POST['preventivo_id']) : 0;
+            $nuovo_stato = isset($_POST['nuovo_stato']) ? sanitize_text_field($_POST['nuovo_stato']) : '';
+            
+            if ($preventivo_id <= 0) {
+                throw new \Exception('ID preventivo non valido');
+            }
+            
+            if (!in_array($nuovo_stato, array('attivo', 'confermato', 'annullato'))) {
+                throw new \Exception('Stato non valido');
+            }
+            
+            $this->log("[QuickStato] Cambio stato preventivo ID: {$preventivo_id} -> {$nuovo_stato}");
+            
+            global $wpdb;
+            
+            // Carica preventivo esistente
+            $old_preventivo = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$this->table_name} WHERE id = %d",
+                $preventivo_id
+            ));
+            
+            if (!$old_preventivo) {
+                throw new \Exception('Preventivo non trovato');
+            }
+            
+            $this->log("[QuickStato] Stato precedente: {$old_preventivo->stato}");
+            
+            // Aggiorna stato nel database
+            $updated = $wpdb->update(
+                $this->table_name,
+                array(
+                    'stato' => $nuovo_stato,
+                    'updated_at' => current_time('mysql')
+                ),
+                array('id' => $preventivo_id),
+                array('%s', '%s'),
+                array('%d')
+            );
+            
+            if ($updated === false) {
+                throw new \Exception('Errore aggiornamento database');
+            }
+            
+            $this->log('[QuickStato] Database aggiornato');
+            
+            // Prepara dati per rinomina
+            $new_data = array(
+                'data_evento' => $old_preventivo->data_evento,
+                'tipo_evento' => $old_preventivo->tipo_evento,
+                'tipo_menu' => $old_preventivo->tipo_menu,
+                'stato' => $nuovo_stato,
+                'acconto' => floatval($old_preventivo->acconto)
+            );
+            
+            // Carica componenti
+            $this->load_components();
+            
+            // Tenta rinomina file su Google Drive
+            $rename_success = $this->handle_google_drive_rename($preventivo_id, $old_preventivo, $new_data);
+            
+            if ($rename_success) {
+                $message = "Stato aggiornato e file rinominato su Google Drive";
+                $this->log('[QuickStato] ✅ Rinomina completata');
+            } else {
+                $message = "Stato aggiornato (file non rinominato - potrebbe essere un preventivo vecchio)";
+                $this->log('[QuickStato] ⚠️ Rinomina non eseguita');
+            }
+            
+            wp_send_json_success(array(
+                'message' => $message,
+                'preventivo_id' => $preventivo_id,
+                'nuovo_stato' => $nuovo_stato,
+                'file_renamed' => $rename_success
+            ));
+            
+        } catch (\Exception $e) {
+            $this->log('[QuickStato] ERRORE: ' . $e->getMessage(), 'ERROR');
+            wp_send_json_error($e->getMessage());
         }
     }
     
