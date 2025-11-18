@@ -904,8 +904,8 @@ function cambiaStatoEvento(eventoId, nuovoStato, data) {
                 // Mostra notifica successo
                 alert('✅ Stato aggiornato con successo!\n\n' + (response.data.message || 'File rinominato su Google Drive.'));
                 
-                // Ricarica eventi del giorno
-                mostraEventi(data);
+                // Ricarica la pagina per mostrare lo stato aggiornato
+                location.reload();
                 
             } else {
                 alert('❌ Errore: ' + (response.data || 'Impossibile aggiornare lo stato'));
