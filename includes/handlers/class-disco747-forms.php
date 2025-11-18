@@ -920,7 +920,8 @@ class Disco747_Forms {
         $data['note_interne'] = sanitize_textarea_field($post_data['note_interne'] ?? '');
         
         // METADATA
-        $data['stato'] = 'attivo';
+        // Usa lo stato dal form, non forzarlo ad 'attivo'
+        $data['stato'] = sanitize_text_field($post_data['stato'] ?? 'attivo');
         $data['created_by'] = get_current_user_id();
         $data['created_at'] = current_time('mysql');
         
