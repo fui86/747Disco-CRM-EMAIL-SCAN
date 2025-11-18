@@ -18,16 +18,10 @@
 namespace Disco747_CRM\Handlers;
 
 if (!defined('ABSPATH')) {
-
-// Include helper per rinomina file
-require_once __DIR__ . '/class-disco747-forms-rename-helper.php';
     exit('Accesso diretto non consentito');
 }
 
 class Disco747_Forms {
-    
-    // Trait per gestione rinomina file
-    use Disco747_Forms_Rename_Helper;
     
     private $database;
     private $excel;
@@ -237,7 +231,7 @@ class Disco747_Forms {
         
         // ðŸ” LEGGI STATO PRECEDENTE (per determinare se Ã¨ stata una conferma)
         $old_preventivo = $wpdb->get_row($wpdb->prepare(
-            "SELECT stato, acconto, googledrive_file_id, data_evento, tipo_evento, tipo_menu FROM {$this->table_name} WHERE id = %d",
+            "SELECT stato, acconto FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ));
         $old_stato = $old_preventivo ? $old_preventivo->stato : '';
