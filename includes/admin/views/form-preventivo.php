@@ -126,7 +126,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     </div>
 
     <!-- Form principale -->
-    <form id="disco747-form-preventivo" method="post" style="background: white; border-radius: 0 0 15px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden;">
+    <form id="disco747-form-preventivo" method="post" autocomplete="off" style="background: white; border-radius: 0 0 15px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden;">
         
         <?php wp_nonce_field('disco747_preventivo', 'disco747_preventivo_nonce'); ?>
         <input type="hidden" name="is_edit_mode" value="<?php echo $is_edit_mode ? '1' : '0'; ?>">
@@ -220,7 +220,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2b1e1a;">
                         🍽ï¸ Tipo Menu * <span style="color: #dc3545;">●</span>
                     </label>
-                    <select name="tipo_menu" id="tipo_menu" required
+                    <select name="tipo_menu" id="tipo_menu" required autocomplete="off"
                             style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
                         <option value="Menu 7" <?php echo get_field_value('tipo_menu', 'Menu 7', $edit_data) == 'Menu 7' ? 'selected' : ''; ?>>Menu 7</option>
                         <option value="Menu 7-4" <?php echo get_field_value('tipo_menu', '', $edit_data) == 'Menu 7-4' ? 'selected' : ''; ?>>Menu 7-4</option>
