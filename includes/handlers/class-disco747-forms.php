@@ -231,7 +231,7 @@ class Disco747_Forms {
         
         // ðŸ” LEGGI STATO PRECEDENTE (per determinare se Ã¨ stata una conferma)
         $old_preventivo = $wpdb->get_row($wpdb->prepare(
-            "SELECT stato, acconto FROM {$this->table_name} WHERE id = %d",
+            "SELECT * FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ));
         $old_stato = $old_preventivo ? $old_preventivo->stato : '';
@@ -293,6 +293,47 @@ class Disco747_Forms {
         }
         
         $this->log('[Forms] Ã¢Å“â€¦ Preventivo aggiornato con successo');
+        
+        // ✅ LOG: Registra aggiornamento nel sistema audit
+        if ($this->database && method_exists($this->database, 'log_preventivo_change')) {
+            // Prepara array delle modifiche rilevanti
+            $changes = array();
+            if ($old_preventivo) {
+                // Confronta tutti i campi chiave
+                if ($old_preventivo->nome_cliente != $data['nome_cliente']) {
+                    $changes['nome_cliente'] = array('old' => $old_preventivo->nome_cliente, 'new' => $data['nome_cliente']);
+                }
+                if ($old_preventivo->telefono != $data['telefono']) {
+                    $changes['telefono'] = array('old' => $old_preventivo->telefono, 'new' => $data['telefono']);
+                }
+                if ($old_preventivo->email != $data['email']) {
+                    $changes['email'] = array('old' => $old_preventivo->email, 'new' => $data['email']);
+                }
+                if ($old_preventivo->data_evento != $data['data_evento']) {
+                    $changes['data_evento'] = array('old' => $old_preventivo->data_evento, 'new' => $data['data_evento']);
+                }
+                if ($old_preventivo->tipo_evento != $data['tipo_evento']) {
+                    $changes['tipo_evento'] = array('old' => $old_preventivo->tipo_evento, 'new' => $data['tipo_evento']);
+                }
+                if ($old_preventivo->tipo_menu != $data['tipo_menu']) {
+                    $changes['tipo_menu'] = array('old' => $old_preventivo->tipo_menu, 'new' => $data['tipo_menu']);
+                }
+                if ($old_preventivo->numero_invitati != $data['numero_invitati']) {
+                    $changes['numero_invitati'] = array('old' => $old_preventivo->numero_invitati, 'new' => $data['numero_invitati']);
+                }
+                if ($old_preventivo->importo_totale != $data['importo_totale']) {
+                    $changes['importo_totale'] = array('old' => $old_preventivo->importo_totale, 'new' => $data['importo_totale']);
+                }
+                if ($old_acconto != floatval($data['acconto'])) {
+                    $changes['acconto'] = array('old' => $old_acconto, 'new' => $data['acconto']);
+                }
+                if ($old_stato != $data['stato']) {
+                    $changes['stato'] = array('old' => $old_stato, 'new' => $data['stato']);
+                }
+            }
+            $this->database->log_preventivo_change($edit_id, 'update', $changes);
+            $this->log('[Forms] ✅ Log audit aggiornamento registrato (' . count($changes) . ' modifiche)');
+        }
         
         // ðŸŽ‰ HOOK: Controlla se il preventivo Ã¨ stato appena confermato
         $new_stato = $data['stato'];
@@ -1052,6 +1093,12 @@ class Disco747_Forms {
             $this->log('[DB]   - Email: ' . ($check['email'] ?? 'VUOTO'));
         } else {
             $this->log('[DB] ÃƒÂ¢Ã‚ÂÃ…â€™ VERIFICA FALLITA: Record non trovato!', 'ERROR');
+        }
+        
+        // ✅ LOG: Registra creazione nel sistema audit
+        if ($this->database && method_exists($this->database, 'log_preventivo_change')) {
+            $this->database->log_preventivo_change($insert_id, 'create', array());
+            $this->log('[DB] ✅ Log audit creazione registrato');
         }
         
         return $insert_id;

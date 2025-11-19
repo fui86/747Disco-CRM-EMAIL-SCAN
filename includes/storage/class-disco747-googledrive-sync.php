@@ -315,6 +315,14 @@ class Disco747_GoogleDrive_Sync {
                     return array('success' => false, 'error' => $wpdb->last_error);
                 }
                 
+                // ✅ LOG: Registra aggiornamento da sync Google Drive
+                $database = disco747_crm()->get_database();
+                if ($database && method_exists($database, 'log_preventivo_change')) {
+                    $database->log_preventivo_change($existing->id, 'update', array(
+                        'sync_source' => array('old' => '', 'new' => 'Google Drive Sync')
+                    ));
+                }
+                
                 return array(
                     'success' => true,
                     'id' => $existing->id,
@@ -384,6 +392,14 @@ class Disco747_GoogleDrive_Sync {
                 
                 $insert_id = $wpdb->insert_id;
                 $this->log("[DB] ✅ Preventivo inserito con ID: {$insert_id}");
+                
+                // ✅ LOG: Registra creazione da sync Google Drive
+                $database = disco747_crm()->get_database();
+                if ($database && method_exists($database, 'log_preventivo_change')) {
+                    $database->log_preventivo_change($insert_id, 'create', array(
+                        'sync_source' => array('old' => '', 'new' => 'Google Drive Sync')
+                    ));
+                }
                 
                 return array(
                     'success' => true,
