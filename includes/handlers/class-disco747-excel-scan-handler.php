@@ -905,7 +905,34 @@ class Disco747_Excel_Scan_Handler {
             $filename = $file_info['name'];
             
             // Parsing celle specifiche (specifiche richieste)
-            $data['tipo_menu'] = $this->clean_cell_value($worksheet->getCell('B1')->getValue());
+            // ✅ FIX: Gestione speciale per cella B1 (tipo menu) con hyperlink
+            $cellB1 = $worksheet->getCell('B1');
+            
+            // Prova prima a ottenere il valore formattato (testo visualizzato)
+            $tipo_menu_raw = $cellB1->getFormattedValue();
+            
+            // Se è vuoto, prova il valore calcolato
+            if (empty($tipo_menu_raw)) {
+                $tipo_menu_raw = $cellB1->getCalculatedValue();
+            }
+            
+            // Se ancora vuoto, prova il valore puro
+            if (empty($tipo_menu_raw)) {
+                $tipo_menu_raw = $cellB1->getValue();
+            }
+            
+            $data['tipo_menu'] = $this->clean_cell_value($tipo_menu_raw);
+            
+            // ✅ FALLBACK: Se tipo_menu è vuoto, prova a estrarre dal filename
+            // Cerca pattern "(Menu N)" o "Menu N" nel filename
+            if (empty($data['tipo_menu']) && preg_match('/(?:\()?Menu\s*(\d+)(?:\))?/i', $filename, $matches)) {
+                $data['tipo_menu'] = 'Menu ' . $matches[1];
+                error_log("[747Disco-Scan] ⚠️ Tipo Menu estratto da filename: '{$data['tipo_menu']}'");
+            }
+            
+            // DEBUG: Log tipo menu estratto
+            error_log("[747Disco-Scan] 🔍 Tipo Menu estratto da B1: '{$data['tipo_menu']}' (File: {$filename})");
+            
             $data['data_evento'] = $this->parse_date_from_cell($worksheet->getCell('C6')->getValue());
             
             // ✅ FIX CRITICO: Se data_evento è NULL, prova a estrarre dal filename
@@ -972,11 +999,16 @@ class Disco747_Excel_Scan_Handler {
             // Stato basato su acconto
             $data['stato'] = floatval($data['acconto']) > 0 ? 'confermato' : 'attivo';
             
-            // Determina prefisso dal filename per stato
-            if (strpos($filename, 'CONF ') === 0) {
+            // Determina prefisso dal filename per stato (CASE-INSENSITIVE)
+            // Converte i primi caratteri in uppercase per confronto
+            $filename_upper = strtoupper($filename);
+            
+            if (strpos($filename_upper, 'CONF ') === 0) {
                 $data['stato'] = 'confermato';
-            } elseif (strpos($filename, 'NO ') === 0) {
+                error_log("[747Disco-Scan] ✅ Rilevato CONF/Conf/conf - Stato: confermato (File: {$filename})");
+            } elseif (strpos($filename_upper, 'NO ') === 0) {
                 $data['stato'] = 'annullato';
+                error_log("[747Disco-Scan] ✅ Rilevato NO/No/no - Stato: annullato (File: {$filename})");
             }
             
             error_log("[747Disco-Scan] Parsing completato: {$filename} - Evento: {$data['tipo_evento']}, Importo: €" . number_format($data['importo_totale'], 2));
@@ -1095,9 +1127,25 @@ class Disco747_Excel_Scan_Handler {
     
     /**
      * Helper: Pulisce valore cella
+     * ✅ MIGLIORATO: Gestisce oggetti, hyperlink, formule
      */
     private function clean_cell_value($value) {
         if ($value === null) return '';
+        
+        // Se è un oggetto (es. RichText, Hyperlink), converti a stringa
+        if (is_object($value)) {
+            // Prova a chiamare __toString() se disponibile
+            if (method_exists($value, '__toString')) {
+                $value = $value->__toString();
+            } elseif (method_exists($value, 'getPlainText')) {
+                $value = $value->getPlainText();
+            } else {
+                // Fallback: converti a JSON per debug
+                error_log('[747Disco-Scan] ⚠️ Oggetto non gestito in cella: ' . get_class($value));
+                $value = '';
+            }
+        }
+        
         return trim(strval($value));
     }
     

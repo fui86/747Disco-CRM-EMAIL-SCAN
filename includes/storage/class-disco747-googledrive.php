@@ -634,6 +634,66 @@ class Disco747_GoogleDrive {
     }
     
     /**
+     * Rinomina file su Google Drive
+     */
+    public function rename_file($file_id, $new_name) {
+        try {
+            $this->log("Rinomina file {$file_id} -> {$new_name}");
+            $token = $this->get_valid_access_token();
+            
+            $response = wp_remote_request(
+                "https://www.googleapis.com/drive/v3/files/{$file_id}",
+                array(
+                    'method' => 'PATCH',
+                    'headers' => array(
+                        'Authorization' => 'Bearer ' . $token,
+                        'Content-Type' => 'application/json'
+                    ),
+                    'body' => json_encode(array(
+                        'name' => $new_name
+                    )),
+                    'timeout' => 30
+                )
+            );
+            
+            if (is_wp_error($response)) {
+                $this->log('Errore rinomina: ' . $response->get_error_message(), 'ERROR');
+                return array(
+                    'success' => false,
+                    'error' => $response->get_error_message()
+                );
+            }
+            
+            $http_code = wp_remote_retrieve_response_code($response);
+            $body = json_decode(wp_remote_retrieve_body($response), true);
+            
+            if ($http_code === 200 && isset($body['id'])) {
+                $this->log("✅ File rinominato con successo");
+                return array(
+                    'success' => true,
+                    'file_id' => $body['id'],
+                    'new_name' => $body['name']
+                );
+            }
+            
+            $error = $body['error']['message'] ?? "HTTP {$http_code}";
+            $this->log("Errore rinomina: {$error}", 'ERROR');
+            
+            return array(
+                'success' => false,
+                'error' => $error
+            );
+            
+        } catch (\Exception $e) {
+            $this->log('Eccezione rinomina: ' . $e->getMessage(), 'ERROR');
+            return array(
+                'success' => false,
+                'error' => $e->getMessage()
+            );
+        }
+    }
+    
+    /**
      * Elimina file
      */
     public function delete_file($file_id) {

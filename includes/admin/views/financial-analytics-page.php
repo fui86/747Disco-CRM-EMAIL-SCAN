@@ -74,21 +74,26 @@ switch ($filter_type) {
 // QUERY DATI FINANZIARI
 // ============================================================================
 
-// KPI Principali
+// KPI Principali - DEFINIZIONI CORRETTE
 $query_base = "
     SELECT 
         COUNT(*) as totale_preventivi,
         COUNT(CASE WHEN stato = 'confermato' OR acconto > 0 THEN 1 END) as preventivi_confermati,
         COUNT(CASE WHEN stato = 'attivo' AND (acconto = 0 OR acconto IS NULL) THEN 1 END) as preventivi_attivi,
         COUNT(CASE WHEN stato = 'annullato' THEN 1 END) as preventivi_annullati,
-        SUM(CASE WHEN stato != 'annullato' THEN importo_totale ELSE 0 END) as fatturato_totale,
+        -- ✅ FATTURATO TOTALE = SOLO CONFERMATI (preventivi chiusi con acconto)
+        SUM(CASE WHEN stato = 'confermato' OR acconto > 0 THEN importo_totale ELSE 0 END) as fatturato_totale,
+        -- FATTURATO CONFERMATO (stesso del totale per chiarezza)
         SUM(CASE WHEN stato = 'confermato' OR acconto > 0 THEN importo_totale ELSE 0 END) as fatturato_confermato,
-        SUM(CASE WHEN stato = 'attivo' AND (acconto = 0 OR acconto IS NULL) THEN importo_totale ELSE 0 END) as fatturato_potenziale,
+        -- ✅ POTENZIALE = ATTIVI + CONFERMATI (tutto tranne annullati)
+        SUM(CASE WHEN stato != 'annullato' THEN importo_totale ELSE 0 END) as fatturato_potenziale,
+        -- ATTIVI PURI (senza acconto, potenziale da convertire)
+        SUM(CASE WHEN stato = 'attivo' AND (acconto = 0 OR acconto IS NULL) THEN importo_totale ELSE 0 END) as fatturato_attivo,
         SUM(acconto) as acconti_incassati,
-        SUM(CASE WHEN stato != 'annullato' THEN (importo_totale - acconto) ELSE 0 END) as saldi_da_incassare,
+        SUM(CASE WHEN stato = 'confermato' OR acconto > 0 THEN (importo_totale - acconto) ELSE 0 END) as saldi_da_incassare,
         SUM(extra1_importo + extra2_importo + extra3_importo) as fatturato_extra,
-        AVG(CASE WHEN stato != 'annullato' THEN importo_totale END) as ticket_medio,
-        AVG(CASE WHEN stato != 'annullato' THEN numero_invitati END) as invitati_medio
+        AVG(CASE WHEN stato = 'confermato' OR acconto > 0 THEN importo_totale END) as ticket_medio,
+        AVG(CASE WHEN stato = 'confermato' OR acconto > 0 THEN numero_invitati END) as invitati_medio
     FROM {$table_name}
     WHERE data_evento BETWEEN %s AND %s
 ";
@@ -151,13 +156,28 @@ $trend_monthly = $wpdb->get_results("
     SELECT 
         DATE_FORMAT(data_evento, '%Y-%m') as mese,
         COUNT(*) as preventivi,
-        SUM(CASE WHEN stato != 'annullato' THEN importo_totale ELSE 0 END) as fatturato,
-        SUM(acconto) as acconti
+        SUM(CASE WHEN stato = 'confermato' OR acconto > 0 THEN importo_totale ELSE 0 END) as fatturato,
+        SUM(acconto) as acconti,
+        COUNT(CASE WHEN stato = 'confermato' OR acconto > 0 THEN 1 END) as confermati,
+        COUNT(*) as totali
     FROM {$table_name}
     WHERE data_evento >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
     GROUP BY DATE_FORMAT(data_evento, '%Y-%m')
     ORDER BY mese ASC
 ");
+
+// Distribuzione per stato (periodo corrente)
+$distribuzione_stato = $wpdb->get_row($wpdb->prepare("
+    SELECT 
+        COUNT(CASE WHEN stato = 'confermato' OR acconto > 0 THEN 1 END) as confermati,
+        COUNT(CASE WHEN stato = 'attivo' AND (acconto = 0 OR acconto IS NULL) THEN 1 END) as attivi,
+        COUNT(CASE WHEN stato = 'annullato' THEN 1 END) as annullati,
+        SUM(CASE WHEN stato = 'confermato' OR acconto > 0 THEN importo_totale ELSE 0 END) as fatturato_confermato,
+        SUM(CASE WHEN stato = 'attivo' AND (acconto = 0 OR acconto IS NULL) THEN importo_totale ELSE 0 END) as fatturato_attivo,
+        SUM(CASE WHEN stato = 'annullato' THEN importo_totale ELSE 0 END) as fatturato_annullato
+    FROM {$table_name}
+    WHERE data_evento BETWEEN %s AND %s
+", $date_from, $date_to));
 
 // Top 10 Eventi per fatturato
 $top_eventi = $wpdb->get_results($wpdb->prepare("
@@ -288,7 +308,7 @@ $top_eventi = $wpdb->get_results($wpdb->prepare("
     <!-- KPI CARDS PRINCIPALI -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
         
-        <!-- Fatturato Totale -->
+        <!-- Fatturato Totale (CONFERMATI) -->
         <?php
         $var_fatturato = calc_variation($kpi->fatturato_totale, $kpi_prev->fatturato_totale);
         $var_class = $var_fatturato >= 0 ? 'positive' : 'negative';
@@ -297,27 +317,29 @@ $top_eventi = $wpdb->get_results($wpdb->prepare("
             <div class="kpi-icon">💰</div>
             <div class="kpi-label">Fatturato Totale</div>
             <div class="kpi-value">€<?php echo number_format($kpi->fatturato_totale, 2, ',', '.'); ?></div>
+            <div class="kpi-subtitle">Da preventivi confermati</div>
             <div class="kpi-trend <?php echo $var_class; ?>">
                 <?php echo $var_fatturato >= 0 ? '↑' : '↓'; ?> <?php echo abs($var_fatturato); ?>% vs periodo precedente
             </div>
         </div>
 
-        <!-- Fatturato Confermato -->
-        <?php $var_confermato = calc_variation($kpi->fatturato_confermato, $kpi_prev->fatturato_confermato); ?>
+        <!-- Fatturato Potenziale (ATTIVI + CONFERMATI) -->
+        <?php $var_potenziale = calc_variation($kpi->fatturato_potenziale, $kpi_prev->fatturato_potenziale); ?>
         <div class="kpi-card" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
-            <div class="kpi-icon">✅</div>
-            <div class="kpi-label">Fatturato Confermato</div>
-            <div class="kpi-value">€<?php echo number_format($kpi->fatturato_confermato, 2, ',', '.'); ?></div>
-            <div class="kpi-trend <?php echo $var_confermato >= 0 ? 'positive' : 'negative'; ?>">
-                <?php echo $var_confermato >= 0 ? '↑' : '↓'; ?> <?php echo abs($var_confermato); ?>%
+            <div class="kpi-icon">🎯</div>
+            <div class="kpi-label">Potenziale Totale</div>
+            <div class="kpi-value">€<?php echo number_format($kpi->fatturato_potenziale, 2, ',', '.'); ?></div>
+            <div class="kpi-subtitle">Attivi + Confermati (no annullati)</div>
+            <div class="kpi-trend <?php echo $var_potenziale >= 0 ? 'positive' : 'negative'; ?>">
+                <?php echo $var_potenziale >= 0 ? '↑' : '↓'; ?> <?php echo abs($var_potenziale); ?>%
             </div>
         </div>
 
-        <!-- Fatturato Potenziale -->
+        <!-- Fatturato da Convertire (SOLO ATTIVI) -->
         <div class="kpi-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-            <div class="kpi-icon">🎯</div>
-            <div class="kpi-label">Fatturato Potenziale</div>
-            <div class="kpi-value">€<?php echo number_format($kpi->fatturato_potenziale, 2, ',', '.'); ?></div>
+            <div class="kpi-icon">⏳</div>
+            <div class="kpi-label">Da Convertire</div>
+            <div class="kpi-value">€<?php echo number_format($kpi->fatturato_attivo, 2, ',', '.'); ?></div>
             <div class="kpi-subtitle"><?php echo $kpi->preventivi_attivi; ?> preventivi attivi</div>
         </div>
 
@@ -374,8 +396,33 @@ $top_eventi = $wpdb->get_results($wpdb->prepare("
 
     </div>
 
-    <!-- GRAFICI -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+    <!-- GRAFICI PRINCIPALI -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+        
+        <!-- Grafico Distribuzione Stati -->
+        <div class="disco747-card">
+            <div class="disco747-card-header">
+                📊 Distribuzione Preventivi per Stato
+            </div>
+            <div class="disco747-card-content">
+                <canvas id="chart-stato-distribution" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Grafico Fatturato per Stato -->
+        <div class="disco747-card">
+            <div class="disco747-card-header">
+                💰 Fatturato per Stato
+            </div>
+            <div class="disco747-card-content">
+                <canvas id="chart-fatturato-stato" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- GRAFICI TREND -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
         
         <!-- Grafico Trend Mensile -->
         <div class="disco747-card">
@@ -387,6 +434,21 @@ $top_eventi = $wpdb->get_results($wpdb->prepare("
             </div>
         </div>
 
+        <!-- Grafico Tasso Conversione -->
+        <div class="disco747-card">
+            <div class="disco747-card-header">
+                🎯 Evoluzione Tasso Conversione
+            </div>
+            <div class="disco747-card-content">
+                <canvas id="chart-conversion-trend" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- GRAFICI DETTAGLIO -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
+
         <!-- Grafico Breakdown Menu -->
         <div class="disco747-card">
             <div class="disco747-card-header">
@@ -394,6 +456,16 @@ $top_eventi = $wpdb->get_results($wpdb->prepare("
             </div>
             <div class="disco747-card-content">
                 <canvas id="chart-menu-breakdown" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Grafico Acconti vs Saldi -->
+        <div class="disco747-card">
+            <div class="disco747-card-header">
+                💳 Acconti vs Saldi da Incassare
+            </div>
+            <div class="disco747-card-content">
+                <canvas id="chart-acconti-saldi" style="max-height: 300px;"></canvas>
             </div>
         </div>
 
@@ -684,7 +756,133 @@ jQuery(document).ready(function($) {
         }
     });
     
-    // Grafico Breakdown Menu
+    // =========================================================================
+    // GRAFICO 1: Distribuzione Preventivi per Stato
+    // =========================================================================
+    const distribStato = <?php echo json_encode($distribuzione_stato); ?>;
+    
+    new Chart(document.getElementById('chart-stato-distribution'), {
+        type: 'pie',
+        data: {
+            labels: ['✅ Confermati', '⏳ Attivi', '❌ Annullati'],
+            datasets: [{
+                data: [distribStato.confermati, distribStato.attivi, distribStato.annullati],
+                backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 14, weight: 'bold' },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = distribStato.confermati + distribStato.attivi + distribStato.annullati;
+                            const perc = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                            return context.label + ': ' + context.parsed + ' (' + perc + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // =========================================================================
+    // GRAFICO 2: Fatturato per Stato
+    // =========================================================================
+    new Chart(document.getElementById('chart-fatturato-stato'), {
+        type: 'bar',
+        data: {
+            labels: ['Confermato', 'Attivo', 'Annullato'],
+            datasets: [{
+                label: 'Fatturato (€)',
+                data: [
+                    distribStato.fatturato_confermato,
+                    distribStato.fatturato_attivo,
+                    distribStato.fatturato_annullato
+                ],
+                backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '€' + value.toLocaleString('it-IT');
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // =========================================================================
+    // GRAFICO 3: Evoluzione Tasso Conversione (ultimi 12 mesi)
+    // =========================================================================
+    new Chart(document.getElementById('chart-conversion-trend'), {
+        type: 'line',
+        data: {
+            labels: monthlyLabels,
+            datasets: [{
+                label: 'Tasso Conversione (%)',
+                data: monthlyData.map(item => {
+                    return item.totali > 0 ? ((item.confermati / item.totali) * 100).toFixed(1) : 0;
+                }),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Conversione: ' + context.parsed.y + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // =========================================================================
+    // GRAFICO 4: Breakdown Menu
+    // =========================================================================
     const menuData = <?php echo json_encode($breakdown_menu); ?>;
     
     new Chart(document.getElementById('chart-menu-breakdown'), {
@@ -699,8 +897,12 @@ jQuery(document).ready(function($) {
                     '#f59e0b',
                     '#ef4444',
                     '#8b5cf6',
-                    '#ec4899'
-                ]
+                    '#ec4899',
+                    '#06b6d4',
+                    '#14b8a6'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
             }]
         },
         options: {
@@ -708,12 +910,57 @@ jQuery(document).ready(function($) {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'right'
+                    position: 'right',
+                    labels: {
+                        font: { size: 12 },
+                        padding: 10
+                    }
                 },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
                             return context.label + ': €' + context.parsed.toLocaleString('it-IT');
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // =========================================================================
+    // GRAFICO 5: Acconti vs Saldi da Incassare
+    // =========================================================================
+    const accontiIncassati = <?php echo floatval($kpi->acconti_incassati); ?>;
+    const saldiDaIncassare = <?php echo floatval($kpi->saldi_da_incassare); ?>;
+    
+    new Chart(document.getElementById('chart-acconti-saldi'), {
+        type: 'doughnut',
+        data: {
+            labels: ['💳 Acconti Incassati', '💵 Saldi da Incassare'],
+            datasets: [{
+                data: [accontiIncassati, saldiDaIncassare],
+                backgroundColor: ['#8b5cf6', '#ef4444'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        font: { size: 14, weight: 'bold' },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = accontiIncassati + saldiDaIncassare;
+                            const perc = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                            return context.label + ': €' + context.parsed.toLocaleString('it-IT') + ' (' + perc + '%)';
                         }
                     }
                 }

@@ -679,12 +679,21 @@ function mostraEventi(data) {
             statoIcon = '○';
         }
         
+        // DEBUG: Log completo evento per verificare dati
+        console.log('📋 DEBUG Evento ID ' + evento.id + ':', {
+            nome_cliente: evento.nome_cliente,
+            tipo_evento: evento.tipo_evento,
+            tipo_menu: evento.tipo_menu,
+            numero_invitati: evento.numero_invitati,
+            stato: evento.stato
+        });
+        
         // Formatta telefono e email
         const telefono = evento.telefono || '';
         const email = evento.email || '';
         const nomeCliente = evento.nome_cliente || 'Cliente';
         const tipoEvento = evento.tipo_evento || 'Evento';
-        const tipoMenu = evento.tipo_menu || 'Menu';
+        const tipoMenu = evento.tipo_menu || '<span style="color: #ff9500; font-weight: 600;">Menu non specificato</span>';
         const numeroInvitati = evento.numero_invitati || '-';
         
         // Link WhatsApp (formato internazionale)
@@ -709,10 +718,17 @@ function mostraEventi(data) {
                         </div>
                     </div>
                     
-                    <!-- Badge Stato -->
-                    <span style="background: ${statoColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
-                        ${statoIcon} ${statoLabel}
-                    </span>
+                    <!-- Dropdown Cambia Stato -->
+                    <div style="position: relative;">
+                        <select onchange="cambiaStatoEvento(${evento.id}, this.value, '${data}')" 
+                                style="background: ${statoColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; border: none; cursor: pointer; appearance: none; padding-right: 30px;"
+                                data-evento-id="${evento.id}">
+                            <option value="attivo" ${statoClass === 'attivo' ? 'selected' : ''} style="background: white; color: #007aff;">○ Attivo</option>
+                            <option value="confermato" ${statoClass === 'confermato' ? 'selected' : ''} style="background: white; color: #34c759;">✓ Confermato</option>
+                            <option value="annullato" ${statoClass === 'annullato' ? 'selected' : ''} style="background: white; color: #ff3b30;">✕ Annullato</option>
+                        </select>
+                        <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: white;">▼</span>
+                    </div>
                 </div>
                 
                 <!-- Contatti Rapidi -->
@@ -853,6 +869,70 @@ if ('ontouchstart' in window) {
                 this.onclick();
             }
         });
+    });
+}
+
+// ============================================================================
+// FUNZIONE: Cambia stato evento direttamente dal calendario
+// ============================================================================
+function cambiaStatoEvento(eventoId, nuovoStato, data) {
+    if (!eventoId || !nuovoStato) {
+        alert('Errore: Dati mancanti');
+        return;
+    }
+    
+    // Conferma cambio stato
+    const conferma = confirm(`Vuoi cambiare lo stato del preventivo a "${nuovoStato.toUpperCase()}"?\n\nQuesto aggiornerà anche il nome del file su Google Drive.`);
+    if (!conferma) {
+        // Ripristina valore precedente
+        location.reload();
+        return;
+    }
+    
+    // Mostra loading
+    const select = document.querySelector(`select[data-evento-id="${eventoId}"]`);
+    if (select) {
+        select.disabled = true;
+        select.style.opacity = '0.6';
+    }
+    
+    // Chiama AJAX
+    jQuery.ajax({
+        url: ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'disco747_quick_change_stato',
+            nonce: '<?php echo wp_create_nonce("disco747_quick_stato"); ?>',
+            preventivo_id: eventoId,
+            nuovo_stato: nuovoStato
+        },
+        success: function(response) {
+            console.log('Risposta cambio stato:', response);
+            
+            if (response.success) {
+                // Mostra notifica successo
+                alert('✅ Stato aggiornato con successo!\n\n' + (response.data.message || 'File rinominato su Google Drive.'));
+                
+                // Ricarica la pagina per mostrare lo stato aggiornato
+                location.reload();
+                
+            } else {
+                alert('❌ Errore: ' + (response.data || 'Impossibile aggiornare lo stato'));
+                // Ricarica per ripristinare
+                location.reload();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Errore AJAX:', error);
+            alert('❌ Errore di connessione: ' + error);
+            location.reload();
+        },
+        complete: function() {
+            if (select) {
+                select.disabled = false;
+                select.style.opacity = '1';
+            }
+        }
     });
 }
 </script>

@@ -94,6 +94,16 @@ $sconti_menu = array(
     'Menu 7-4-7' => 600
 );
 
+// ✅ NUOVO: Carica TUTTI i tipi menu dal database
+global $wpdb;
+$table_preventivi = $wpdb->prefix . 'disco747_preventivi';
+$tipi_menu_db = $wpdb->get_col("SELECT DISTINCT tipo_menu FROM {$table_preventivi} WHERE tipo_menu IS NOT NULL AND tipo_menu != '' ORDER BY tipo_menu ASC");
+
+// Aggiungi menu predefiniti se non ci sono nel DB
+$tipi_menu_default = array('Menu 7', 'Menu 7-4', 'Menu 7-4-7', 'Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'Menu 6', 'Menu 8');
+$tipi_menu_disponibili = array_unique(array_merge($tipi_menu_default, $tipi_menu_db));
+sort($tipi_menu_disponibili, SORT_NATURAL);
+
 $page_title = $is_edit_mode ? 'Modifica Preventivo #' . $edit_id : 'Nuovo Preventivo';
 $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventivo';
 
@@ -222,10 +232,19 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                     </label>
                     <select name="tipo_menu" id="tipo_menu" required
                             style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
-                        <option value="Menu 7" <?php echo get_field_value('tipo_menu', 'Menu 7', $edit_data) == 'Menu 7' ? 'selected' : ''; ?>>Menu 7</option>
-                        <option value="Menu 7-4" <?php echo get_field_value('tipo_menu', '', $edit_data) == 'Menu 7-4' ? 'selected' : ''; ?>>Menu 7-4</option>
-                        <option value="Menu 7-4-7" <?php echo get_field_value('tipo_menu', '', $edit_data) == 'Menu 7-4-7' ? 'selected' : ''; ?>>Menu 7-4-7</option>
+                        <?php
+                        // ✅ DINAMICO: Mostra tutti i menu disponibili (DB + predefiniti)
+                        $current_menu = get_field_value('tipo_menu', 'Menu 7', $edit_data);
+                        
+                        foreach ($tipi_menu_disponibili as $menu) {
+                            $selected = ($menu == $current_menu) ? 'selected' : '';
+                            echo '<option value="' . esc_attr($menu) . '" ' . $selected . '>' . esc_html($menu) . '</option>';
+                        }
+                        ?>
                     </select>
+                    <small style="color: #6c757d; font-size: 12px; margin-top: 5px; display: block;">
+                        Menu disponibili dal database + predefiniti
+                    </small>
                 </div>
                 
                 <div>

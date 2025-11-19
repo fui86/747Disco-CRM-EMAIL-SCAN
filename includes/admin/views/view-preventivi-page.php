@@ -56,8 +56,10 @@ if (!empty($filters['stato'])) {
 }
 
 if (!empty($filters['menu'])) {
-    $where[] = "tipo_menu LIKE %s";
-    $where_values[] = '%' . $wpdb->esc_like($filters['menu']) . '%';
+    // ✅ FIX: Usa = invece di LIKE per corrispondenza esatta
+    $where[] = "tipo_menu = %s";
+    $where_values[] = $filters['menu'];
+    error_log('[747Disco-ViewPrev] Filtro menu applicato: ' . $filters['menu']);
 }
 
 if ($filters['anno'] > 0) {
@@ -101,6 +103,9 @@ if (!empty($where_values)) {
 }
 
 $preventivi = $wpdb->get_results($query);
+
+// ✅ NUOVO: Carica tutti i tipi menu disponibili dal database per il filtro
+$tipi_menu_disponibili = $wpdb->get_col("SELECT DISTINCT tipo_menu FROM {$table_name} WHERE tipo_menu IS NOT NULL AND tipo_menu != '' ORDER BY tipo_menu ASC");
 
 // Statistiche
 $stats = array(
@@ -193,9 +198,13 @@ $stats = array(
                         <label style="display: block; margin-bottom: 5px; font-weight: 600;">🍽️ Menu</label>
                         <select name="menu" style="width: 100%; padding: 8px;">
                             <option value="">Tutti i menu</option>
-                            <option value="Menu 7" <?php selected($filters['menu'], 'Menu 7'); ?>>Menu 7</option>
-                            <option value="Menu 74" <?php selected($filters['menu'], 'Menu 74'); ?>>Menu 74</option>
-                            <option value="Menu 747" <?php selected($filters['menu'], 'Menu 747'); ?>>Menu 747</option>
+                            <?php
+                            // ✅ DINAMICO: Mostra tutti i menu dal database
+                            foreach ($tipi_menu_disponibili as $menu) {
+                                $selected = selected($filters['menu'], $menu, false);
+                                echo '<option value="' . esc_attr($menu) . '" ' . $selected . '>' . esc_html($menu) . '</option>';
+                            }
+                            ?>
                         </select>
                     </div>
 
