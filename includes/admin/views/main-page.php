@@ -679,12 +679,21 @@ function mostraEventi(data) {
             statoIcon = '○';
         }
         
+        // DEBUG: Log completo evento per verificare dati
+        console.log('📋 DEBUG Evento ID ' + evento.id + ':', {
+            nome_cliente: evento.nome_cliente,
+            tipo_evento: evento.tipo_evento,
+            tipo_menu: evento.tipo_menu,
+            numero_invitati: evento.numero_invitati,
+            stato: evento.stato
+        });
+        
         // Formatta telefono e email
         const telefono = evento.telefono || '';
         const email = evento.email || '';
         const nomeCliente = evento.nome_cliente || 'Cliente';
         const tipoEvento = evento.tipo_evento || 'Evento';
-        const tipoMenu = evento.tipo_menu || 'Menu';
+        const tipoMenu = evento.tipo_menu || '<span style="color: #ff9500; font-weight: 600;">Menu non specificato</span>';
         const numeroInvitati = evento.numero_invitati || '-';
         
         // Link WhatsApp (formato internazionale)
