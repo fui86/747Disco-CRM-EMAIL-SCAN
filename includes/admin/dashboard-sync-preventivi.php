@@ -203,8 +203,8 @@ $prossima_sync = $next_sync_timestamp ? wp_date('d/m/Y H:i', $next_sync_timestam
                 <select name="menu" style="width: 100%; padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 14px; background: #fff;">
                     <option value="">Tutti i menu</option>
                     <option value="Menu 7" <?php selected($filters['menu'], 'Menu 7'); ?>>Menu 7</option>
-                    <option value="Menu 74" <?php selected($filters['menu'], 'Menu 74'); ?>>Menu 74</option>
-                    <option value="Menu 747" <?php selected($filters['menu'], 'Menu 747'); ?>>Menu 747</option>
+                    <option value="Menu 7-4" <?php selected($filters['menu'], 'Menu 7-4'); ?>>Menu 7-4</option>
+                    <option value="Menu 7-4-7" <?php selected($filters['menu'], 'Menu 7-4-7'); ?>>Menu 7-4-7</option>
                 </select>
             </div>
             

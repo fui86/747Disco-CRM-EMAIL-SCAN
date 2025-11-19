@@ -246,8 +246,10 @@ class Disco747_Processor {
             $prefix = 'CONF ';
         }
         
-        // Menu
-        $menu_number = str_replace('Menu ', '', $data['tipo_menu'] ?? 'Menu 7');
+        // ✅ FIX: Estrazione robusta del numero menu (case-insensitive, rimuove tutti i "Menu" duplicati)
+        $menu_type = $data['tipo_menu'] ?? 'Menu 7';
+        $menu_number = preg_replace('/\b(menu\s*)+/i', '', $menu_type);
+        $menu_number = trim($menu_number);
         
         return $prefix . $day . '_' . $month . ' ' . $tipo_evento . ' (Menu ' . $menu_number . ')';
     }

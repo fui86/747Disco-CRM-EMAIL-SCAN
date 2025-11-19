@@ -326,8 +326,10 @@ class Disco747_PDF {
             $prefix = 'CONF ';
         }
         
+        // ✅ FIX: Estrazione robusta del numero menu (case-insensitive, rimuove tutti i "Menu" duplicati)
         $menu_type = $data['tipo_menu'] ?? 'Menu 7';
-        $menu_number = str_replace('Menu ', '', $menu_type);
+        $menu_number = preg_replace('/\b(menu\s*)+/i', '', $menu_type);
+        $menu_number = trim($menu_number);
         
         $filename = $prefix . $day . '_' . $month . ' ' . $tipo_evento . ' (Menu ' . $menu_number . ').pdf';
         
