@@ -414,6 +414,31 @@ class Disco747_Forms {
                 try {
                     $existing_file_id = $preventivo['googledrive_file_id'] ?? '';
                     
+                    // ✅ DEBUG: Log per diagnostica
+                    $this->log('[Forms] 🔍 Debug Google Drive File ID:');
+                    $this->log('  - googledrive_file_id dal DB: "' . ($existing_file_id ?: 'VUOTO/NULL') . '"');
+                    $this->log('  - googledrive_url dal DB: "' . ($preventivo['googledrive_url'] ?? 'VUOTO') . '"');
+                    
+                    // ✅ FALLBACK: Se file_id è vuoto, prova a estrarlo dall'URL
+                    if (empty($existing_file_id) && !empty($preventivo['googledrive_url'])) {
+                        $url = $preventivo['googledrive_url'];
+                        // URL formato: https://drive.google.com/file/d/{FILE_ID}/view
+                        if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
+                            $existing_file_id = $matches[1];
+                            $this->log('[Forms] 🔧 File ID estratto dall\'URL: ' . $existing_file_id);
+                            
+                            // Salva il file_id nel database per la prossima volta
+                            $wpdb->update(
+                                $this->table_name,
+                                array('googledrive_file_id' => $existing_file_id),
+                                array('id' => $edit_id),
+                                array('%s'),
+                                array('%d')
+                            );
+                            $this->log('[Forms] ✅ File ID salvato nel database');
+                        }
+                    }
+                    
                     if (!empty($existing_file_id)) {
                         // ✅ CASO 1: File già esistente → SOVRASCRIVE
                         $this->log('[Forms] 🔄 File esistente trovato (ID: ' . $existing_file_id . '), SOVRASCRIVO...');
