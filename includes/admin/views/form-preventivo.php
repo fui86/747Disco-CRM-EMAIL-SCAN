@@ -515,20 +515,6 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                     <?php echo $submit_text; ?> 💾
                 </button>
                 
-                <?php if ($is_edit_mode): ?>
-                <!-- Pulsante Salva e Rigenera File -->
-                <button type="submit" name="action" value="save_and_regenerate"
-                        style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-weight: 600; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3); transition: all 0.3s ease;">
-                    Salva e Rigenera File 📄
-                </button>
-                <?php endif; ?>
-                
-                <!-- Pulsante Salva come Bozza -->
-                <button type="submit" name="action" value="save_draft"
-                        style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-weight: 600; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3); transition: all 0.3s ease;">
-                    Salva come Bozza 📝
-                </button>
-                
                 <!-- Pulsante Annulla -->
                 <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm')); ?>" 
                    style="background: rgba(108, 117, 125, 0.1); color: #6c757d; padding: 15px 30px; border: 2px solid #6c757d; border-radius: 25px; font-weight: 600; font-size: 16px; text-decoration: none; display: inline-block; transition: all 0.3s ease;">
@@ -951,7 +937,11 @@ jQuery(document).ready(function($) {
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $submitButtons.prop('disabled', false).html('💾 Salva Preventivo');
+                // Ripristina il testo originale del pulsante
+                $submitButtons.prop('disabled', false);
+                const isEditMode = $('#is_edit_mode').val();
+                const buttonText = isEditMode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventivo';
+                $submitButtons.html(buttonText);
             }
         });
     });
