@@ -237,12 +237,22 @@ class Disco747_Forms {
         $old_stato = $old_preventivo ? $old_preventivo->stato : '';
         $old_acconto = $old_preventivo ? floatval($old_preventivo->acconto) : 0;
         
-        // Calcola extra totale
+        // ✅ FIX: Calcola extra totale
         $extra_totale = floatval($data['extra1_importo']) + floatval($data['extra2_importo']) + floatval($data['extra3_importo']);
         
-        // Calcola importo_preventivo e saldo
+        // ✅ IMPORTANTE: 
+        // - importo_totale = SOLO base menu (senza extra) - viene dal form
+        // - importo_preventivo = base + extra (totale finale)
+        // - saldo = importo_preventivo - acconto
         $importo_preventivo = floatval($data['importo_totale']) + $extra_totale;
         $saldo = $importo_preventivo - floatval($data['acconto']);
+        
+        $this->log('[Forms] 💰 Calcolo importi:');
+        $this->log('  - Base menu (importo_totale): €' . $data['importo_totale']);
+        $this->log('  - Extra totale: €' . $extra_totale);
+        $this->log('  - Totale finale (importo_preventivo): €' . $importo_preventivo);
+        $this->log('  - Acconto: €' . $data['acconto']);
+        $this->log('  - Saldo: €' . $saldo);
         
         // Aggiorna database
         $updated = $wpdb->update(
@@ -942,10 +952,13 @@ class Disco747_Forms {
         $this->log('  - Extra2: "' . $data['extra2'] . '" = Ã¢â€šÂ¬' . $data['extra2_importo']);
         $this->log('  - Extra3: "' . $data['extra3'] . '" = Ã¢â€šÂ¬' . $data['extra3_importo']);
         
-        // IMPORTI
-        $data['importo_preventivo'] = floatval($post_data['importo_preventivo'] ?? 0);
-        $data['importo_totale'] = $data['importo_preventivo'];
+        // ✅ FIX: IMPORTI - Il campo dal form si chiama 'importo_preventivo' ma contiene il BASE MENU (senza extra)
+        // Quindi lo assegniamo a importo_totale (che rappresenta il base)
+        // importo_preventivo (totale finale con extra) verrà calcolato dopo
+        $data['importo_totale'] = floatval($post_data['importo_preventivo'] ?? 0);  // Base menu dal form
         $data['acconto'] = floatval($post_data['acconto'] ?? 0);
+        
+        $this->log('[Forms] 📥 Importo base ricevuto dal form: €' . $data['importo_totale']);
         
         // NOTE
         $data['note_aggiuntive'] = sanitize_textarea_field($post_data['note_aggiuntive'] ?? '');
@@ -1079,14 +1092,22 @@ class Disco747_Forms {
             'acconto' => floatval($data['acconto'] ?? 0),
         );
         
-        // Calcola extra totale
+        // ✅ FIX: Calcola extra totale
         $extra_totale = $insert_data['extra1_importo'] + $insert_data['extra2_importo'] + $insert_data['extra3_importo'];
         
-        // Calcola importo_preventivo (importo totale + extra)
+        // ✅ IMPORTANTE: 
+        // - importo_totale = SOLO base menu (senza extra) - viene dal form
+        // - importo_preventivo = base + extra (totale finale)
+        // - saldo = importo_preventivo - acconto
         $insert_data['importo_preventivo'] = $insert_data['importo_totale'] + $extra_totale;
-        
-        // Calcola saldo (totale - acconto)
         $insert_data['saldo'] = $insert_data['importo_preventivo'] - $insert_data['acconto'];
+        
+        $this->log('[Forms] 💰 Calcolo importi (nuovo preventivo):');
+        $this->log('  - Base menu (importo_totale): €' . $insert_data['importo_totale']);
+        $this->log('  - Extra totale: €' . $extra_totale);
+        $this->log('  - Totale finale (importo_preventivo): €' . $insert_data['importo_preventivo']);
+        $this->log('  - Acconto: €' . $insert_data['acconto']);
+        $this->log('  - Saldo: €' . $insert_data['saldo']);
         
         // Continua con gli altri campi
         $insert_data = array_merge($insert_data, array(

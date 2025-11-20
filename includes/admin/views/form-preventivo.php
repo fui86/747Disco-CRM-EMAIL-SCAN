@@ -58,7 +58,16 @@ if ($is_edit_mode) {
         // Normalizza campi per compatibilità
         $edit_data['email'] = $edit_data['email'] ?? $edit_data['mail'] ?? '';
         $edit_data['telefono'] = $edit_data['telefono'] ?? $edit_data['cellulare'] ?? '';
-        $edit_data['importo_totale'] = $edit_data['importo_preventivo'] ?? $edit_data['importo_totale'] ?? 0;
+        // ✅ FIX: NON sovrascrivere importo_totale con importo_preventivo (che ha già gli extra inclusi!)
+        // importo_totale deve contenere SOLO il prezzo base del menu, senza extra
+        if (!isset($edit_data['importo_totale']) || $edit_data['importo_totale'] == 0) {
+            // Se importo_totale è vuoto, calcola il base sottraendo gli extra da importo_preventivo
+            $importo_preventivo = floatval($edit_data['importo_preventivo'] ?? 0);
+            $extra_totale = floatval($edit_data['extra1_importo'] ?? 0) + 
+                          floatval($edit_data['extra2_importo'] ?? 0) + 
+                          floatval($edit_data['extra3_importo'] ?? 0);
+            $edit_data['importo_totale'] = $importo_preventivo - $extra_totale;
+        }
     } else {
         error_log('[747Disco-Form] ERRORE: Preventivo non trovato con ID: ' . $edit_id);
     }
@@ -864,8 +873,8 @@ jQuery(document).ready(function($) {
         tipo_menu: '<?php echo esc_js($edit_data['tipo_menu'] ?? ''); ?>',
         numero_invitati: <?php echo intval($edit_data['numero_invitati'] ?? 0); ?>,
         
-        // Importi
-        importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? $edit_data['importo_preventivo'] ?? 0); ?>,
+        // Importi - ✅ FIX: Usa sempre importo_totale (base menu), mai importo_preventivo (che ha extra inclusi)
+        importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? 0); ?>,
         acconto: <?php echo floatval($edit_data['acconto'] ?? 0); ?>
     };
     console.log('📝 Edit mode - preventivoData inizializzato:', window.preventivoData);
