@@ -525,6 +525,12 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                 </button>
                 
                 <!-- Pulsante Annulla -->
+                
+                <!-- Pulsante Torna alla Dashboard -->
+                <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm')); ?>"
+                   style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-weight: 600; font-size: 16px; text-decoration: none; display: inline-block; box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3); transition: all 0.3s ease;">
+                    🏠 Torna alla Dashboard
+                </a>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm')); ?>" 
                    style="background: rgba(108, 117, 125, 0.1); color: #6c757d; padding: 15px 30px; border: 2px solid #6c757d; border-radius: 25px; font-weight: 600; font-size: 16px; text-decoration: none; display: inline-block; transition: all 0.3s ease;">
                     â† Annulla

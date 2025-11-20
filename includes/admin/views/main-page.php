@@ -203,7 +203,8 @@ $mesi_nomi = array(
             <select id="filtro-anno" onchange="applicaFiltroCalendario()" style="background: white; border: 2px solid #e5e5e7; color: #1d1d1f; padding: 10px 15px; border-radius: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 600; min-width: 120px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007aff'" onmouseout="this.style.borderColor='#e5e5e7'">
                 <?php 
                 $anno_corrente = date('Y');
-                for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
+                // ✅ FIX: Estendi range per includere sempre 2026 e anni futuri
+                for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 5; $anno++):
                 ?>
                     <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?>>
                         <?php echo $anno; ?>

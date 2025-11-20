@@ -173,8 +173,10 @@ class Disco747_GoogleDrive {
             $file_content = file_get_contents($local_file_path);
             $mime_type = wp_check_filetype($local_file_path)['type'] ?: 'application/octet-stream';
             
-            // Per l'update non serve specificare parents o name (mantiene gli stessi)
-            $metadata = json_encode(array());
+            // ✅ FIX: Includi il nome del file per permettere rinominazione (es: quando diventa "annullato" → "NO ...")
+            $new_filename = basename($local_file_path);
+            $this->log('📝 Nuovo nome file: ' . $new_filename);
+            $metadata = json_encode(array('name' => $new_filename));
             
             $body = "--{$boundary}\r\n" .
                     "Content-Type: application/json; charset=UTF-8\r\n\r\n" .
@@ -233,6 +235,81 @@ class Disco747_GoogleDrive {
             
         } catch (\Exception $e) {
             $this->log('❌ ERRORE UPDATE: ' . $e->getMessage(), 'ERROR');
+            return false;
+        }
+    }
+    
+    /**
+     * Rinomina un file su Google Drive
+     * 
+     * @param string $file_id ID del file su Google Drive
+     * @param string $new_name Nuovo nome del file
+     * @return array|false Array con url e file_id, oppure false in caso di errore
+     */
+    public function rename_file($file_id, $new_name) {
+        try {
+            $this->log('========== INIZIO RINOMINA FILE GOOGLE DRIVE ==========');
+            $this->log('File ID: ' . $file_id);
+            $this->log('Nuovo nome: ' . $new_name);
+            
+            if (empty($file_id) || empty($new_name)) {
+                throw new \Exception('File ID o nome mancante');
+            }
+            
+            // Ottieni token valido
+            $token = $this->get_valid_access_token();
+            
+            // Prepara metadata con solo il nuovo nome
+            $metadata = json_encode(array('name' => $new_name));
+            
+            // Usa endpoint PATCH per aggiornare solo il nome
+            $response = wp_remote_request(
+                "https://www.googleapis.com/drive/v3/files/{$file_id}",
+                array(
+                    'method' => 'PATCH',
+                    'headers' => array(
+                        'Authorization' => 'Bearer ' . $token,
+                        'Content-Type' => 'application/json'
+                    ),
+                    'body' => $metadata,
+                    'timeout' => 30
+                )
+            );
+            
+            if (is_wp_error($response)) {
+                throw new \Exception('Errore rinomina: ' . $response->get_error_message());
+            }
+            
+            $http_code = wp_remote_retrieve_response_code($response);
+            $update_data = json_decode(wp_remote_retrieve_body($response), true);
+            
+            if ($http_code !== 200) {
+                $error_msg = $update_data['error']['message'] ?? 'Errore sconosciuto';
+                throw new \Exception("Rinomina fallita (HTTP {$http_code}): {$error_msg}");
+            }
+            
+            $this->log('✅ File rinominato con successo');
+            
+            // Genera link condivisione
+            $share_url = $this->create_shareable_link($file_id);
+            
+            if ($share_url) {
+                $this->log('========== RINOMINA COMPLETATA CON SUCCESSO ==========');
+                return array(
+                    'url' => $share_url,
+                    'file_id' => $file_id,
+                    'new_name' => $new_name
+                );
+            }
+            
+            return array(
+                'url' => "https://drive.google.com/file/d/{$file_id}/view",
+                'file_id' => $file_id,
+                'new_name' => $new_name
+            );
+            
+        } catch (\Exception $e) {
+            $this->log('❌ ERRORE RINOMINA: ' . $e->getMessage(), 'ERROR');
             return false;
         }
     }
