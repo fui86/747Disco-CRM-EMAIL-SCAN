@@ -312,6 +312,55 @@ class Disco747_Forms {
         
         $this->log('[Forms] Ã¢Å“â€¦ Preventivo aggiornato con successo');
         
+        // ✅ GESTIONE CAMBIO STATO → ANNULLATO: Rinomina file su Google Drive
+        if ($data['stato'] === 'annullato' && $old_stato !== 'annullato') {
+            $this->log('[Forms] 🔴 Stato cambiato ad ANNULLATO, rinomino file su Google Drive...');
+            
+            $file_id = $old_preventivo->googledrive_file_id ?? '';
+            if (!empty($file_id) && class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+                
+                // Ottieni il nome attuale del file
+                $data_evento = date('d_m', strtotime($old_preventivo->data_evento));
+                $tipo_evento = $old_preventivo->tipo_evento ?? 'Evento';
+                $menu_type = preg_replace('/\b(menu\s*)+/i', '', $old_preventivo->tipo_menu);
+                $menu_type = trim($menu_type);
+                
+                if ($old_stato === 'confermato') {
+                    $current_filename = "CONF {$data_evento} {$tipo_evento} (Menu {$menu_type}).xlsx";
+                } else {
+                    $current_filename = "{$data_evento} {$tipo_evento} (Menu {$menu_type}).xlsx";
+                }
+                
+                // Genera nuovo nome: "NO " + nome (senza CONF se presente)
+                $new_filename = preg_replace('/^CONF\s+/i', '', $current_filename);
+                if (!preg_match('/^NO\s+/i', $new_filename)) {
+                    $new_filename = 'NO ' . $new_filename;
+                }
+                
+                $this->log('[Forms] 📝 Nuovo nome file: ' . $new_filename);
+                
+                // Rinomina su Google Drive
+                $rename_result = $googledrive->rename_file($file_id, $new_filename);
+                
+                if ($rename_result && isset($rename_result['url'])) {
+                    $this->log('[Forms] ✅ File rinominato su Google Drive');
+                    // Aggiorna URL nel database
+                    $wpdb->update(
+                        $this->table_name,
+                        array('googledrive_url' => $rename_result['url']),
+                        array('id' => $edit_id),
+                        array('%s'),
+                        array('%d')
+                    );
+                } else {
+                    $this->log('[Forms] ⚠️ Errore rinomina file su Google Drive', 'WARNING');
+                }
+            } else {
+                $this->log('[Forms] ⚠️ File ID non disponibile, impossibile rinominare', 'WARNING');
+            }
+        }
+        
         // ✅ LOG: Registra aggiornamento nel sistema audit
         if ($this->database && method_exists($this->database, 'log_preventivo_change')) {
             // Prepara array delle modifiche rilevanti

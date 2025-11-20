@@ -750,6 +750,18 @@ function mostraEventi(data) {
                     
                 </div>
                 
+                <!-- Cambio Stato Rapido -->
+                <div style="margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-radius: 12px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: #1d1d1f;">
+                        📊 Cambio Stato Rapido:
+                    </label>
+                    <select onchange="cambiaStatoRapido(${evento.id}, this.value)" style="width: 100%; padding: 10px; border: 2px solid #e5e5e7; border-radius: 8px; font-size: 0.9rem; font-weight: 600; background: white; cursor: pointer;">
+                        <option value="attivo" ${evento.stato === 'attivo' ? 'selected' : ''}>✅ Attivo</option>
+                        <option value="confermato" ${evento.stato === 'confermato' ? 'selected' : ''}>🎉 Confermato</option>
+                        <option value="annullato" ${evento.stato === 'annullato' ? 'selected' : ''}>❌ Annullato</option>
+                    </select>
+                </div>
+                
                 <!-- Azioni Principali -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
                     
@@ -805,6 +817,19 @@ function vaiOggi() {
     meseCorrente = oggi.getMonth() + 1;
     annoCorrente = oggi.getFullYear();
     aggiornaCalendario();
+}
+
+// Funzione: Cambia stato rapido da box riepilogo
+function cambiaStatoRapido(preventivoId, nuovoStato) {
+    if (!confirm(`Confermi il cambio stato a "${nuovoStato}"?`)) {
+        // Reset select se annullato
+        location.reload();
+        return;
+    }
+    
+    // Reindirizza al form di modifica con lo stato preimpostato
+    const url = '<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo'); ?>&id=' + preventivoId + '&quick_stato=' + nuovoStato;
+    window.location.href = url;
 }
 
 // Funzione: Aggiorna calendario con AJAX

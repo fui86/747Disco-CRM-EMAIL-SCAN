@@ -50,6 +50,12 @@ if ($is_edit_mode) {
     error_log('[747Disco-Form] Edit mode - ID: ' . $edit_id);
     error_log('[747Disco-Form] Edit data loaded: ' . ($edit_data ? 'SI' : 'NO'));
     
+    // ✅ Preimposta stato se arriva da cambio rapido dashboard
+    if (!empty($_GET['quick_stato']) && $edit_data) {
+        $edit_data['stato'] = sanitize_key($_GET['quick_stato']);
+        error_log('[747Disco-Form] Stato preimpostato da quick_stato: ' . $edit_data['stato']);
+    }
+    
     if ($edit_data) {
         error_log('[747Disco-Form] Preventivo ID: ' . ($edit_data['preventivo_id'] ?? 'VUOTO'));
         error_log('[747Disco-Form] Nome cliente: ' . ($edit_data['nome_cliente'] ?? 'VUOTO'));
