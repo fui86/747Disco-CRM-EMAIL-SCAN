@@ -495,18 +495,39 @@ class Disco747_Forms {
                         
                         $this->log('[Forms] ÃƒÂ°Ã…Â¸" Percorso Google Drive: ' . $drive_folder);
                         
-                        // Upload Excel (nuovo file)
-                        $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                        if ($excel_url) {
-                            // Aggiorna URL nel database
-                            $wpdb->update(
-                                $this->table_name,
-                                array('googledrive_url' => $excel_url),
-                                array('id' => $edit_id),
-                                array('%s'),
-                                array('%d')
-                            );
-                            $this->log('[Forms] ✅ Nuovo file Excel creato su Drive: ' . basename($excel_path));
+                        // ✅ FIX: Upload Excel (nuovo file) con salvataggio file_id
+                        $googledrive = disco747_crm()->get_googledrive();
+                        if ($googledrive && method_exists($googledrive, 'upload_to_googledrive')) {
+                            $filename = basename($excel_path);
+                            $result = $googledrive->upload_to_googledrive($excel_path, $filename, $preventivo['data_evento']);
+                            
+                            $this->log('[Forms] 🔍 DEBUG risultato upload: ' . print_r($result, true));
+                            
+                            if ($result && is_array($result) && isset($result['url'])) {
+                                // Aggiorna URL e FILE_ID nel database
+                                $update_result = $wpdb->update(
+                                    $this->table_name,
+                                    array(
+                                        'googledrive_url' => $result['url'],
+                                        'googledrive_file_id' => isset($result['file_id']) ? $result['file_id'] : '',
+                                        'excel_url' => $result['url']
+                                    ),
+                                    array('id' => $edit_id),
+                                    array('%s', '%s', '%s'),
+                                    array('%d')
+                                );
+                                
+                                $this->log('[Forms] 🔍 DEBUG wpdb->update result: ' . ($update_result !== false ? 'SUCCESS' : 'FAILED'));
+                                if ($update_result === false) {
+                                    $this->log('[Forms] ❌ Errore wpdb: ' . $wpdb->last_error);
+                                }
+                                
+                                $this->log('[Forms] ✅ Nuovo file Excel creato su Drive: ' . basename($excel_path));
+                                $this->log('[Forms] ✅ URL salvato: ' . $result['url']);
+                                $this->log('[Forms] ✅ File ID salvato: ' . (isset($result['file_id']) ? $result['file_id'] : 'N/A'));
+                            } else {
+                                $this->log('[Forms] ❌ Risultato upload non valido o mancante!');
+                            }
                         }
                     }
                     
