@@ -14,7 +14,7 @@
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================
-// MODALITÃ€ MODIFICA: Carica dati esistenti
+// MODALITÀ MODIFICA: Carica dati esistenti
 // ============================================================================
 $is_edit_mode = false;
 $edit_data = null;
@@ -628,7 +628,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     
     <!-- ============================================================================ -->
     <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
-    <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
+    <!-- Visibile SOLO dopo che il preventivo è stato salvato -->
     <!-- ============================================================================ -->
     
     <div id="post-creation-actions" style="display: none; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
@@ -724,7 +724,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 25px;">
                 <p style="margin: 0; color: #004085; font-size: 0.9rem;">
-                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
+                    ℹ️ L'email sarà inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
                 </p>
             </div>
             
@@ -768,7 +768,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 25px;">
                 <p style="margin: 0; color: #155724; font-size: 0.9rem;">
-                    ℹï¸ VerrÃ  aperta l'app WhatsApp con il messaggio giÃ  precompilato, pronto per essere inviato al cliente
+                    ℹ️ Verrà aperta l'app WhatsApp con il messaggio già precompilato, pronto per essere inviato al cliente
                 </p>
             </div>
             

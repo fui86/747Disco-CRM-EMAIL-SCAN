@@ -147,13 +147,21 @@ class Disco747_Forms {
                 $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Percorso Google Drive: ' . $drive_folder);
                 $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ Data evento usata: ' . $data['data_evento']);
                 
-                // Upload Excel
+                // ✅ FIX: Upload Excel e salva file_id per permettere sovrascrittura futura
                 if ($excel_path && file_exists($excel_path)) {
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
-                        $cloud_url = $excel_url;
-                        $data['googledrive_url'] = $excel_url;
-                        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel caricato su Drive: ' . basename($excel_path));
+                    // Usa direttamente il metodo GoogleDrive per avere file_id
+                    $googledrive = disco747_crm()->get_googledrive();
+                    if ($googledrive && method_exists($googledrive, 'upload_to_googledrive')) {
+                        $filename = basename($excel_path);
+                        $result = $googledrive->upload_to_googledrive($excel_path, $filename, $data['data_evento']);
+                        
+                        if ($result && is_array($result) && isset($result['url'])) {
+                            $cloud_url = $result['url'];
+                            $data['googledrive_url'] = $result['url'];
+                            $data['googledrive_file_id'] = $result['file_id'];  // ✅ SALVA FILE_ID!
+                            $this->log('[Forms] ✅ Excel caricato su Drive: ' . basename($excel_path));
+                            $this->log('[Forms] ✅ File ID salvato: ' . $result['file_id']);
+                        }
                     }
                 }
                 
@@ -1119,6 +1127,7 @@ class Disco747_Forms {
             // Stato e URLs
             'stato' => $data['stato'] ?? 'attivo',
             'googledrive_url' => $data['googledrive_url'] ?? '',
+            'googledrive_file_id' => $data['googledrive_file_id'] ?? '',  // ✅ SALVA FILE_ID!
             'excel_url' => $data['googledrive_url'] ?? '',
             'pdf_url' => '',
             
