@@ -951,6 +951,18 @@ class Disco747_Excel_Scan_Handler {
             $data['orario_evento'] = $this->clean_cell_value($worksheet->getCell('C8')->getValue());
             $data['numero_invitati'] = $this->parse_number_from_cell($worksheet->getCell('C9')->getValue());
             
+            // ✅ VALIDAZIONE: Se tipo_evento è un numero o vuoto, il file ha struttura errata
+            if (empty($data['tipo_evento']) || is_numeric($data['tipo_evento'])) {
+                error_log("[747Disco-Scan] ❌ ERRORE STRUTTURA FILE: {$filename}");
+                error_log("[747Disco-Scan]    B1 (Menu): '{$data['tipo_menu']}'");
+                error_log("[747Disco-Scan]    C6 (Data): '" . $worksheet->getCell('C6')->getValue() . "'");
+                error_log("[747Disco-Scan]    C7 (Tipo Evento): '{$data['tipo_evento']}'");
+                error_log("[747Disco-Scan]    C8 (Orario): '{$data['orario_evento']}'");
+                error_log("[747Disco-Scan]    C9 (Invitati): '{$data['numero_invitati']}'");
+                error_log("[747Disco-Scan]    F27 (Importo): '" . $worksheet->getCell('F27')->getValue() . "'");
+                error_log("[747Disco-Scan] ⚠️ Questo file ha una struttura non standard e potrebbe contenere dati errati");
+            }
+            
             // Cliente/Referente (specifiche richieste)
             $data['nome_referente'] = $this->clean_cell_value($worksheet->getCell('C11')->getValue());
             $data['cognome_referente'] = $this->clean_cell_value($worksheet->getCell('C12')->getValue());
