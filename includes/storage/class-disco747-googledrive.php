@@ -146,6 +146,98 @@ class Disco747_GoogleDrive {
     }
     
     /**
+     * Aggiorna un file esistente su Google Drive (sovrascrive il contenuto)
+     * 
+     * @param string $local_file_path Percorso locale del file
+     * @param string $existing_file_id ID del file esistente su Google Drive
+     * @return array|false Array con url e file_id, oppure false in caso di errore
+     */
+    public function update_existing_file($local_file_path, $existing_file_id) {
+        try {
+            $this->log('========== INIZIO UPDATE FILE GOOGLE DRIVE ==========');
+            $this->log('File locale: ' . $local_file_path);
+            $this->log('File ID esistente: ' . $existing_file_id);
+            
+            if (!file_exists($local_file_path)) {
+                throw new \Exception('File non trovato: ' . $local_file_path);
+            }
+            
+            if (empty($existing_file_id)) {
+                throw new \Exception('File ID mancante per update');
+            }
+            
+            // Ottieni token valido
+            $token = $this->get_valid_access_token();
+            
+            $boundary = wp_generate_uuid4();
+            $file_content = file_get_contents($local_file_path);
+            $mime_type = wp_check_filetype($local_file_path)['type'] ?: 'application/octet-stream';
+            
+            // Per l'update non serve specificare parents o name (mantiene gli stessi)
+            $metadata = json_encode(array());
+            
+            $body = "--{$boundary}\r\n" .
+                    "Content-Type: application/json; charset=UTF-8\r\n\r\n" .
+                    "{$metadata}\r\n" .
+                    "--{$boundary}\r\n" .
+                    "Content-Type: {$mime_type}\r\n\r\n" .
+                    "{$file_content}\r\n" .
+                    "--{$boundary}--";
+            
+            // ✅ Usa endpoint PATCH per aggiornare file esistente
+            $response = wp_remote_request(
+                "https://www.googleapis.com/upload/drive/v3/files/{$existing_file_id}?uploadType=multipart",
+                array(
+                    'method' => 'PATCH',
+                    'headers' => array(
+                        'Authorization' => 'Bearer ' . $token,
+                        'Content-Type' => "multipart/related; boundary=\"{$boundary}\""
+                    ),
+                    'body' => $body,
+                    'timeout' => 60
+                )
+            );
+            
+            if (is_wp_error($response)) {
+                throw new \Exception('Errore update: ' . $response->get_error_message());
+            }
+            
+            $http_code = wp_remote_retrieve_response_code($response);
+            $update_data = json_decode(wp_remote_retrieve_body($response), true);
+            
+            if ($http_code !== 200) {
+                $error_msg = $update_data['error']['message'] ?? 'Errore sconosciuto';
+                throw new \Exception("Update fallito (HTTP {$http_code}): {$error_msg}");
+            }
+            
+            $file_id = $update_data['id'];
+            $this->log('✅ File aggiornato con ID: ' . $file_id);
+            
+            // Genera link condivisione (dovrebbe essere lo stesso di prima)
+            $share_url = $this->create_shareable_link($file_id);
+            
+            if ($share_url) {
+                $this->log('✅ Link condivisione: ' . $share_url);
+                $this->log('========== UPDATE COMPLETATO CON SUCCESSO ==========');
+                return array(
+                    'url' => $share_url,
+                    'file_id' => $file_id
+                );
+            }
+            
+            $this->log('⚠️ Update riuscito ma link condivisione non creato');
+            return array(
+                'url' => "https://drive.google.com/file/d/{$file_id}/view",
+                'file_id' => $file_id
+            );
+            
+        } catch (\Exception $e) {
+            $this->log('❌ ERRORE UPDATE: ' . $e->getMessage(), 'ERROR');
+            return false;
+        }
+    }
+    
+    /**
      * ========================================================================
      * GESTIONE CARTELLE: Trova o crea cartella
      * ✅ Supporta gerarchia con parent_id

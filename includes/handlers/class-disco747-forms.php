@@ -389,42 +389,82 @@ class Disco747_Forms {
         if ($excel_path && file_exists($excel_path)) {
             $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel rigenerato: ' . basename($excel_path));
             
-            // Upload su Google Drive (sovrascrive il vecchio)
+            // Upload su Google Drive (SOVRASCRIVE file esistente o crea nuovo)
             if ($this->storage) {
-                $this->log('[Forms] ÃƒÂ¢Ã‹Å“ÃƒÂ¯Ã‚Â¸ Upload Excel aggiornato su Google Drive...');
+                $this->log('[Forms] ÃƒÂ¢Ã‹Å"ÃƒÂ¯Ã‚Â¸ Upload Excel aggiornato su Google Drive...');
                 
                 try {
-                    // Usa data_evento per determinare il percorso corretto
-                    $date_parts = explode('-', $preventivo['data_evento']);
-                    $year = $date_parts[0];
-                    $month_num = $date_parts[1];
+                    $existing_file_id = $preventivo['googledrive_file_id'] ?? '';
                     
-                    // Converti numero mese in nome mese italiano
-                    $mesi = array(
-                        '01' => 'Gennaio', '02' => 'Febbraio', '03' => 'Marzo',
-                        '04' => 'Aprile', '05' => 'Maggio', '06' => 'Giugno',
-                        '07' => 'Luglio', '08' => 'Agosto', '09' => 'Settembre',
-                        '10' => 'Ottobre', '11' => 'Novembre', '12' => 'Dicembre'
-                    );
-                    $month_name = $mesi[$month_num] ?? $month_num;
+                    if (!empty($existing_file_id)) {
+                        // ✅ CASO 1: File già esistente → SOVRASCRIVE
+                        $this->log('[Forms] 🔄 File esistente trovato (ID: ' . $existing_file_id . '), SOVRASCRIVO...');
+                        
+                        $googledrive = disco747_crm()->get_googledrive();
+                        if ($googledrive && method_exists($googledrive, 'update_existing_file')) {
+                            $result = $googledrive->update_existing_file($excel_path, $existing_file_id);
+                            
+                            if ($result && isset($result['url'])) {
+                                // Aggiorna URL nel database (il file_id rimane lo stesso)
+                                $wpdb->update(
+                                    $this->table_name,
+                                    array(
+                                        'googledrive_url' => $result['url'],
+                                        'googledrive_file_id' => $result['file_id'],
+                                        'excel_url' => $result['url']
+                                    ),
+                                    array('id' => $edit_id),
+                                    array('%s', '%s', '%s'),
+                                    array('%d')
+                                );
+                                $this->log('[Forms] ✅ File Excel SOVRASCRITTO su Drive (stesso file)');
+                            } else {
+                                $this->log('[Forms] ⚠️ Errore sovrascrittura, creo nuovo file...', 'WARNING');
+                                // Fallback: crea nuovo file
+                                $existing_file_id = '';
+                            }
+                        } else {
+                            $this->log('[Forms] ⚠️ Metodo update_existing_file non disponibile, creo nuovo file...', 'WARNING');
+                            $existing_file_id = '';
+                        }
+                    }
                     
-                    // Percorso corretto: /747-Preventivi/2025/Novembre/
-                    $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
-                    
-                    $this->log('[Forms] ÃƒÂ°Ã…Â¸" Percorso Google Drive: ' . $drive_folder);
-                    
-                    // Upload Excel
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
-                        // Aggiorna URL nel database
-                        $wpdb->update(
-                            $this->table_name,
-                            array('googledrive_url' => $excel_url),
-                            array('id' => $edit_id),
-                            array('%s'),
-                            array('%d')
+                    if (empty($existing_file_id)) {
+                        // ✅ CASO 2: Nessun file esistente → CREA NUOVO
+                        $this->log('[Forms] ✨ Nessun file esistente, CREO NUOVO...');
+                        
+                        // Usa data_evento per determinare il percorso corretto
+                        $date_parts = explode('-', $preventivo['data_evento']);
+                        $year = $date_parts[0];
+                        $month_num = $date_parts[1];
+                        
+                        // Converti numero mese in nome mese italiano
+                        $mesi = array(
+                            '01' => 'Gennaio', '02' => 'Febbraio', '03' => 'Marzo',
+                            '04' => 'Aprile', '05' => 'Maggio', '06' => 'Giugno',
+                            '07' => 'Luglio', '08' => 'Agosto', '09' => 'Settembre',
+                            '10' => 'Ottobre', '11' => 'Novembre', '12' => 'Dicembre'
                         );
-                        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel aggiornato su Drive: ' . basename($excel_path));
+                        $month_name = $mesi[$month_num] ?? $month_num;
+                        
+                        // Percorso corretto: /747-Preventivi/2025/Novembre/
+                        $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
+                        
+                        $this->log('[Forms] ÃƒÂ°Ã…Â¸" Percorso Google Drive: ' . $drive_folder);
+                        
+                        // Upload Excel (nuovo file)
+                        $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
+                        if ($excel_url) {
+                            // Aggiorna URL nel database
+                            $wpdb->update(
+                                $this->table_name,
+                                array('googledrive_url' => $excel_url),
+                                array('id' => $edit_id),
+                                array('%s'),
+                                array('%d')
+                            );
+                            $this->log('[Forms] ✅ Nuovo file Excel creato su Drive: ' . basename($excel_path));
+                        }
                     }
                     
                 } catch (\Exception $e) {
