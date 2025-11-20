@@ -150,8 +150,8 @@ class Disco747_Forms {
                 // ✅ FIX: Upload Excel e salva file_id per permettere sovrascrittura futura
                 if ($excel_path && file_exists($excel_path)) {
                     // Usa direttamente il metodo GoogleDrive per avere file_id
-                    $googledrive = disco747_crm()->get_googledrive();
-                    if ($googledrive && method_exists($googledrive, 'upload_to_googledrive')) {
+                    if (class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                        $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
                         $filename = basename($excel_path);
                         $result = $googledrive->upload_to_googledrive($excel_path, $filename, $data['data_evento']);
                         
@@ -443,8 +443,9 @@ class Disco747_Forms {
                         // ✅ CASO 1: File già esistente → SOVRASCRIVE
                         $this->log('[Forms] 🔄 File esistente trovato (ID: ' . $existing_file_id . '), SOVRASCRIVO...');
                         
-                        $googledrive = disco747_crm()->get_googledrive();
-                        if ($googledrive && method_exists($googledrive, 'update_existing_file')) {
+                        if (class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                            $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+                            if (method_exists($googledrive, 'update_existing_file')) {
                             $result = $googledrive->update_existing_file($excel_path, $existing_file_id);
                             
                             if ($result && isset($result['url'])) {
@@ -466,8 +467,12 @@ class Disco747_Forms {
                                 // Fallback: crea nuovo file
                                 $existing_file_id = '';
                             }
+                            } else {
+                                $this->log('[Forms] ⚠️ Metodo update_existing_file non disponibile, creo nuovo file...', 'WARNING');
+                                $existing_file_id = '';
+                            }
                         } else {
-                            $this->log('[Forms] ⚠️ Metodo update_existing_file non disponibile, creo nuovo file...', 'WARNING');
+                            $this->log('[Forms] ⚠️ Classe GoogleDrive non disponibile!', 'WARNING');
                             $existing_file_id = '';
                         }
                     }
@@ -496,8 +501,8 @@ class Disco747_Forms {
                         $this->log('[Forms] ÃƒÂ°Ã…Â¸" Percorso Google Drive: ' . $drive_folder);
                         
                         // ✅ FIX: Upload Excel (nuovo file) con salvataggio file_id
-                        $googledrive = disco747_crm()->get_googledrive();
-                        if ($googledrive && method_exists($googledrive, 'upload_to_googledrive')) {
+                        if (class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                            $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
                             $filename = basename($excel_path);
                             $result = $googledrive->upload_to_googledrive($excel_path, $filename, $preventivo['data_evento']);
                             
