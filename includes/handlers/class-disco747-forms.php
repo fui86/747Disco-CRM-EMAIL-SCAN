@@ -312,8 +312,15 @@ class Disco747_Forms {
         
         $this->log('[Forms] Ã¢Å“â€¦ Preventivo aggiornato con successo');
         
+        
+        // ✅ DEBUG: Log dello stato
+        $this->log('[Forms] 📊 Debug stato - Nuovo: "' . $data['stato'] . '" (tipo: ' . gettype($data['stato']) . '), Vecchio: "' . $old_stato . '" (tipo: ' . gettype($old_stato) . ')');
+        $this->log('[Forms] 📊 Confronto: nuovo === "annullato" => ' . var_export($data['stato'] === 'annullato', true));
+        $this->log('[Forms] 📊 Confronto: vecchio !== "annullato" => ' . var_export($old_stato !== 'annullato', true));
         // ✅ GESTIONE CAMBIO STATO → ANNULLATO: Rinomina file su Google Drive
         if ($data['stato'] === 'annullato' && $old_stato !== 'annullato') {
+            $this->log('[Forms] 📁 Google Drive File ID: "' . $file_id . '" (empty: ' . var_export(empty($file_id), true) . ')');
+            $this->log('[Forms] 🔧 Classe GoogleDrive esiste: ' . var_export(class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive'), true));
             $this->log('[Forms] 🔴 Stato cambiato ad ANNULLATO, rinomino file su Google Drive...');
             
             $file_id = $old_preventivo->googledrive_file_id ?? '';
