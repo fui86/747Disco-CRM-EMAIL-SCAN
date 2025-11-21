@@ -102,43 +102,51 @@ function disco747_ajax_update_preventivo_status() {
     if (!empty($googledrive_file_id) && class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
         $googledrive = new Disco747_CRM\Storage\Disco747_GoogleDrive();
         
-        // Genera il nome del file in base allo stato
-        $data_evento = date('d_m', strtotime($preventivo['data_evento']));
-        $tipo_evento = $preventivo['tipo_evento'] ?? 'Evento';
-        $menu_type = preg_replace('/\b(menu\s*)+/i', '', $preventivo['tipo_menu']);
-        $menu_type = trim($menu_type);
+        // Valida e genera il nome del file in base allo stato
+        $data_evento_str = $preventivo['data_evento'] ?? '';
+        $timestamp = strtotime($data_evento_str);
         
-        // Costruisci il nome base del file
-        $base_filename = "{$data_evento} {$tipo_evento} (Menu {$menu_type})";
-        
-        // Determina il prefisso in base allo stato
-        $new_filename = $base_filename;
-        if (strtolower($new_status) === 'annullato') {
-            $new_filename = "NO {$base_filename}.xlsx";
-        } elseif (strtolower($new_status) === 'confermato') {
-            $new_filename = "CONF {$base_filename}.xlsx";
+        if ($timestamp !== false) {
+            $data_evento = date('d_m', $timestamp);
+            $tipo_evento = $preventivo['tipo_evento'] ?? 'Evento';
+            $tipo_menu = $preventivo['tipo_menu'] ?? 'Menu 7';
+            $menu_type = preg_replace('/\b(menu\s*)+/i', '', $tipo_menu);
+            $menu_type = trim($menu_type);
+            
+            // Costruisci il nome base del file
+            $base_filename = "{$data_evento} {$tipo_evento} (Menu {$menu_type})";
+            
+            // Determina il prefisso in base allo stato
+            $new_filename = $base_filename;
+            if (strtolower($new_status) === 'annullato') {
+                $new_filename = "NO {$base_filename}.xlsx";
+            } elseif (strtolower($new_status) === 'confermato') {
+                $new_filename = "CONF {$base_filename}.xlsx";
+            } else {
+                $new_filename = "{$base_filename}.xlsx";
+            }
+            
+            error_log('[747Disco] Tentativo rinomina Google Drive: ' . $new_filename);
+            
+            // Rinomina su Google Drive
+            $rename_result = $googledrive->rename_file($googledrive_file_id, $new_filename);
+            
+            if ($rename_result && isset($rename_result['url'])) {
+                error_log('[747Disco] ✅ File rinominato su Google Drive: ' . $new_filename);
+                // Aggiorna URL nel database
+                $wpdb->update(
+                    $table_name,
+                    array('googledrive_url' => $rename_result['url']),
+                    array('id' => $preventivo_id),
+                    array('%s'),
+                    array('%d')
+                );
+                $files_renamed[] = 'Google Drive: ' . $new_filename;
+            } else {
+                error_log('[747Disco] ⚠️ Errore rinomina file su Google Drive');
+            }
         } else {
-            $new_filename = "{$base_filename}.xlsx";
-        }
-        
-        error_log('[747Disco] Tentativo rinomina Google Drive: ' . $new_filename);
-        
-        // Rinomina su Google Drive
-        $rename_result = $googledrive->rename_file($googledrive_file_id, $new_filename);
-        
-        if ($rename_result && isset($rename_result['url'])) {
-            error_log('[747Disco] ✅ File rinominato su Google Drive: ' . $new_filename);
-            // Aggiorna URL nel database
-            $wpdb->update(
-                $table_name,
-                array('googledrive_url' => $rename_result['url']),
-                array('id' => $preventivo_id),
-                array('%s'),
-                array('%d')
-            );
-            $files_renamed[] = 'Google Drive: ' . $new_filename;
-        } else {
-            error_log('[747Disco] ⚠️ Errore rinomina file su Google Drive');
+            error_log('[747Disco] ⚠️ Data evento non valida, impossibile rinominare file su Google Drive');
         }
     }
     
