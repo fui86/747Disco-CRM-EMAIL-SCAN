@@ -203,7 +203,8 @@ $mesi_nomi = array(
             <select id="filtro-anno" onchange="applicaFiltroCalendario()" style="background: white; border: 2px solid #e5e5e7; color: #1d1d1f; padding: 10px 15px; border-radius: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 600; min-width: 120px; transition: all 0.2s;" onmouseover="this.style.borderColor='#007aff'" onmouseout="this.style.borderColor='#e5e5e7'">
                 <?php 
                 $anno_corrente = date('Y');
-                for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 2; $anno++):
+                // ✅ FIX: Estendi range per includere sempre 2026 e anni futuri
+                for ($anno = $anno_corrente - 1; $anno <= $anno_corrente + 5; $anno++):
                 ?>
                     <option value="<?php echo $anno; ?>" <?php selected($calendario_anno, $anno); ?>>
                         <?php echo $anno; ?>
@@ -679,21 +680,12 @@ function mostraEventi(data) {
             statoIcon = '○';
         }
         
-        // DEBUG: Log completo evento per verificare dati
-        console.log('📋 DEBUG Evento ID ' + evento.id + ':', {
-            nome_cliente: evento.nome_cliente,
-            tipo_evento: evento.tipo_evento,
-            tipo_menu: evento.tipo_menu,
-            numero_invitati: evento.numero_invitati,
-            stato: evento.stato
-        });
-        
         // Formatta telefono e email
         const telefono = evento.telefono || '';
         const email = evento.email || '';
         const nomeCliente = evento.nome_cliente || 'Cliente';
         const tipoEvento = evento.tipo_evento || 'Evento';
-        const tipoMenu = evento.tipo_menu || '<span style="color: #ff9500; font-weight: 600;">Menu non specificato</span>';
+        const tipoMenu = evento.tipo_menu || 'Menu';
         const numeroInvitati = evento.numero_invitati || '-';
         
         // Link WhatsApp (formato internazionale)
@@ -718,17 +710,10 @@ function mostraEventi(data) {
                         </div>
                     </div>
                     
-                    <!-- Dropdown Cambia Stato -->
-                    <div style="position: relative;">
-                        <select onchange="cambiaStatoEvento(${evento.id}, this.value, '${data}')" 
-                                style="background: ${statoColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; border: none; cursor: pointer; appearance: none; padding-right: 30px;"
-                                data-evento-id="${evento.id}">
-                            <option value="attivo" ${statoClass === 'attivo' ? 'selected' : ''} style="background: white; color: #007aff;">○ Attivo</option>
-                            <option value="confermato" ${statoClass === 'confermato' ? 'selected' : ''} style="background: white; color: #34c759;">✓ Confermato</option>
-                            <option value="annullato" ${statoClass === 'annullato' ? 'selected' : ''} style="background: white; color: #ff3b30;">✕ Annullato</option>
-                        </select>
-                        <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: white;">▼</span>
-                    </div>
+                    <!-- Badge Stato -->
+                    <span style="background: ${statoColor}; color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;">
+                        ${statoIcon} ${statoLabel}
+                    </span>
                 </div>
                 
                 <!-- Contatti Rapidi -->
@@ -763,6 +748,18 @@ function mostraEventi(data) {
                     </a>
                     ` : ''}
                     
+                </div>
+                
+                <!-- Cambio Stato Rapido -->
+                <div style="margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-radius: 12px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.85rem; color: #1d1d1f;">
+                        📊 Cambio Stato Rapido:
+                    </label>
+                    <select onchange="cambiaStatoRapido(${evento.id}, this.value)" style="width: 100%; padding: 10px; border: 2px solid #e5e5e7; border-radius: 8px; font-size: 0.9rem; font-weight: 600; background: white; cursor: pointer;">
+                        <option value="attivo" ${evento.stato === 'attivo' ? 'selected' : ''}>✅ Attivo</option>
+                        <option value="confermato" ${evento.stato === 'confermato' ? 'selected' : ''}>🎉 Confermato</option>
+                        <option value="annullato" ${evento.stato === 'annullato' ? 'selected' : ''}>❌ Annullato</option>
+                    </select>
                 </div>
                 
                 <!-- Azioni Principali -->
@@ -822,6 +819,19 @@ function vaiOggi() {
     aggiornaCalendario();
 }
 
+// Funzione: Cambia stato rapido da box riepilogo
+function cambiaStatoRapido(preventivoId, nuovoStato) {
+    if (!confirm(`Confermi il cambio stato a "${nuovoStato}"?`)) {
+        // Reset select se annullato
+        location.reload();
+        return;
+    }
+    
+    // Reindirizza al form di modifica con lo stato preimpostato
+    const url = '<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo'); ?>&id=' + preventivoId + '&quick_stato=' + nuovoStato;
+    window.location.href = url;
+}
+
 // Funzione: Aggiorna calendario con AJAX
 function aggiornaCalendario() {
     const url = new URL(window.location.href);
@@ -869,70 +879,6 @@ if ('ontouchstart' in window) {
                 this.onclick();
             }
         });
-    });
-}
-
-// ============================================================================
-// FUNZIONE: Cambia stato evento direttamente dal calendario
-// ============================================================================
-function cambiaStatoEvento(eventoId, nuovoStato, data) {
-    if (!eventoId || !nuovoStato) {
-        alert('Errore: Dati mancanti');
-        return;
-    }
-    
-    // Conferma cambio stato
-    const conferma = confirm(`Vuoi cambiare lo stato del preventivo a "${nuovoStato.toUpperCase()}"?\n\nQuesto aggiornerà anche il nome del file su Google Drive.`);
-    if (!conferma) {
-        // Ripristina valore precedente
-        location.reload();
-        return;
-    }
-    
-    // Mostra loading
-    const select = document.querySelector(`select[data-evento-id="${eventoId}"]`);
-    if (select) {
-        select.disabled = true;
-        select.style.opacity = '0.6';
-    }
-    
-    // Chiama AJAX
-    jQuery.ajax({
-        url: ajaxurl,
-        type: 'POST',
-        data: {
-            action: 'disco747_quick_change_stato',
-            nonce: '<?php echo wp_create_nonce("disco747_quick_stato"); ?>',
-            preventivo_id: eventoId,
-            nuovo_stato: nuovoStato
-        },
-        success: function(response) {
-            console.log('Risposta cambio stato:', response);
-            
-            if (response.success) {
-                // Mostra notifica successo
-                alert('✅ Stato aggiornato con successo!\n\n' + (response.data.message || 'File rinominato su Google Drive.'));
-                
-                // Ricarica la pagina per mostrare lo stato aggiornato
-                location.reload();
-                
-            } else {
-                alert('❌ Errore: ' + (response.data || 'Impossibile aggiornare lo stato'));
-                // Ricarica per ripristinare
-                location.reload();
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Errore AJAX:', error);
-            alert('❌ Errore di connessione: ' + error);
-            location.reload();
-        },
-        complete: function() {
-            if (select) {
-                select.disabled = false;
-                select.style.opacity = '1';
-            }
-        }
     });
 }
 </script>

@@ -45,9 +45,6 @@ class Disco747_Forms {
         // Hook AJAX solo per PDF (email e whatsapp gestiti da class-disco747-ajax.php)
         add_action('wp_ajax_disco747_generate_pdf', array($this, 'handle_generate_pdf'));
         
-        // Hook AJAX per cambio stato rapido dal calendario
-        add_action('wp_ajax_disco747_quick_change_stato', array($this, 'handle_quick_change_stato'));
-        
         add_action('disco747_cleanup_temp_files', array($this, 'cleanup_temp_files'));
         if (!wp_next_scheduled('disco747_cleanup_temp_files')) {
             wp_schedule_event(time(), 'hourly', 'disco747_cleanup_temp_files');
@@ -150,21 +147,20 @@ class Disco747_Forms {
                 $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Percorso Google Drive: ' . $drive_folder);
                 $this->log('[Forms] ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¦ Data evento usata: ' . $data['data_evento']);
                 
-                // Upload Excel
+                // ✅ FIX: Upload Excel e salva file_id per permettere sovrascrittura futura
                 if ($excel_path && file_exists($excel_path)) {
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
-                        // Se è un array con file_id, salvalo
-                        if (is_array($excel_url) && isset($excel_url['file_id'])) {
-                            $cloud_url = $excel_url['url'];
-                            $data['googledrive_url'] = $excel_url['url'];
-                            $data['googledrive_file_id'] = $excel_url['file_id'];
-                            $this->log('[Forms] ✅ Excel caricato su Drive con file_id: ' . $excel_url['file_id']);
-                        } else {
-                            // Formato vecchio (solo URL)
-                            $cloud_url = $excel_url;
-                            $data['googledrive_url'] = $excel_url;
-                            $this->log('[Forms] ✅ Excel caricato su Drive (formato vecchio): ' . basename($excel_path));
+                    // Usa direttamente il metodo GoogleDrive per avere file_id
+                    if (class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                        $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+                        $filename = basename($excel_path);
+                        $result = $googledrive->upload_to_googledrive($excel_path, $filename, $data['data_evento']);
+                        
+                        if ($result && is_array($result) && isset($result['url'])) {
+                            $cloud_url = $result['url'];
+                            $data['googledrive_url'] = $result['url'];
+                            $data['googledrive_file_id'] = $result['file_id'];  // ✅ SALVA FILE_ID!
+                            $this->log('[Forms] ✅ Excel caricato su Drive: ' . basename($excel_path));
+                            $this->log('[Forms] ✅ File ID salvato: ' . $result['file_id']);
                         }
                     }
                 }
@@ -243,18 +239,28 @@ class Disco747_Forms {
         
         // ðŸ” LEGGI STATO PRECEDENTE (per determinare se Ã¨ stata una conferma)
         $old_preventivo = $wpdb->get_row($wpdb->prepare(
-            "SELECT stato, acconto, googledrive_file_id, data_evento, tipo_evento, tipo_menu FROM {$this->table_name} WHERE id = %d",
+            "SELECT * FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ));
         $old_stato = $old_preventivo ? $old_preventivo->stato : '';
         $old_acconto = $old_preventivo ? floatval($old_preventivo->acconto) : 0;
         
-        // Calcola extra totale
+        // ✅ FIX: Calcola extra totale
         $extra_totale = floatval($data['extra1_importo']) + floatval($data['extra2_importo']) + floatval($data['extra3_importo']);
         
-        // Calcola importo_preventivo e saldo
+        // ✅ IMPORTANTE: 
+        // - importo_totale = SOLO base menu (senza extra) - viene dal form
+        // - importo_preventivo = base + extra (totale finale)
+        // - saldo = importo_preventivo - acconto
         $importo_preventivo = floatval($data['importo_totale']) + $extra_totale;
         $saldo = $importo_preventivo - floatval($data['acconto']);
+        
+        $this->log('[Forms] 💰 Calcolo importi:');
+        $this->log('  - Base menu (importo_totale): €' . $data['importo_totale']);
+        $this->log('  - Extra totale: €' . $extra_totale);
+        $this->log('  - Totale finale (importo_preventivo): €' . $importo_preventivo);
+        $this->log('  - Acconto: €' . $data['acconto']);
+        $this->log('  - Saldo: €' . $saldo);
         
         // Aggiorna database
         $updated = $wpdb->update(
@@ -306,6 +312,96 @@ class Disco747_Forms {
         
         $this->log('[Forms] Ã¢Å“â€¦ Preventivo aggiornato con successo');
         
+        // ✅ GESTIONE CAMBIO STATO → ANNULLATO: Rinomina file su Google Drive
+        if ($data['stato'] === 'annullato' && $old_stato !== 'annullato') {
+            $this->log('[Forms] 🔴 Stato cambiato ad ANNULLATO, rinomino file su Google Drive...');
+            
+            $file_id = $old_preventivo->googledrive_file_id ?? '';
+            if (!empty($file_id) && class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+                
+                // Ottieni il nome attuale del file
+                $data_evento = date('d_m', strtotime($old_preventivo->data_evento));
+                $tipo_evento = $old_preventivo->tipo_evento ?? 'Evento';
+                $menu_type = preg_replace('/\b(menu\s*)+/i', '', $old_preventivo->tipo_menu);
+                $menu_type = trim($menu_type);
+                
+                if ($old_stato === 'confermato') {
+                    $current_filename = "CONF {$data_evento} {$tipo_evento} (Menu {$menu_type}).xlsx";
+                } else {
+                    $current_filename = "{$data_evento} {$tipo_evento} (Menu {$menu_type}).xlsx";
+                }
+                
+                // Genera nuovo nome: "NO " + nome (senza CONF se presente)
+                $new_filename = preg_replace('/^CONF\s+/i', '', $current_filename);
+                if (!preg_match('/^NO\s+/i', $new_filename)) {
+                    $new_filename = 'NO ' . $new_filename;
+                }
+                
+                $this->log('[Forms] 📝 Nuovo nome file: ' . $new_filename);
+                
+                // Rinomina su Google Drive
+                $rename_result = $googledrive->rename_file($file_id, $new_filename);
+                
+                if ($rename_result && isset($rename_result['url'])) {
+                    $this->log('[Forms] ✅ File rinominato su Google Drive');
+                    // Aggiorna URL nel database
+                    $wpdb->update(
+                        $this->table_name,
+                        array('googledrive_url' => $rename_result['url']),
+                        array('id' => $edit_id),
+                        array('%s'),
+                        array('%d')
+                    );
+                } else {
+                    $this->log('[Forms] ⚠️ Errore rinomina file su Google Drive', 'WARNING');
+                }
+            } else {
+                $this->log('[Forms] ⚠️ File ID non disponibile, impossibile rinominare', 'WARNING');
+            }
+        }
+        
+        // ✅ LOG: Registra aggiornamento nel sistema audit
+        if ($this->database && method_exists($this->database, 'log_preventivo_change')) {
+            // Prepara array delle modifiche rilevanti
+            $changes = array();
+            if ($old_preventivo) {
+                // Confronta tutti i campi chiave
+                if ($old_preventivo->nome_cliente != $data['nome_cliente']) {
+                    $changes['nome_cliente'] = array('old' => $old_preventivo->nome_cliente, 'new' => $data['nome_cliente']);
+                }
+                if ($old_preventivo->telefono != $data['telefono']) {
+                    $changes['telefono'] = array('old' => $old_preventivo->telefono, 'new' => $data['telefono']);
+                }
+                if ($old_preventivo->email != $data['email']) {
+                    $changes['email'] = array('old' => $old_preventivo->email, 'new' => $data['email']);
+                }
+                if ($old_preventivo->data_evento != $data['data_evento']) {
+                    $changes['data_evento'] = array('old' => $old_preventivo->data_evento, 'new' => $data['data_evento']);
+                }
+                if ($old_preventivo->tipo_evento != $data['tipo_evento']) {
+                    $changes['tipo_evento'] = array('old' => $old_preventivo->tipo_evento, 'new' => $data['tipo_evento']);
+                }
+                if ($old_preventivo->tipo_menu != $data['tipo_menu']) {
+                    $changes['tipo_menu'] = array('old' => $old_preventivo->tipo_menu, 'new' => $data['tipo_menu']);
+                }
+                if ($old_preventivo->numero_invitati != $data['numero_invitati']) {
+                    $changes['numero_invitati'] = array('old' => $old_preventivo->numero_invitati, 'new' => $data['numero_invitati']);
+                }
+                if ($old_preventivo->importo_totale != $data['importo_totale']) {
+                    $changes['importo_totale'] = array('old' => $old_preventivo->importo_totale, 'new' => $data['importo_totale']);
+                }
+                if ($old_acconto != floatval($data['acconto'])) {
+                    $changes['acconto'] = array('old' => $old_acconto, 'new' => $data['acconto']);
+                }
+                if ($old_stato != $data['stato']) {
+                    $changes['stato'] = array('old' => $old_stato, 'new' => $data['stato']);
+                }
+            }
+            $this->database->log_preventivo_change($edit_id, 'update', $changes);
+            $this->log('[Forms] ✅ Log audit aggiornamento registrato (' . count($changes) . ' modifiche)');
+        }
+        
         // ðŸŽ‰ HOOK: Controlla se il preventivo Ã¨ stato appena confermato
         $new_stato = $data['stato'];
         $new_acconto = floatval($data['acconto']);
@@ -323,43 +419,6 @@ class Disco747_Forms {
             "SELECT * FROM {$this->table_name} WHERE id = %d",
             $edit_id
         ), ARRAY_A);
-        
-        // GESTIONE RINOMINA FILE SU GOOGLE DRIVE
-        $rename_success = $this->handle_google_drive_rename($edit_id, $old_preventivo, $data);
-        
-        // Se la rinomina è riuscita, NON serve rigenerare e ricaricare il file
-        if ($rename_success) {
-            $this->log('[Forms] ✅ Rinomina completata, salto rigenerazione Excel');
-            
-            // Invia risposta senza rigenerare
-            wp_send_json_success(array(
-                'message' => 'Preventivo aggiornato con successo!',
-                'preventivo_id' => $preventivo['preventivo_id'] ?? $data['preventivo_id'],
-                'id' => $edit_id,
-                'db_id' => $edit_id,
-                'is_edit_mode' => true,
-                'file_renamed' => true,
-                // Dati preventivo per JavaScript
-                'nome_referente' => $preventivo['nome_referente'] ?? $data['nome_referente'] ?? '',
-                'cognome_referente' => $preventivo['cognome_referente'] ?? $data['cognome_referente'] ?? '',
-                'nome_cliente' => $preventivo['nome_cliente'] ?? $data['nome_cliente'] ?? '',
-                'email' => $preventivo['email'] ?? $data['email'] ?? '',
-                'telefono' => $preventivo['telefono'] ?? $data['telefono'] ?? '',
-                'data_evento' => $preventivo['data_evento'] ?? $data['data_evento'] ?? '',
-                'tipo_evento' => $preventivo['tipo_evento'] ?? $data['tipo_evento'] ?? '',
-                'tipo_menu' => $preventivo['tipo_menu'] ?? $data['tipo_menu'] ?? '',
-                'numero_invitati' => $preventivo['numero_invitati'] ?? $data['numero_invitati'] ?? 0,
-                'orario_inizio' => $preventivo['orario_inizio'] ?? $data['orario_inizio'] ?? '',
-                'orario_fine' => $preventivo['orario_fine'] ?? $data['orario_fine'] ?? '',
-                'importo_totale' => $preventivo['importo_totale'] ?? $data['importo_totale'] ?? 0,
-                'acconto' => $preventivo['acconto'] ?? $data['acconto'] ?? 0,
-                'stato' => $preventivo['stato'] ?? $data['stato'] ?? 'attivo'
-            ));
-            return;
-        }
-        
-        // Se la rinomina fallisce o non serve, ALLORA rigenera + upload
-        $this->log('[Forms] Rinomina fallita o non necessaria, procedo con rigenera + upload...');
         
         // ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ RIGENERA EXCEL E RICARICA SU GOOGLE DRIVE
         $this->log('[Forms] ÃƒÂ°Ã…Â¸"Ã¢â‚¬Å¾ Rigenerazione Excel per preventivo aggiornato...');
@@ -397,42 +456,133 @@ class Disco747_Forms {
         if ($excel_path && file_exists($excel_path)) {
             $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel rigenerato: ' . basename($excel_path));
             
-            // Upload su Google Drive (sovrascrive il vecchio)
+            // Upload su Google Drive (SOVRASCRIVE file esistente o crea nuovo)
             if ($this->storage) {
-                $this->log('[Forms] ÃƒÂ¢Ã‹Å“ÃƒÂ¯Ã‚Â¸ Upload Excel aggiornato su Google Drive...');
+                $this->log('[Forms] ÃƒÂ¢Ã‹Å"ÃƒÂ¯Ã‚Â¸ Upload Excel aggiornato su Google Drive...');
                 
                 try {
-                    // Usa data_evento per determinare il percorso corretto
-                    $date_parts = explode('-', $preventivo['data_evento']);
-                    $year = $date_parts[0];
-                    $month_num = $date_parts[1];
+                    $existing_file_id = $preventivo['googledrive_file_id'] ?? '';
                     
-                    // Converti numero mese in nome mese italiano
-                    $mesi = array(
-                        '01' => 'Gennaio', '02' => 'Febbraio', '03' => 'Marzo',
-                        '04' => 'Aprile', '05' => 'Maggio', '06' => 'Giugno',
-                        '07' => 'Luglio', '08' => 'Agosto', '09' => 'Settembre',
-                        '10' => 'Ottobre', '11' => 'Novembre', '12' => 'Dicembre'
-                    );
-                    $month_name = $mesi[$month_num] ?? $month_num;
+                    // ✅ DEBUG: Log per diagnostica
+                    $this->log('[Forms] 🔍 Debug Google Drive File ID:');
+                    $this->log('  - googledrive_file_id dal DB: "' . ($existing_file_id ?: 'VUOTO/NULL') . '"');
+                    $this->log('  - googledrive_url dal DB: "' . ($preventivo['googledrive_url'] ?? 'VUOTO') . '"');
                     
-                    // Percorso corretto: /747-Preventivi/2025/Novembre/
-                    $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
+                    // ✅ FALLBACK: Se file_id è vuoto, prova a estrarlo dall'URL
+                    if (empty($existing_file_id) && !empty($preventivo['googledrive_url'])) {
+                        $url = $preventivo['googledrive_url'];
+                        // URL formato: https://drive.google.com/file/d/{FILE_ID}/view
+                        if (preg_match('/\/file\/d\/([a-zA-Z0-9_-]+)/', $url, $matches)) {
+                            $existing_file_id = $matches[1];
+                            $this->log('[Forms] 🔧 File ID estratto dall\'URL: ' . $existing_file_id);
+                            
+                            // Salva il file_id nel database per la prossima volta
+                            $wpdb->update(
+                                $this->table_name,
+                                array('googledrive_file_id' => $existing_file_id),
+                                array('id' => $edit_id),
+                                array('%s'),
+                                array('%d')
+                            );
+                            $this->log('[Forms] ✅ File ID salvato nel database');
+                        }
+                    }
                     
-                    $this->log('[Forms] ÃƒÂ°Ã…Â¸" Percorso Google Drive: ' . $drive_folder);
+                    if (!empty($existing_file_id)) {
+                        // ✅ CASO 1: File già esistente → SOVRASCRIVE
+                        $this->log('[Forms] 🔄 File esistente trovato (ID: ' . $existing_file_id . '), SOVRASCRIVO...');
+                        
+                        if (class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                            $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+                            if (method_exists($googledrive, 'update_existing_file')) {
+                            $result = $googledrive->update_existing_file($excel_path, $existing_file_id);
+                            
+                            if ($result && isset($result['url'])) {
+                                // Aggiorna URL nel database (il file_id rimane lo stesso)
+                                $wpdb->update(
+                                    $this->table_name,
+                                    array(
+                                        'googledrive_url' => $result['url'],
+                                        'googledrive_file_id' => $result['file_id'],
+                                        'excel_url' => $result['url']
+                                    ),
+                                    array('id' => $edit_id),
+                                    array('%s', '%s', '%s'),
+                                    array('%d')
+                                );
+                                $this->log('[Forms] ✅ File Excel SOVRASCRITTO su Drive (stesso file)');
+                            } else {
+                                $this->log('[Forms] ⚠️ Errore sovrascrittura, creo nuovo file...', 'WARNING');
+                                // Fallback: crea nuovo file
+                                $existing_file_id = '';
+                            }
+                            } else {
+                                $this->log('[Forms] ⚠️ Metodo update_existing_file non disponibile, creo nuovo file...', 'WARNING');
+                                $existing_file_id = '';
+                            }
+                        } else {
+                            $this->log('[Forms] ⚠️ Classe GoogleDrive non disponibile!', 'WARNING');
+                            $existing_file_id = '';
+                        }
+                    }
                     
-                    // Upload Excel
-                    $excel_url = $this->storage->upload_file($excel_path, $drive_folder);
-                    if ($excel_url) {
-                        // Aggiorna URL nel database
-                        $wpdb->update(
-                            $this->table_name,
-                            array('googledrive_url' => $excel_url),
-                            array('id' => $edit_id),
-                            array('%s'),
-                            array('%d')
+                    if (empty($existing_file_id)) {
+                        // ✅ CASO 2: Nessun file esistente → CREA NUOVO
+                        $this->log('[Forms] ✨ Nessun file esistente, CREO NUOVO...');
+                        
+                        // Usa data_evento per determinare il percorso corretto
+                        $date_parts = explode('-', $preventivo['data_evento']);
+                        $year = $date_parts[0];
+                        $month_num = $date_parts[1];
+                        
+                        // Converti numero mese in nome mese italiano
+                        $mesi = array(
+                            '01' => 'Gennaio', '02' => 'Febbraio', '03' => 'Marzo',
+                            '04' => 'Aprile', '05' => 'Maggio', '06' => 'Giugno',
+                            '07' => 'Luglio', '08' => 'Agosto', '09' => 'Settembre',
+                            '10' => 'Ottobre', '11' => 'Novembre', '12' => 'Dicembre'
                         );
-                        $this->log('[Forms] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Excel aggiornato su Drive: ' . basename($excel_path));
+                        $month_name = $mesi[$month_num] ?? $month_num;
+                        
+                        // Percorso corretto: /747-Preventivi/2025/Novembre/
+                        $drive_folder = '747-Preventivi/' . $year . '/' . $month_name . '/';
+                        
+                        $this->log('[Forms] ÃƒÂ°Ã…Â¸" Percorso Google Drive: ' . $drive_folder);
+                        
+                        // ✅ FIX: Upload Excel (nuovo file) con salvataggio file_id
+                        if (class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+                            $googledrive = new \Disco747_CRM\Storage\Disco747_GoogleDrive();
+                            $filename = basename($excel_path);
+                            $result = $googledrive->upload_to_googledrive($excel_path, $filename, $preventivo['data_evento']);
+                            
+                            $this->log('[Forms] 🔍 DEBUG risultato upload: ' . print_r($result, true));
+                            
+                            if ($result && is_array($result) && isset($result['url'])) {
+                                // Aggiorna URL e FILE_ID nel database
+                                $update_result = $wpdb->update(
+                                    $this->table_name,
+                                    array(
+                                        'googledrive_url' => $result['url'],
+                                        'googledrive_file_id' => isset($result['file_id']) ? $result['file_id'] : '',
+                                        'excel_url' => $result['url']
+                                    ),
+                                    array('id' => $edit_id),
+                                    array('%s', '%s', '%s'),
+                                    array('%d')
+                                );
+                                
+                                $this->log('[Forms] 🔍 DEBUG wpdb->update result: ' . ($update_result !== false ? 'SUCCESS' : 'FAILED'));
+                                if ($update_result === false) {
+                                    $this->log('[Forms] ❌ Errore wpdb: ' . $wpdb->last_error);
+                                }
+                                
+                                $this->log('[Forms] ✅ Nuovo file Excel creato su Drive: ' . basename($excel_path));
+                                $this->log('[Forms] ✅ URL salvato: ' . $result['url']);
+                                $this->log('[Forms] ✅ File ID salvato: ' . (isset($result['file_id']) ? $result['file_id'] : 'N/A'));
+                            } else {
+                                $this->log('[Forms] ❌ Risultato upload non valido o mancante!');
+                            }
+                        }
                     }
                     
                 } catch (\Exception $e) {
@@ -910,18 +1060,20 @@ class Disco747_Forms {
         $this->log('  - Extra2: "' . $data['extra2'] . '" = Ã¢â€šÂ¬' . $data['extra2_importo']);
         $this->log('  - Extra3: "' . $data['extra3'] . '" = Ã¢â€šÂ¬' . $data['extra3_importo']);
         
-        // IMPORTI
-        $data['importo_preventivo'] = floatval($post_data['importo_preventivo'] ?? 0);
-        $data['importo_totale'] = $data['importo_preventivo'];
+        // ✅ FIX: IMPORTI - Il campo dal form si chiama 'importo_preventivo' ma contiene il BASE MENU (senza extra)
+        // Quindi lo assegniamo a importo_totale (che rappresenta il base)
+        // importo_preventivo (totale finale con extra) verrà calcolato dopo
+        $data['importo_totale'] = floatval($post_data['importo_preventivo'] ?? 0);  // Base menu dal form
         $data['acconto'] = floatval($post_data['acconto'] ?? 0);
+        
+        $this->log('[Forms] 📥 Importo base ricevuto dal form: €' . $data['importo_totale']);
         
         // NOTE
         $data['note_aggiuntive'] = sanitize_textarea_field($post_data['note_aggiuntive'] ?? '');
         $data['note_interne'] = sanitize_textarea_field($post_data['note_interne'] ?? '');
         
         // METADATA
-        // Usa lo stato dal form, non forzarlo ad 'attivo'
-        $data['stato'] = sanitize_text_field($post_data['stato'] ?? 'attivo');
+        $data['stato'] = 'attivo';
         $data['created_by'] = get_current_user_id();
         $data['created_at'] = current_time('mysql');
         
@@ -962,7 +1114,10 @@ class Disco747_Forms {
             $prefix = 'CONF ';
         }
         
-        $menu_number = str_replace('Menu ', '', $data['tipo_menu'] ?? 'Menu 7');
+        // ✅ FIX: Estrazione robusta del numero menu (case-insensitive, rimuove tutti i "Menu" duplicati)
+        $menu_type = $data['tipo_menu'] ?? 'Menu 7';
+        $menu_number = preg_replace('/\b(menu\s*)+/i', '', $menu_type);
+        $menu_number = trim($menu_number);
         
         return $prefix . $day . '_' . $month . ' ' . $tipo_evento . ' (Menu ' . $menu_number . ')';
     }
@@ -1045,14 +1200,22 @@ class Disco747_Forms {
             'acconto' => floatval($data['acconto'] ?? 0),
         );
         
-        // Calcola extra totale
+        // ✅ FIX: Calcola extra totale
         $extra_totale = $insert_data['extra1_importo'] + $insert_data['extra2_importo'] + $insert_data['extra3_importo'];
         
-        // Calcola importo_preventivo (importo totale + extra)
+        // ✅ IMPORTANTE: 
+        // - importo_totale = SOLO base menu (senza extra) - viene dal form
+        // - importo_preventivo = base + extra (totale finale)
+        // - saldo = importo_preventivo - acconto
         $insert_data['importo_preventivo'] = $insert_data['importo_totale'] + $extra_totale;
-        
-        // Calcola saldo (totale - acconto)
         $insert_data['saldo'] = $insert_data['importo_preventivo'] - $insert_data['acconto'];
+        
+        $this->log('[Forms] 💰 Calcolo importi (nuovo preventivo):');
+        $this->log('  - Base menu (importo_totale): €' . $insert_data['importo_totale']);
+        $this->log('  - Extra totale: €' . $extra_totale);
+        $this->log('  - Totale finale (importo_preventivo): €' . $insert_data['importo_preventivo']);
+        $this->log('  - Acconto: €' . $insert_data['acconto']);
+        $this->log('  - Saldo: €' . $insert_data['saldo']);
         
         // Continua con gli altri campi
         $insert_data = array_merge($insert_data, array(
@@ -1064,7 +1227,7 @@ class Disco747_Forms {
             // Stato e URLs
             'stato' => $data['stato'] ?? 'attivo',
             'googledrive_url' => $data['googledrive_url'] ?? '',
-            'googledrive_file_id' => $data['googledrive_file_id'] ?? '',
+            'googledrive_file_id' => $data['googledrive_file_id'] ?? '',  // ✅ SALVA FILE_ID!
             'excel_url' => $data['googledrive_url'] ?? '',
             'pdf_url' => '',
             
@@ -1102,6 +1265,12 @@ class Disco747_Forms {
             $this->log('[DB] ÃƒÂ¢Ã‚ÂÃ…â€™ VERIFICA FALLITA: Record non trovato!', 'ERROR');
         }
         
+        // ✅ LOG: Registra creazione nel sistema audit
+        if ($this->database && method_exists($this->database, 'log_preventivo_change')) {
+            $this->database->log_preventivo_change($insert_id, 'create', array());
+            $this->log('[DB] ✅ Log audit creazione registrato');
+        }
+        
         return $insert_id;
     }
     
@@ -1128,199 +1297,6 @@ class Disco747_Forms {
                 }
             }
         }
-    }
-    
-    /**
-     * ========================================================================
-     * HANDLER: Cambio stato rapido dal calendario
-     * ========================================================================
-     */
-    public function handle_quick_change_stato() {
-        try {
-            $this->log('[QuickStato] Richiesta cambio stato rapido');
-            
-            // Verifica nonce
-            if (!check_ajax_referer('disco747_quick_stato', 'nonce', false)) {
-                throw new \Exception('Nonce non valido');
-            }
-            
-            // Verifica permessi
-            if (!current_user_can('manage_options')) {
-                throw new \Exception('Permessi insufficienti');
-            }
-            
-            // Ottieni parametri
-            $preventivo_id = isset($_POST['preventivo_id']) ? intval($_POST['preventivo_id']) : 0;
-            $nuovo_stato = isset($_POST['nuovo_stato']) ? sanitize_text_field($_POST['nuovo_stato']) : '';
-            
-            if ($preventivo_id <= 0) {
-                throw new \Exception('ID preventivo non valido');
-            }
-            
-            if (!in_array($nuovo_stato, array('attivo', 'confermato', 'annullato'))) {
-                throw new \Exception('Stato non valido');
-            }
-            
-            $this->log("[QuickStato] Cambio stato preventivo ID: {$preventivo_id} -> {$nuovo_stato}");
-            
-            global $wpdb;
-            
-            // Carica preventivo esistente
-            $old_preventivo = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$this->table_name} WHERE id = %d",
-                $preventivo_id
-            ));
-            
-            if (!$old_preventivo) {
-                throw new \Exception('Preventivo non trovato');
-            }
-            
-            $this->log("[QuickStato] Stato precedente: {$old_preventivo->stato}");
-            
-            // Aggiorna stato nel database
-            $updated = $wpdb->update(
-                $this->table_name,
-                array(
-                    'stato' => $nuovo_stato,
-                    'updated_at' => current_time('mysql')
-                ),
-                array('id' => $preventivo_id),
-                array('%s', '%s'),
-                array('%d')
-            );
-            
-            if ($updated === false) {
-                throw new \Exception('Errore aggiornamento database');
-            }
-            
-            $this->log('[QuickStato] Database aggiornato');
-            
-            // Prepara dati per rinomina
-            $new_data = array(
-                'data_evento' => $old_preventivo->data_evento,
-                'tipo_evento' => $old_preventivo->tipo_evento,
-                'tipo_menu' => $old_preventivo->tipo_menu,
-                'stato' => $nuovo_stato,
-                'acconto' => floatval($old_preventivo->acconto)
-            );
-            
-            // Carica componenti
-            $this->load_components();
-            
-            // Tenta rinomina file su Google Drive
-            $rename_success = $this->handle_google_drive_rename($preventivo_id, $old_preventivo, $new_data);
-            
-            if ($rename_success) {
-                $message = "Stato aggiornato e file rinominato su Google Drive";
-                $this->log('[QuickStato] ✅ Rinomina completata');
-            } else {
-                $message = "Stato aggiornato (file non rinominato - potrebbe essere un preventivo vecchio)";
-                $this->log('[QuickStato] ⚠️ Rinomina non eseguita');
-            }
-            
-            wp_send_json_success(array(
-                'message' => $message,
-                'preventivo_id' => $preventivo_id,
-                'nuovo_stato' => $nuovo_stato,
-                'file_renamed' => $rename_success
-            ));
-            
-        } catch (\Exception $e) {
-            $this->log('[QuickStato] ERRORE: ' . $e->getMessage(), 'ERROR');
-            wp_send_json_error($e->getMessage());
-        }
-    }
-    
-    /**
-     * ========================================================================
-     * HELPER: Gestisce rinomina file su Google Drive quando cambia stato
-     * ========================================================================
-     */
-    private function handle_google_drive_rename($edit_id, $old_preventivo, $new_data) {
-        global $wpdb;
-        
-        $old_file_id = $old_preventivo->googledrive_file_id ?? '';
-        
-        // Calcola vecchio e nuovo nome file
-        $old_filename_data = array(
-            'data_evento' => $old_preventivo->data_evento,
-            'tipo_evento' => $old_preventivo->tipo_evento,
-            'tipo_menu' => $old_preventivo->tipo_menu,
-            'stato' => $old_preventivo->stato,
-            'acconto' => floatval($old_preventivo->acconto)
-        );
-        $old_filename = $this->generate_filename($old_filename_data) . '.xlsx';
-        
-        $new_filename_data = array(
-            'data_evento' => $new_data['data_evento'],
-            'tipo_evento' => $new_data['tipo_evento'],
-            'tipo_menu' => $new_data['tipo_menu'],
-            'stato' => $new_data['stato'],
-            'acconto' => floatval($new_data['acconto'])
-        );
-        $new_filename = $this->generate_filename($new_filename_data) . '.xlsx';
-        
-        $filename_changed = ($old_filename !== $new_filename);
-        
-        if (!$filename_changed) {
-            $this->log("[Forms] Nome file non cambiato, nessuna rinomina necessaria");
-            return false;
-        }
-        
-        $this->log("[Forms] Nome file cambiato:");
-        $this->log("   Vecchio: {$old_filename}");
-        $this->log("   Nuovo: {$new_filename}");
-        
-        if (empty($old_file_id)) {
-            $this->log("[Forms] googledrive_file_id mancante, impossibile rinominare", 'WARNING');
-            return false;
-        }
-        
-        // Ottieni istanza GoogleDrive
-        $googledrive = $this->get_googledrive_instance();
-        
-        if (!$googledrive || !method_exists($googledrive, 'rename_file')) {
-            $this->log('[Forms] Metodo rename_file non disponibile', 'WARNING');
-            return false;
-        }
-        
-        // Rinomina file su Google Drive
-        $this->log("[Forms] Rinomina file su Google Drive (ID: {$old_file_id})...");
-        $rename_result = $googledrive->rename_file($old_file_id, $new_filename);
-        
-        if ($rename_result['success']) {
-            $this->log('[Forms] File rinominato su Google Drive con successo!');
-            return true;
-        } else {
-            $error = $rename_result['error'] ?? 'Sconosciuto';
-            $this->log("[Forms] Errore rinomina su Google Drive: {$error}", 'ERROR');
-            return false;
-        }
-    }
-    
-    /**
-     * ========================================================================
-     * HELPER: Ottiene istanza GoogleDrive
-     * ========================================================================
-     */
-    private function get_googledrive_instance() {
-        // Prova tramite storage manager
-        if ($this->storage && method_exists($this->storage, 'get_googledrive')) {
-            return $this->storage->get_googledrive();
-        }
-        
-        // Prova tramite plugin principale
-        $disco747_crm = disco747_crm();
-        if ($disco747_crm && method_exists($disco747_crm, 'get_googledrive')) {
-            return $disco747_crm->get_googledrive();
-        }
-        
-        // Prova a istanziare direttamente
-        if (class_exists('\Disco747_CRM\Storage\Disco747_GoogleDrive')) {
-            return new \Disco747_CRM\Storage\Disco747_GoogleDrive();
-        }
-        
-        return null;
     }
     
     /**

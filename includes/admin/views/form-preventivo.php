@@ -14,7 +14,7 @@
 if (!defined('ABSPATH')) exit;
 
 // ============================================================================
-// MODALITÃ€ MODIFICA: Carica dati esistenti
+// MODALITÀ MODIFICA: Carica dati esistenti
 // ============================================================================
 $is_edit_mode = false;
 $edit_data = null;
@@ -50,6 +50,12 @@ if ($is_edit_mode) {
     error_log('[747Disco-Form] Edit mode - ID: ' . $edit_id);
     error_log('[747Disco-Form] Edit data loaded: ' . ($edit_data ? 'SI' : 'NO'));
     
+    // ✅ Preimposta stato se arriva da cambio rapido dashboard
+    if (!empty($_GET['quick_stato']) && $edit_data) {
+        $edit_data['stato'] = sanitize_key($_GET['quick_stato']);
+        error_log('[747Disco-Form] Stato preimpostato da quick_stato: ' . $edit_data['stato']);
+    }
+    
     if ($edit_data) {
         error_log('[747Disco-Form] Preventivo ID: ' . ($edit_data['preventivo_id'] ?? 'VUOTO'));
         error_log('[747Disco-Form] Nome cliente: ' . ($edit_data['nome_cliente'] ?? 'VUOTO'));
@@ -58,7 +64,16 @@ if ($is_edit_mode) {
         // Normalizza campi per compatibilità
         $edit_data['email'] = $edit_data['email'] ?? $edit_data['mail'] ?? '';
         $edit_data['telefono'] = $edit_data['telefono'] ?? $edit_data['cellulare'] ?? '';
-        $edit_data['importo_totale'] = $edit_data['importo_preventivo'] ?? $edit_data['importo_totale'] ?? 0;
+        // ✅ FIX: NON sovrascrivere importo_totale con importo_preventivo (che ha già gli extra inclusi!)
+        // importo_totale deve contenere SOLO il prezzo base del menu, senza extra
+        if (!isset($edit_data['importo_totale']) || $edit_data['importo_totale'] == 0) {
+            // Se importo_totale è vuoto, calcola il base sottraendo gli extra da importo_preventivo
+            $importo_preventivo = floatval($edit_data['importo_preventivo'] ?? 0);
+            $extra_totale = floatval($edit_data['extra1_importo'] ?? 0) + 
+                          floatval($edit_data['extra2_importo'] ?? 0) + 
+                          floatval($edit_data['extra3_importo'] ?? 0);
+            $edit_data['importo_totale'] = $importo_preventivo - $extra_totale;
+        }
     } else {
         error_log('[747Disco-Form] ERRORE: Preventivo non trovato con ID: ' . $edit_id);
     }
@@ -94,16 +109,6 @@ $sconti_menu = array(
     'Menu 7-4-7' => 600
 );
 
-// ✅ NUOVO: Carica TUTTI i tipi menu dal database
-global $wpdb;
-$table_preventivi = $wpdb->prefix . 'disco747_preventivi';
-$tipi_menu_db = $wpdb->get_col("SELECT DISTINCT tipo_menu FROM {$table_preventivi} WHERE tipo_menu IS NOT NULL AND tipo_menu != '' ORDER BY tipo_menu ASC");
-
-// Aggiungi menu predefiniti se non ci sono nel DB
-$tipi_menu_default = array('Menu 7', 'Menu 7-4', 'Menu 7-4-7', 'Menu 1', 'Menu 2', 'Menu 3', 'Menu 4', 'Menu 5', 'Menu 6', 'Menu 8');
-$tipi_menu_disponibili = array_unique(array_merge($tipi_menu_default, $tipi_menu_db));
-sort($tipi_menu_disponibili, SORT_NATURAL);
-
 $page_title = $is_edit_mode ? 'Modifica Preventivo #' . $edit_id : 'Nuovo Preventivo';
 $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventivo';
 
@@ -136,7 +141,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     </div>
 
     <!-- Form principale -->
-    <form id="disco747-form-preventivo" method="post" style="background: white; border-radius: 0 0 15px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden;">
+    <form id="disco747-form-preventivo" method="post" autocomplete="off" style="background: white; border-radius: 0 0 15px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden;">
         
         <?php wp_nonce_field('disco747_preventivo', 'disco747_preventivo_nonce'); ?>
         <input type="hidden" name="is_edit_mode" value="<?php echo $is_edit_mode ? '1' : '0'; ?>">
@@ -230,21 +235,12 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2b1e1a;">
                         🍽ï¸ Tipo Menu * <span style="color: #dc3545;">●</span>
                     </label>
-                    <select name="tipo_menu" id="tipo_menu" required
+                    <select name="tipo_menu" id="tipo_menu" required autocomplete="off"
                             style="width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 14px; transition: border-color 0.3s ease;">
-                        <?php
-                        // ✅ DINAMICO: Mostra tutti i menu disponibili (DB + predefiniti)
-                        $current_menu = get_field_value('tipo_menu', 'Menu 7', $edit_data);
-                        
-                        foreach ($tipi_menu_disponibili as $menu) {
-                            $selected = ($menu == $current_menu) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($menu) . '" ' . $selected . '>' . esc_html($menu) . '</option>';
-                        }
-                        ?>
+                        <option value="Menu 7" <?php echo get_field_value('tipo_menu', 'Menu 7', $edit_data) == 'Menu 7' ? 'selected' : ''; ?>>Menu 7</option>
+                        <option value="Menu 7-4" <?php echo get_field_value('tipo_menu', '', $edit_data) == 'Menu 7-4' ? 'selected' : ''; ?>>Menu 7-4</option>
+                        <option value="Menu 7-4-7" <?php echo get_field_value('tipo_menu', '', $edit_data) == 'Menu 7-4-7' ? 'selected' : ''; ?>>Menu 7-4-7</option>
                     </select>
-                    <small style="color: #6c757d; font-size: 12px; margin-top: 5px; display: block;">
-                        Menu disponibili dal database + predefiniti
-                    </small>
                 </div>
                 
                 <div>
@@ -534,21 +530,13 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
                     <?php echo $submit_text; ?> 💾
                 </button>
                 
-                <?php if ($is_edit_mode): ?>
-                <!-- Pulsante Salva e Rigenera File -->
-                <button type="submit" name="action" value="save_and_regenerate"
-                        style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-weight: 600; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(23, 162, 184, 0.3); transition: all 0.3s ease;">
-                    Salva e Rigenera File 📄
-                </button>
-                <?php endif; ?>
-                
-                <!-- Pulsante Salva come Bozza -->
-                <button type="submit" name="action" value="save_draft"
-                        style="background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-weight: 600; font-size: 16px; cursor: pointer; box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3); transition: all 0.3s ease;">
-                    Salva come Bozza 📝
-                </button>
-                
                 <!-- Pulsante Annulla -->
+                
+                <!-- Pulsante Torna alla Dashboard -->
+                <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm')); ?>"
+                   style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 15px 30px; border: none; border-radius: 25px; font-weight: 600; font-size: 16px; text-decoration: none; display: inline-block; box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3); transition: all 0.3s ease;">
+                    🏠 Torna alla Dashboard
+                </a>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=disco747-crm')); ?>" 
                    style="background: rgba(108, 117, 125, 0.1); color: #6c757d; padding: 15px 30px; border: 2px solid #6c757d; border-radius: 25px; font-weight: 600; font-size: 16px; text-decoration: none; display: inline-block; transition: all 0.3s ease;">
                     â† Annulla
@@ -652,7 +640,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
     
     <!-- ============================================================================ -->
     <!-- SEZIONE NUOVA: PULSANTI POST-CREAZIONE (PDF, EMAIL, WHATSAPP) -->
-    <!-- Visibile SOLO dopo che il preventivo Ã¨ stato salvato -->
+    <!-- Visibile SOLO dopo che il preventivo è stato salvato -->
     <!-- ============================================================================ -->
     
     <div id="post-creation-actions" style="display: none; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-top: 30px; overflow: hidden;">
@@ -748,7 +736,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #e7f3ff; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; margin-bottom: 25px;">
                 <p style="margin: 0; color: #004085; font-size: 0.9rem;">
-                    ℹï¸ L'email sarÃ  inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
+                    ℹ️ L'email sarà inviata da <strong>eventi@747disco.it</strong> con copia a <strong>info@747disco.it</strong>
                 </p>
             </div>
             
@@ -792,7 +780,7 @@ $submit_text = $is_edit_mode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventi
             
             <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 25px;">
                 <p style="margin: 0; color: #155724; font-size: 0.9rem;">
-                    ℹï¸ VerrÃ  aperta l'app WhatsApp con il messaggio giÃ  precompilato, pronto per essere inviato al cliente
+                    ℹ️ Verrà aperta l'app WhatsApp con il messaggio già precompilato, pronto per essere inviato al cliente
                 </p>
             </div>
             
@@ -897,8 +885,8 @@ jQuery(document).ready(function($) {
         tipo_menu: '<?php echo esc_js($edit_data['tipo_menu'] ?? ''); ?>',
         numero_invitati: <?php echo intval($edit_data['numero_invitati'] ?? 0); ?>,
         
-        // Importi
-        importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? $edit_data['importo_preventivo'] ?? 0); ?>,
+        // Importi - ✅ FIX: Usa sempre importo_totale (base menu), mai importo_preventivo (che ha extra inclusi)
+        importo_totale: <?php echo floatval($edit_data['importo_totale'] ?? 0); ?>,
         acconto: <?php echo floatval($edit_data['acconto'] ?? 0); ?>
     };
     console.log('📝 Edit mode - preventivoData inizializzato:', window.preventivoData);
@@ -970,7 +958,11 @@ jQuery(document).ready(function($) {
                 alert('❌ Errore di connessione: ' + error);
             },
             complete: function() {
-                $submitButtons.prop('disabled', false).html('💾 Salva Preventivo');
+                // Ripristina il testo originale del pulsante
+                $submitButtons.prop('disabled', false);
+                const isEditMode = $('#is_edit_mode').val();
+                const buttonText = isEditMode ? '💾 Aggiorna Preventivo' : '💾 Salva Preventivo';
+                $submitButtons.html(buttonText);
             }
         });
     });

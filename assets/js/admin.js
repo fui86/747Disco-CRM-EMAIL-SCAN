@@ -1,18 +1,16 @@
 /**
- * CHANGELOG v11.8.0:
- * - ✅ Corretto errore sintassi "Unexpected end of input" alla linea 384
- * - ✅ Aggiunte chiusure mancanti per funzioni e oggetti
- * - ✅ Rimosso codice troncato e completato struttura
- * - ✅ Gestione corretta eventi sincronizzazione Google Drive
- * - ✅ Compatibilità con form POST della dashboard
- * - ✅ NUOVO: Gestione template messaggi Email e WhatsApp
+ * CHANGELOG v11.8.1:
+ * - ✅ Aggiunto supporto completo per cambio stato preventivi
+ * - ✅ Gestione corretta nonce per update_preventivo_status
+ * - ✅ Reload automatico pagina dopo cambio stato
+ * - ✅ Notifiche migliorate con messaggi dettagliati
  * 
  * JavaScript per l'area admin di 747 Disco CRM
- * Versione corretta senza errori di sintassi
+ * Versione corretta con supporto cambio stato
  * 
  * @package    Disco747_CRM
  * @subpackage Assets
- * @since      11.8.0
+ * @since      11.8.1
  */
 
 (function($) {
@@ -67,6 +65,9 @@
             self.cache.$document.on('click', '.edit-preventivo', self.handleEditPreventivo.bind(self));
             self.cache.$document.on('click', '.cancel-preventivo', self.handleCancelPreventivo.bind(self));
             self.cache.$document.on('click', '.delete-preventivo', self.handleDeletePreventivo.bind(self));
+            
+            // Cambio stato dropdown
+            self.cache.$document.on('change', '.preventivo-status-select', self.handleStatusChange.bind(self));
             
             // Paginazione
             self.cache.$document.on('click', '.pagination-link', self.handlePagination.bind(self));
@@ -163,6 +164,27 @@
             
             if (confirm(self.config.messages.confirm_delete || 'Sei sicuro di voler eliminare questo preventivo?')) {
                 self.deletePreventivo(id);
+            }
+        },
+        
+        /**
+         * Handler per cambio stato da dropdown
+         */
+        handleStatusChange: function(e) {
+            e.preventDefault();
+            var self = this;
+            var $select = $(e.currentTarget);
+            var id = $select.data('preventivo-id');
+            var newStatus = $select.val();
+            var oldStatus = $select.data('old-status');
+            
+            if (newStatus !== oldStatus) {
+                if (confirm('Confermi il cambio di stato del preventivo #' + id + '?')) {
+                    self.updatePreventivoStatus(id, newStatus);
+                } else {
+                    // Ripristina valore precedente
+                    $select.val(oldStatus);
+                }
             }
         },
         
@@ -348,6 +370,8 @@
         updatePreventivoStatus: function(id, status) {
             var self = this;
             
+            console.log('[747Disco] Aggiornamento stato preventivo #' + id + ' a "' + status + '"');
+            
             $.ajax({
                 url: self.config.ajaxUrl,
                 type: 'POST',
@@ -358,15 +382,23 @@
                     status: status
                 },
                 success: function(response) {
+                    console.log('[747Disco] Risposta server:', response);
+                    
                     if (response.success) {
-                        self.showNotification('success', 'Stato aggiornato');
-                        self.loadPreventivi();
+                        var message = response.data.message || 'Stato aggiornato con successo';
+                        self.showNotification('success', message);
+                        
+                        // Ricarica la pagina dopo 1.5 secondi per mostrare i cambiamenti
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1500);
                     } else {
                         self.showNotification('error', response.data || 'Errore aggiornamento');
                     }
                 },
-                error: function() {
-                    self.showNotification('error', 'Errore di comunicazione');
+                error: function(xhr, status, error) {
+                    console.error('[747Disco] Errore AJAX:', {xhr: xhr, status: status, error: error});
+                    self.showNotification('error', 'Errore di comunicazione: ' + error);
                 }
             });
         },
