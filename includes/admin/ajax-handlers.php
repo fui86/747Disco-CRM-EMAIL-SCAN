@@ -52,6 +52,8 @@ function disco747_ajax_update_preventivo_status() {
     $excel_url = $preventivo['excel_url'];
     $googledrive_file_id = $preventivo['googledrive_file_id'];
     
+    error_log('[747Disco] Cambio stato preventivo #' . $preventivo_id . ' da "' . $old_status . '" a "' . $new_status . '"');
+    
     // Aggiorna stato nel database
     $updated = $wpdb->update(
         $table_name,
@@ -61,8 +63,11 @@ function disco747_ajax_update_preventivo_status() {
         array('%d')
     );
     
+    error_log('[747Disco] Risultato update database: ' . var_export($updated, true));
+    
     if ($updated === false) {
-        wp_send_json_error('Errore aggiornamento database');
+        error_log('[747Disco] ❌ Errore aggiornamento database: ' . $wpdb->last_error);
+        wp_send_json_error('Errore aggiornamento database: ' . $wpdb->last_error);
     }
     
     // Gestione rinominazione file
@@ -100,11 +105,15 @@ function disco747_ajax_update_preventivo_status() {
     
     // ✅ AGGIUNTO: Rinomina file su Google Drive se esiste
     if (!empty($googledrive_file_id) && class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive')) {
+        error_log('[747Disco] 📁 Inizio rinomina Google Drive - File ID: ' . $googledrive_file_id);
+        
         $googledrive = new Disco747_CRM\Storage\Disco747_GoogleDrive();
         
         // Valida e genera il nome del file in base allo stato
         $data_evento_str = $preventivo['data_evento'] ?? '';
         $timestamp = strtotime($data_evento_str);
+        
+        error_log('[747Disco] 📅 Data evento: ' . $data_evento_str . ' - Timestamp: ' . var_export($timestamp, true));
         
         if ($timestamp !== false) {
             $data_evento = date('d_m', $timestamp);
@@ -112,6 +121,8 @@ function disco747_ajax_update_preventivo_status() {
             $tipo_menu = $preventivo['tipo_menu'] ?? 'Menu 7';
             $menu_type = preg_replace('/\b(menu\s*)+/i', '', $tipo_menu);
             $menu_type = trim($menu_type);
+            
+            error_log('[747Disco] 📝 Componenti nome: data=' . $data_evento . ', evento=' . $tipo_evento . ', menu=' . $menu_type);
             
             // Costruisci il nome base del file
             $base_filename = "{$data_evento} {$tipo_evento} (Menu {$menu_type})";
@@ -126,10 +137,12 @@ function disco747_ajax_update_preventivo_status() {
                 $new_filename = "{$base_filename}.xlsx";
             }
             
-            error_log('[747Disco] Tentativo rinomina Google Drive: ' . $new_filename);
+            error_log('[747Disco] 🎯 Nuovo nome file: ' . $new_filename);
             
             // Rinomina su Google Drive
             $rename_result = $googledrive->rename_file($googledrive_file_id, $new_filename);
+            
+            error_log('[747Disco] 🔄 Risultato rename_file: ' . var_export($rename_result, true));
             
             if ($rename_result && isset($rename_result['url'])) {
                 error_log('[747Disco] ✅ File rinominato su Google Drive: ' . $new_filename);
@@ -143,11 +156,13 @@ function disco747_ajax_update_preventivo_status() {
                 );
                 $files_renamed[] = 'Google Drive: ' . $new_filename;
             } else {
-                error_log('[747Disco] ⚠️ Errore rinomina file su Google Drive');
+                error_log('[747Disco] ⚠️ Errore rinomina file su Google Drive - Risultato vuoto o senza URL');
             }
         } else {
             error_log('[747Disco] ⚠️ Data evento non valida, impossibile rinominare file su Google Drive');
         }
+    } else {
+        error_log('[747Disco] ℹ️ Rinomina Google Drive saltata - File ID: ' . var_export($googledrive_file_id, true) . ' - Classe esiste: ' . var_export(class_exists('Disco747_CRM\Storage\Disco747_GoogleDrive'), true));
     }
     
     $message = 'Stato aggiornato da "' . $old_status . '" a "' . $new_status . '"';
