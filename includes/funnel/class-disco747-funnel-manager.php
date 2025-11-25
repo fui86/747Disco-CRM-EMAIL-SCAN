@@ -215,6 +215,14 @@ class Disco747_Funnel_Manager {
             }
         }
         
+        // ✅ FIX: Se non c'è un prossimo step, completa il funnel immediatamente
+        if (!$next_step_data) {
+            // Non c'è un prossimo step - completa il funnel
+            $this->complete_funnel($tracking_id);
+            error_log("[747Disco-Funnel] ✅ Step {$next_step_number} inviato (ultimo step) - Funnel completato per tracking #{$tracking_id}");
+            return true;
+        }
+        
         $wpdb->update(
             $this->tracking_table,
             array(
@@ -765,6 +773,66 @@ class Disco747_Funnel_Manager {
             error_log("[747Disco-Funnel] ✅ Nessun tracking problematico trovato");
         }
         
+        // Check per tracking "stuck" (attivi ma senza next_send_at)
+        $stuck = $wpdb->get_results("
+            SELECT t.id, t.preventivo_id, t.funnel_type, t.current_step, p.stato
+            FROM {$this->tracking_table} t
+            LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
+            WHERE t.status = 'active'
+              AND t.next_send_at IS NULL
+        ");
+        
+        if (!empty($stuck)) {
+            error_log("[747Disco-Funnel] ⚠️ TROVATI " . count($stuck) . " TRACKING STUCK (attivi ma senza next_send_at):");
+            foreach ($stuck as $t) {
+                error_log("[747Disco-Funnel]   - Tracking #{$t->id}: Preventivo #{$t->preventivo_id}, Funnel: {$t->funnel_type}, Step: {$t->current_step}, Stato preventivo: {$t->stato} ❌");
+            }
+        }
+        
         error_log("[747Disco-Funnel] === FINE DEBUG REPORT ===");
+    }
+    
+    /**
+     * Ripara tracking "stuck" (attivi ma senza next_send_at)
+     * Questi tracking hanno completato tutti gli step ma non sono stati marcati come completati
+     */
+    public function fix_stuck_trackings() {
+        global $wpdb;
+        
+        // Trova tracking stuck
+        $stuck = $wpdb->get_results("
+            SELECT t.id, t.preventivo_id, t.funnel_type, t.current_step
+            FROM {$this->tracking_table} t
+            WHERE t.status = 'active'
+              AND t.next_send_at IS NULL
+        ");
+        
+        if (empty($stuck)) {
+            error_log("[747Disco-Funnel] ✅ Nessun tracking stuck da riparare");
+            return 0;
+        }
+        
+        $fixed = 0;
+        foreach ($stuck as $tracking) {
+            // Verifica se c'è un prossimo step configurato
+            $next_step = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$this->sequences_table} 
+                 WHERE funnel_type = %s AND step_number = %d AND active = 1",
+                $tracking->funnel_type,
+                $tracking->current_step + 1
+            ));
+            
+            if (!$next_step) {
+                // Non c'è un prossimo step - il funnel dovrebbe essere completato
+                $this->complete_funnel($tracking->id);
+                error_log("[747Disco-Funnel] 🔧 Riparato tracking #{$tracking->id}: marcato come completato");
+                $fixed++;
+            } else {
+                error_log("[747Disco-Funnel] ⚠️ Tracking #{$tracking->id} ha un next_step configurato ma next_send_at=NULL - richiede indagine manuale");
+            }
+        }
+        
+        error_log("[747Disco-Funnel] ✅ Riparati {$fixed} tracking stuck");
+        return $fixed;
     }
 }
