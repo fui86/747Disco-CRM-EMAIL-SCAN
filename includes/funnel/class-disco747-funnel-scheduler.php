@@ -200,6 +200,10 @@ class Disco747_Funnel_Scheduler {
         
         echo "<h2>Test Funnel Scheduler</h2>";
         
+        
+        echo "<h3>0. Debug Report Tracking</h3>";
+        $this->funnel_manager->debug_tracking_report();
+        echo "<p>✅ Report generato nei log</p>";
         echo "<h3>1. Check Invii Pending</h3>";
         $this->process_pending_sends();
         

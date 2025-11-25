@@ -716,4 +716,55 @@ class Disco747_Funnel_Manager {
         
         return $results;
     }
+    
+    /**
+     * Debug: Report completo tracking attivi con stato preventivo
+     * Utile per diagnosticare problemi con invii email
+     */
+    public function debug_tracking_report() {
+        global $wpdb;
+        
+        error_log("[747Disco-Funnel] 🔍 === DEBUG REPORT TRACKING ATTIVI ===");
+        
+        // Conta tracking per funnel_type e stato preventivo
+        $report = $wpdb->get_results("
+            SELECT 
+                t.funnel_type,
+                p.stato as preventivo_stato,
+                COUNT(*) as count
+            FROM {$this->tracking_table} t
+            LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
+            WHERE t.status = 'active'
+            GROUP BY t.funnel_type, p.stato
+            ORDER BY t.funnel_type, p.stato
+        ");
+        
+        foreach ($report as $row) {
+            $stato = $row->preventivo_stato ?? 'NULL';
+            error_log("[747Disco-Funnel]   Funnel: {$row->funnel_type}, Stato: {$stato}, Count: {$row->count}");
+        }
+        
+        // Mostra tracking che NON dovrebbero essere attivi
+        $problematic = $wpdb->get_results("
+            SELECT t.id, t.preventivo_id, t.funnel_type, p.stato
+            FROM {$this->tracking_table} t
+            LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
+            WHERE t.status = 'active'
+              AND (
+                (t.funnel_type = 'pre_conferma' AND p.stato != 'attivo')
+                OR (t.funnel_type = 'pre_evento' AND p.stato != 'confermato')
+              )
+        ");
+        
+        if (!empty($problematic)) {
+            error_log("[747Disco-Funnel] ⚠️ TROVATI " . count($problematic) . " TRACKING PROBLEMATICI (dovrebbero essere stoppati):");
+            foreach ($problematic as $t) {
+                error_log("[747Disco-Funnel]   - Tracking #{$t->id}: Preventivo #{$t->preventivo_id}, Funnel: {$t->funnel_type}, Stato: {$t->stato} ❌");
+            }
+        } else {
+            error_log("[747Disco-Funnel] ✅ Nessun tracking problematico trovato");
+        }
+        
+        error_log("[747Disco-Funnel] === FINE DEBUG REPORT ===");
+    }
 }
