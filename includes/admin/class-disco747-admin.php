@@ -614,11 +614,10 @@ class Disco747_Admin {
             $where = array('1=1');
             $where_values = array();
 
-            // Apply filters
+            // Apply filters (matching CSV export behavior)
             if (!empty($_GET['search'])) {
-                $where[] = "(nome_cliente LIKE %s OR email LIKE %s OR telefono LIKE %s)";
+                $where[] = "(nome_cliente LIKE %s OR email LIKE %s)";
                 $search = '%' . $wpdb->esc_like(sanitize_text_field($_GET['search'])) . '%';
-                $where_values[] = $search;
                 $where_values[] = $search;
                 $where_values[] = $search;
             }
@@ -630,7 +629,7 @@ class Disco747_Admin {
 
             if (!empty($_GET['menu'])) {
                 $where[] = "tipo_menu LIKE %s";
-                $where_values[] = '%' . $wpdb->esc_like(sanitize_text_field($_GET['menu'])) . '%';
+                $where_values[] = '%' . $wpdb->esc_like($_GET['menu']) . '%';
             }
 
             $anno = !empty($_GET['anno']) ? intval($_GET['anno']) : 0;
@@ -659,9 +658,12 @@ class Disco747_Admin {
             // Generate dynamic filename based on filters
             $filename = $this->generate_excel_filename($anno, $mese, sanitize_key($_GET['stato'] ?? ''));
             
+            // Sanitize filename for header (remove any potentially dangerous characters)
+            $safe_filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $filename);
+            
             // Output Excel-compatible file (Tab-separated with UTF-8 BOM)
             header('Content-Type: application/vnd.ms-excel; charset=utf-8');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Disposition: attachment; filename="' . $safe_filename . '"');
             header('Cache-Control: max-age=0');
             
             $output = fopen('php://output', 'w');
