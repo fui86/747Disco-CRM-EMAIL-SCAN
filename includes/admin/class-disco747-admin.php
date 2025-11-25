@@ -61,6 +61,7 @@ class Disco747_Admin {
             add_action('wp_ajax_disco747_get_preventivo', array($this, 'handle_get_preventivo'));
             add_action('wp_ajax_disco747_delete_preventivo', array($this, 'handle_delete_preventivo'));
             add_action('wp_ajax_disco747_export_preventivi_csv', array($this, 'handle_export_csv'));
+            add_action('wp_ajax_disco747_export_preventivi_excel', array($this, 'handle_export_excel'));
             add_action('wp_ajax_disco747_get_funnel_sequence', array($this, 'handle_get_funnel_sequence'));
             
             $this->hooks_registered = true;
@@ -591,6 +592,281 @@ class Disco747_Admin {
         } catch (\Exception $e) {
             wp_die('Errore export: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Handle Excel export with filters
+     */
+    public function handle_export_excel() {
+        try {
+            if (!wp_verify_nonce($_GET['nonce'], 'disco747_export_excel')) {
+                wp_die('Nonce non valido');
+            }
+
+            if (!current_user_can($this->min_capability)) {
+                wp_die('Permessi insufficienti');
+            }
+
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'disco747_preventivi';
+
+            $where = array('1=1');
+            $where_values = array();
+
+            if (!empty($_GET['search'])) {
+                $where[] = "(nome_cliente LIKE %s OR email LIKE %s)";
+                $search = '%' . $wpdb->esc_like($_GET['search']) . '%';
+                $where_values[] = $search;
+                $where_values[] = $search;
+            }
+
+            if (!empty($_GET['stato'])) {
+                $where[] = "stato = %s";
+                $where_values[] = sanitize_key($_GET['stato']);
+            }
+
+            if (!empty($_GET['menu'])) {
+                $where[] = "tipo_menu LIKE %s";
+                $where_values[] = '%' . $wpdb->esc_like($_GET['menu']) . '%';
+            }
+
+            if (!empty($_GET['anno'])) {
+                $where[] = "YEAR(data_evento) = %d";
+                $where_values[] = intval($_GET['anno']);
+            }
+
+            if (!empty($_GET['mese'])) {
+                $where[] = "MONTH(data_evento) = %d";
+                $where_values[] = intval($_GET['mese']);
+            }
+
+            $where_clause = implode(' AND ', $where);
+
+            if (!empty($where_values)) {
+                $query = $wpdb->prepare("SELECT * FROM {$table_name} WHERE {$where_clause} ORDER BY data_evento ASC", $where_values);
+            } else {
+                $query = "SELECT * FROM {$table_name} WHERE {$where_clause} ORDER BY data_evento ASC";
+            }
+
+            $preventivi = $wpdb->get_results($query, ARRAY_A);
+
+            // Build filename based on filters
+            $filename_parts = array('preventivi');
+            if (!empty($_GET['anno'])) {
+                $filename_parts[] = $_GET['anno'];
+            }
+            if (!empty($_GET['mese'])) {
+                $mesi = array(
+                    1 => 'gennaio', 2 => 'febbraio', 3 => 'marzo', 4 => 'aprile',
+                    5 => 'maggio', 6 => 'giugno', 7 => 'luglio', 8 => 'agosto',
+                    9 => 'settembre', 10 => 'ottobre', 11 => 'novembre', 12 => 'dicembre'
+                );
+                $filename_parts[] = $mesi[intval($_GET['mese'])] ?? $_GET['mese'];
+            }
+            $filename_parts[] = date('Y-m-d_His');
+            $filename = implode('_', $filename_parts) . '.xlsx';
+
+            // Try PhpSpreadsheet first
+            if ($this->export_with_phpspreadsheet($preventivi, $filename)) {
+                exit;
+            }
+
+            // Fallback to XML-based Excel format
+            $this->export_as_xml_excel($preventivi, $filename);
+            exit;
+
+        } catch (\Exception $e) {
+            wp_die('Errore export Excel: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export using PhpSpreadsheet if available
+     */
+    private function export_with_phpspreadsheet($preventivi, $filename) {
+        // Try to load PhpSpreadsheet
+        $autoload_paths = array(
+            DISCO747_CRM_PLUGIN_DIR . 'vendor/autoload.php',
+            ABSPATH . 'vendor/autoload.php',
+            WP_CONTENT_DIR . '/plugins/disco747-crm/vendor/autoload.php',
+        );
+
+        foreach ($autoload_paths as $path) {
+            if (file_exists($path)) {
+                require_once $path;
+                break;
+            }
+        }
+
+        if (!class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+            return false;
+        }
+
+        try {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('Preventivi');
+
+            // Headers
+            $headers = array(
+                'A1' => 'Data Evento',
+                'B1' => 'Cliente',
+                'C1' => 'Telefono',
+                'D1' => 'Email',
+                'E1' => 'Tipo Evento',
+                'F1' => 'Menu',
+                'G1' => 'Invitati',
+                'H1' => 'Importo Totale',
+                'I1' => 'Acconto',
+                'J1' => 'Saldo',
+                'K1' => 'Stato'
+            );
+
+            foreach ($headers as $cell => $value) {
+                $sheet->setCellValue($cell, $value);
+                $sheet->getStyle($cell)->getFont()->setBold(true);
+                $sheet->getStyle($cell)->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FF217346');
+                $sheet->getStyle($cell)->getFont()->getColor()->setARGB('FFFFFFFF');
+            }
+
+            // Data rows
+            $row = 2;
+            foreach ($preventivi as $prev) {
+                $importo = floatval($prev['importo_totale'] ?? 0);
+                $acconto = floatval($prev['acconto'] ?? 0);
+                $saldo = $importo - $acconto;
+
+                $sheet->setCellValue('A' . $row, $prev['data_evento'] ? date('d/m/Y', strtotime($prev['data_evento'])) : '');
+                $sheet->setCellValue('B' . $row, $prev['nome_cliente'] ?? '');
+                $sheet->setCellValue('C' . $row, $prev['telefono'] ?? '');
+                $sheet->setCellValue('D' . $row, $prev['email'] ?? '');
+                $sheet->setCellValue('E' . $row, $prev['tipo_evento'] ?? '');
+                $sheet->setCellValue('F' . $row, $prev['tipo_menu'] ?? '');
+                $sheet->setCellValue('G' . $row, intval($prev['numero_invitati'] ?? 0));
+                $sheet->setCellValue('H' . $row, $importo);
+                $sheet->setCellValue('I' . $row, $acconto);
+                $sheet->setCellValue('J' . $row, $saldo);
+                $sheet->setCellValue('K' . $row, strtoupper($prev['stato'] ?? ''));
+
+                // Format currency columns
+                $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('#,##0.00 €');
+                $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0.00 €');
+                $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0.00 €');
+
+                $row++;
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'K') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Output
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+
+            return true;
+
+        } catch (\Exception $e) {
+            $this->log('Errore PhpSpreadsheet: ' . $e->getMessage(), 'error');
+            return false;
+        }
+    }
+
+    /**
+     * Export as XML-based Excel format (fallback)
+     */
+    private function export_as_xml_excel($preventivi, $filename) {
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . str_replace('.xlsx', '.xls', $filename) . '"');
+        header('Cache-Control: max-age=0');
+
+        // BOM for UTF-8
+        echo "\xEF\xBB\xBF";
+
+        // XML Excel format
+        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+            xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+
+        // Styles
+        echo '<Styles>
+            <Style ss:ID="Header">
+                <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+                <Interior ss:Color="#217346" ss:Pattern="Solid"/>
+                <Alignment ss:Horizontal="Center"/>
+            </Style>
+            <Style ss:ID="Currency">
+                <NumberFormat ss:Format="#,##0.00\ &quot;€&quot;"/>
+            </Style>
+            <Style ss:ID="Date">
+                <NumberFormat ss:Format="dd/mm/yyyy"/>
+            </Style>
+        </Styles>' . "\n";
+
+        echo '<Worksheet ss:Name="Preventivi">' . "\n";
+        echo '<Table>' . "\n";
+
+        // Column widths
+        echo '<Column ss:Width="80"/>';  // Data Evento
+        echo '<Column ss:Width="150"/>'; // Cliente
+        echo '<Column ss:Width="100"/>'; // Telefono
+        echo '<Column ss:Width="180"/>'; // Email
+        echo '<Column ss:Width="120"/>'; // Tipo Evento
+        echo '<Column ss:Width="80"/>';  // Menu
+        echo '<Column ss:Width="60"/>';  // Invitati
+        echo '<Column ss:Width="100"/>'; // Importo
+        echo '<Column ss:Width="100"/>'; // Acconto
+        echo '<Column ss:Width="100"/>'; // Saldo
+        echo '<Column ss:Width="80"/>';  // Stato
+
+        // Header row
+        echo '<Row ss:StyleID="Header">';
+        echo '<Cell><Data ss:Type="String">Data Evento</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Cliente</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Telefono</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Email</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Tipo Evento</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Menu</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Invitati</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Importo Totale</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Acconto</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Saldo</Data></Cell>';
+        echo '<Cell><Data ss:Type="String">Stato</Data></Cell>';
+        echo '</Row>' . "\n";
+
+        // Data rows
+        foreach ($preventivi as $prev) {
+            $importo = floatval($prev['importo_totale'] ?? 0);
+            $acconto = floatval($prev['acconto'] ?? 0);
+            $saldo = $importo - $acconto;
+            $data_evento = $prev['data_evento'] ? date('d/m/Y', strtotime($prev['data_evento'])) : '';
+
+            echo '<Row>';
+            echo '<Cell ss:StyleID="Date"><Data ss:Type="String">' . htmlspecialchars($data_evento) . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars($prev['nome_cliente'] ?? '') . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars($prev['telefono'] ?? '') . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars($prev['email'] ?? '') . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars($prev['tipo_evento'] ?? '') . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars($prev['tipo_menu'] ?? '') . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="Number">' . intval($prev['numero_invitati'] ?? 0) . '</Data></Cell>';
+            echo '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $importo . '</Data></Cell>';
+            echo '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $acconto . '</Data></Cell>';
+            echo '<Cell ss:StyleID="Currency"><Data ss:Type="Number">' . $saldo . '</Data></Cell>';
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars(strtoupper($prev['stato'] ?? '')) . '</Data></Cell>';
+            echo '</Row>' . "\n";
+        }
+
+        echo '</Table>' . "\n";
+        echo '</Worksheet>' . "\n";
+        echo '</Workbook>';
     }
 
     public function show_admin_notices() {

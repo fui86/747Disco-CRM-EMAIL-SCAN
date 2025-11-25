@@ -116,13 +116,16 @@ $stats = array(
     
     <!-- Header -->
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px;">
-        <h1 style="margin: 0;">ðŸ“Š Database Preventivi</h1>
+        <h1 style="margin: 0;">📊 Database Preventivi</h1>
         <div style="display: flex; gap: 10px;">
             <a href="<?php echo admin_url('admin.php?page=disco747-scan-excel'); ?>" class="button">
-                ðŸ”„ Excel Scan
+                🔄 Excel Scan
             </a>
-            <button type="button" id="export-csv-btn" class="button button-primary">
-                ðŸ“¥ Export CSV
+            <button type="button" id="export-csv-btn" class="button">
+                📥 Export CSV
+            </button>
+            <button type="button" id="export-excel-btn" class="button button-primary" style="background: #217346; border-color: #1e6b3e;">
+                📊 Export Excel
             </button>
         </div>
     </div>
@@ -132,19 +135,19 @@ $stats = array(
         <div class="disco747-card-content">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                 <div class="stat-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                    <div class="stat-label">ðŸ“Š Totale</div>
+                    <div class="stat-label">📊 Totale</div>
                     <div class="stat-value"><?php echo number_format($stats['totale']); ?></div>
                 </div>
                 <div class="stat-box" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
-                    <div class="stat-label">ðŸ”µ Attivi</div>
+                    <div class="stat-label">🔵 Attivi</div>
                     <div class="stat-value"><?php echo number_format($stats['attivi']); ?></div>
                 </div>
                 <div class="stat-box" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
-                    <div class="stat-label">âœ… Confermati</div>
+                    <div class="stat-label">✅ Confermati</div>
                     <div class="stat-value"><?php echo number_format($stats['confermati']); ?></div>
                 </div>
                 <div class="stat-box" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
-                    <div class="stat-label">âŒ Annullati</div>
+                    <div class="stat-label">❌ Annullati</div>
                     <div class="stat-value"><?php echo number_format($stats['annullati']); ?></div>
                 </div>
             </div>
@@ -154,11 +157,11 @@ $stats = array(
     <!-- Filtri -->
     <div class="disco747-card" style="margin-bottom: 30px;">
         <div class="disco747-card-header">
-            ðŸ” Filtri di Ricerca
+            🔍 Filtri di Ricerca
             <?php if (array_filter($filters)): ?>
                 <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
                    style="float: right; font-size: 13px; color: #2271b1; text-decoration: none;">
-                    âœ– Cancella Filtri
+                    ✖ Cancella Filtri
                 </a>
             <?php endif; ?>
         </div>
@@ -169,7 +172,7 @@ $stats = array(
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                     <!-- Ricerca -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ðŸ” Cerca</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">🔍 Cerca</label>
                         <input type="text" name="search" 
                                value="<?php echo esc_attr($filters['search']); ?>" 
                                placeholder="Nome, email, telefono..."
@@ -178,7 +181,7 @@ $stats = array(
 
                     <!-- Stato -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ðŸ“Œ Stato</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">📌 Stato</label>
                         <select name="stato" style="width: 100%; padding: 8px;">
                             <option value="">Tutti gli stati</option>
                             <option value="attivo" <?php selected($filters['stato'], 'attivo'); ?>>Attivo</option>
@@ -190,7 +193,7 @@ $stats = array(
 
                     <!-- Menu -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ðŸ½ï¸ Menu</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">🍽️ Menu</label>
                         <select name="menu" style="width: 100%; padding: 8px;">
                             <option value="">Tutti i menu</option>
                             <option value="Menu 7" <?php selected($filters['menu'], 'Menu 7'); ?>>Menu 7</option>
@@ -201,7 +204,7 @@ $stats = array(
 
                     <!-- Anno -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ðŸ“… Anno</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">📅 Anno</label>
                         <select name="anno" style="width: 100%; padding: 8px;">
                             <option value="">Tutti gli anni</option>
                             <?php
@@ -218,7 +221,7 @@ $stats = array(
 
                     <!-- Mese -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ðŸ“† Mese</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">📆 Mese</label>
                         <select name="mese" style="width: 100%; padding: 8px;">
                             <option value="">Tutti i mesi</option>
                             <?php
@@ -238,7 +241,7 @@ $stats = array(
 
                     <!-- Ordina per -->
                     <div>
-                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">ðŸ”¢ Ordina per</label>
+                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">🔢 Ordina per</label>
                         <select name="order_by" style="width: 100%; padding: 8px;">
                             <option value="created_at" <?php selected($filters['order_by'], 'created_at'); ?>>Data Creazione</option>
                             <option value="data_evento" <?php selected($filters['order_by'], 'data_evento'); ?>>Data Evento</option>
@@ -249,7 +252,7 @@ $stats = array(
                 </div>
 
                 <div style="margin-top: 15px;">
-                    <button type="submit" class="button button-primary">ðŸ” Applica Filtri</button>
+                    <button type="submit" class="button button-primary">🔍 Applica Filtri</button>
                     <a href="<?php echo admin_url('admin.php?page=disco747-view-preventivi'); ?>" 
                        class="button">Ripristina</a>
                 </div>
@@ -260,13 +263,13 @@ $stats = array(
     <!-- Tabella Preventivi -->
     <div class="disco747-card">
         <div class="disco747-card-header">
-            ðŸ“‹ Preventivi (<?php echo number_format($total_preventivi); ?> risultati)
+            📋 Preventivi (<?php echo number_format($total_preventivi); ?> risultati)
         </div>
         <div class="disco747-card-content" style="padding: 0;">
             
             <?php if (empty($preventivi)): ?>
                 <div style="padding: 40px; text-align: center; color: #666;">
-                    <div style="font-size: 48px; margin-bottom: 15px;">ðŸ“­</div>
+                    <div style="font-size: 48px; margin-bottom: 15px;">🔭</div>
                     <h3 style="margin: 0 0 10px 0;">Nessun preventivo trovato</h3>
                     <p style="margin: 0;">Prova a modificare i filtri o esegui un Batch Scan</p>
                 </div>
@@ -284,10 +287,10 @@ $stats = array(
                                     
                                     // Determina il nuovo ordine
                                     if ($is_active) {
-                                        // Se Ã¨ giÃ  attiva, inverti l'ordine
+                                        // Se è già attiva, inverti l'ordine
                                         $new_order = ($current_order === 'ASC') ? 'DESC' : 'ASC';
                                     } else {
-                                        // Se non Ã¨ attiva, inizia con DESC
+                                        // Se non è attiva, inizia con DESC
                                         $new_order = 'DESC';
                                     }
                                     
@@ -301,7 +304,7 @@ $stats = array(
                                     
                                     $arrow = '';
                                     if ($is_active) {
-                                        $arrow = ($current_order === 'ASC') ? ' â†‘' : ' â†“';
+                                        $arrow = ($current_order === 'ASC') ? ' ↑' : ' ↓';
                                     }
                                     
                                     $style = '';
@@ -340,10 +343,10 @@ $stats = array(
                                     <td>
                                         <strong><?php echo esc_html($prev->nome_cliente ?: 'N/A'); ?></strong>
                                         <?php if ($prev->telefono): ?>
-                                            <br><small style="color: #666;">ðŸ“ž <?php echo esc_html($prev->telefono); ?></small>
+                                            <br><small style="color: #666;">📞 <?php echo esc_html($prev->telefono); ?></small>
                                         <?php endif; ?>
                                         <?php if ($prev->email): ?>
-                                            <br><small style="color: #666;">âœ‰ï¸ <?php echo esc_html($prev->email); ?></small>
+                                            <br><small style="color: #666;">✉️ <?php echo esc_html($prev->email); ?></small>
                                         <?php endif; ?>
                                     </td>
                                     <td style="text-align: center;">
@@ -361,7 +364,7 @@ $stats = array(
                                                style="display: inline-flex; align-items: center; justify-content: center; background: #25D366; color: white; width: 36px; height: 36px; border-radius: 50%; text-decoration: none; font-size: 18px; transition: all 0.3s;"
                                                onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 4px 12px rgba(37, 211, 102, 0.4)';"
                                                onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">
-                                                ðŸ“±
+                                                📱
                                             </a>
                                         <?php else: ?>
                                             <span style="color: #ccc; font-size: 12px;">N/A</span>
@@ -371,13 +374,13 @@ $stats = array(
                                     <td><?php echo esc_html($prev->tipo_menu ?: 'N/A'); ?></td>
                                     <td style="text-align: center;"><?php echo intval($prev->numero_invitati); ?></td>
                                     <td style="text-align: right;">
-                                        <strong>â‚¬ <?php echo number_format(floatval($prev->importo_totale), 2, ',', '.'); ?></strong>
+                                        <strong>€ <?php echo number_format(floatval($prev->importo_totale), 2, ',', '.'); ?></strong>
                                     </td>
                                     <td style="text-align: right;">
                                         <?php if (floatval($prev->acconto) > 0): ?>
-                                            <span style="color: #2ea044;">â‚¬ <?php echo number_format(floatval($prev->acconto), 2, ',', '.'); ?></span>
+                                            <span style="color: #2ea044;">€ <?php echo number_format(floatval($prev->acconto), 2, ',', '.'); ?></span>
                                         <?php else: ?>
-                                            <span style="color: #999;">â‚¬ 0,00</span>
+                                            <span style="color: #999;">€ 0,00</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -400,7 +403,7 @@ $stats = array(
                                             <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo&id=' . $prev->id); ?>" 
                                                class="button button-small" 
                                                title="Modifica preventivo">
-                                                âœï¸ Modifica
+                                                ✏️ Modifica
                                             </a>
                                             <?php if ($prev->googledrive_file_id): ?>
                                                 <a href="https://drive.google.com/file/d/<?php echo esc_attr($prev->googledrive_file_id); ?>/view" 
@@ -408,7 +411,7 @@ $stats = array(
                                                    class="button button-small" 
                                                    title="Apri su Google Drive"
                                                    style="font-size: 11px;">
-                                                    ðŸ“ Drive
+                                                    📁 Drive
                                                 </a>
                                             <?php endif; ?>
                                             <button type="button" 
@@ -416,7 +419,7 @@ $stats = array(
                                                     data-id="<?php echo $prev->id; ?>"
                                                     title="Elimina preventivo"
                                                     style="color: #d63638;">
-                                                âŒ
+                                                ❌
                                             </button>
                                         </div>
                                     </td>
@@ -471,7 +474,7 @@ $stats = array(
                             
                             <!-- Data Evento -->
                             <div style="display: flex; align-items: center; gap: 12px; background: #f8f9fa; padding: 12px; border-radius: 8px;">
-                                <div style="font-size: 1.8rem;">ðŸ“…</div>
+                                <div style="font-size: 1.8rem;">📅</div>
                                 <div style="flex: 1;">
                                     <div style="font-size: 0.75rem; color: #6c757d; margin-bottom: 3px;">Data Evento</div>
                                     <div style="font-weight: 700; color: #2b1e1a; font-size: 1.1rem;">
@@ -502,21 +505,21 @@ $stats = array(
                                     <div>
                                         <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Importo Totale</div>
                                         <div style="font-size: 1.5rem; font-weight: 800;">
-                                            â‚¬<?php echo number_format(floatval($prev->importo_totale), 2, ',', '.'); ?>
+                                            €<?php echo number_format(floatval($prev->importo_totale), 2, ',', '.'); ?>
                                         </div>
                                     </div>
                                     <?php if (floatval($prev->acconto) > 0): ?>
                                     <div style="text-align: right;">
                                         <div style="font-size: 0.8rem; opacity: 0.9; margin-bottom: 5px;">Acconto</div>
                                         <div style="font-size: 1.2rem; font-weight: 700;">
-                                            â‚¬<?php echo number_format(floatval($prev->acconto), 2, ',', '.'); ?>
+                                            €<?php echo number_format(floatval($prev->acconto), 2, ',', '.'); ?>
                                         </div>
                                     </div>
                                     <?php endif; ?>
                                 </div>
                                 <?php if (floatval($prev->acconto) > 0): ?>
                                 <div style="padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.3); font-size: 0.85rem; opacity: 0.95;">
-                                    Saldo: â‚¬<?php echo number_format(floatval($prev->importo_totale) - floatval($prev->acconto), 2, ',', '.'); ?>
+                                    Saldo: €<?php echo number_format(floatval($prev->importo_totale) - floatval($prev->acconto), 2, ',', '.'); ?>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -525,12 +528,12 @@ $stats = array(
                             <div style="background: #fff8e6; padding: 12px; border-radius: 8px; border-left: 4px solid #ffc107;">
                                 <?php if ($prev->telefono): ?>
                                 <div style="font-size: 0.9rem; color: #495057; margin-bottom: 6px;">
-                                    <strong>ðŸ“ž</strong> <?php echo esc_html($prev->telefono); ?>
+                                    <strong>📞</strong> <?php echo esc_html($prev->telefono); ?>
                                 </div>
                                 <?php endif; ?>
                                 <?php if ($prev->email): ?>
                                 <div style="font-size: 0.9rem; color: #495057;">
-                                    <strong>âœ‰ï¸</strong> <?php echo esc_html($prev->email); ?>
+                                    <strong>✉️</strong> <?php echo esc_html($prev->email); ?>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -541,14 +544,14 @@ $stats = array(
                             <a href="<?php echo admin_url('admin.php?page=disco747-crm&action=edit_preventivo&id=' . $prev->id); ?>" 
                                class="button button-small" 
                                style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #0073aa; color: white; border: none; border-radius: 8px; font-weight: 600; text-decoration: none; display: flex; align-items: center; justify-content: center;">
-                                âœï¸ Modifica
+                                ✏️ Modifica
                             </a>
                             
                             <?php if ($whatsapp_number): ?>
                             <a href="https://wa.me/<?php echo esc_attr($whatsapp_number); ?>" 
                                target="_blank"
                                style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #25D366; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center;">
-                                ðŸ“± WhatsApp
+                                📱 WhatsApp
                             </a>
                             <?php else: ?>
                             <div style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #e9ecef; color: #999; border-radius: 8px; text-align: center;">
@@ -560,7 +563,7 @@ $stats = array(
                                     class="button button-small btn-delete-preventivo" 
                                     data-id="<?php echo $prev->id; ?>"
                                     style="width: 100%; padding: 10px 8px; font-size: 0.85rem; background: #dc3232; color: white; border: none; border-radius: 8px; font-weight: 600;">
-                                âŒ
+                                ❌
                             </button>
                         </div>
                         
@@ -569,7 +572,7 @@ $stats = array(
                             <a href="https://drive.google.com/file/d/<?php echo esc_attr($prev->googledrive_file_id); ?>/view" 
                                target="_blank"
                                style="display: block; width: 100%; padding: 10px; background: #f8f9fa; color: #495057; text-decoration: none; border-radius: 8px; text-align: center; font-weight: 600; border: 2px solid #e9ecef;">
-                                ðŸ“ Apri su Google Drive
+                                📁 Apri su Google Drive
                             </a>
                         </div>
                         <?php endif; ?>
@@ -588,13 +591,13 @@ $stats = array(
                             <div style="display: flex; gap: 10px;">
                                 <?php if ($page > 1): ?>
                                     <a href="<?php echo add_query_arg('paged', $page - 1); ?>" class="button">
-                                        â† Precedente
+                                        ← Precedente
                                     </a>
                                 <?php endif; ?>
                                 
                                 <?php if ($page < $total_pages): ?>
                                     <a href="<?php echo add_query_arg('paged', $page + 1); ?>" class="button button-primary">
-                                        Successiva â†’
+                                        Successiva →
                                     </a>
                                 <?php endif; ?>
                             </div>
@@ -693,7 +696,7 @@ $stats = array(
         grid-template-columns: repeat(2, 1fr) !important;
     }
     
-    /* Filtri piÃ¹ compatti */
+    /* Filtri più compatti */
     #filters-form > div[style*="grid-template-columns"] {
         grid-template-columns: repeat(2, 1fr) !important;
     }
@@ -705,7 +708,7 @@ $stats = array(
         padding: 10px;
     }
     
-    /* Header piÃ¹ compatto */
+    /* Header più compatto */
     .disco747-wrap > div:first-child {
         flex-direction: column;
         align-items: stretch !important;
@@ -768,7 +771,7 @@ $stats = array(
         padding: 15px;
     }
     
-    /* Paginazione piÃ¹ compatta */
+    /* Paginazione più compatta */
     .disco747-card-content > div[style*="padding: 20px"] {
         padding: 15px !important;
     }
@@ -824,19 +827,41 @@ $stats = array(
 
 <script>
 jQuery(document).ready(function($) {
-    console.log('âœ… View Preventivi JS caricato');
+    console.log('✅ View Preventivi JS caricato');
 
     // ========================================================================
     // EXPORT CSV
     // ========================================================================
     $('#export-csv-btn').on('click', function() {
-        console.log('ðŸ“¥ Export CSV richiesto');
+        console.log('📥 Export CSV richiesto');
         
         // Costruisci URL con parametri filtri
         var url = '<?php echo admin_url('admin-ajax.php'); ?>';
         var params = {
             action: 'disco747_export_preventivi_csv',
             nonce: '<?php echo wp_create_nonce('disco747_export_csv'); ?>',
+            <?php if (!empty($filters['search'])): ?>search: '<?php echo esc_js($filters['search']); ?>',<?php endif; ?>
+            <?php if (!empty($filters['stato'])): ?>stato: '<?php echo esc_js($filters['stato']); ?>',<?php endif; ?>
+            <?php if (!empty($filters['menu'])): ?>menu: '<?php echo esc_js($filters['menu']); ?>',<?php endif; ?>
+            <?php if ($filters['anno'] > 0): ?>anno: <?php echo $filters['anno']; ?>,<?php endif; ?>
+            <?php if ($filters['mese'] > 0): ?>mese: <?php echo $filters['mese']; ?>,<?php endif; ?>
+        };
+        
+        var queryString = $.param(params);
+        window.location.href = url + '?' + queryString;
+    });
+
+    // ========================================================================
+    // EXPORT EXCEL
+    // ========================================================================
+    $('#export-excel-btn').on('click', function() {
+        console.log('📊 Export Excel richiesto');
+        
+        // Costruisci URL con parametri filtri
+        var url = '<?php echo admin_url('admin-ajax.php'); ?>';
+        var params = {
+            action: 'disco747_export_preventivi_excel',
+            nonce: '<?php echo wp_create_nonce('disco747_export_excel'); ?>',
             <?php if (!empty($filters['search'])): ?>search: '<?php echo esc_js($filters['search']); ?>',<?php endif; ?>
             <?php if (!empty($filters['stato'])): ?>stato: '<?php echo esc_js($filters['stato']); ?>',<?php endif; ?>
             <?php if (!empty($filters['menu'])): ?>menu: '<?php echo esc_js($filters['menu']); ?>',<?php endif; ?>
@@ -856,11 +881,11 @@ jQuery(document).ready(function($) {
         var $row = $(this).closest('tr');
         var cliente = $row.find('td:nth-child(2) strong').text();
         
-        if (!confirm('âš ï¸ Sei sicuro di voler eliminare il preventivo di ' + cliente + '?\n\nQuesta azione Ã¨ irreversibile!')) {
+        if (!confirm('⚠ ï¸ Sei sicuro di voler eliminare il preventivo di ' + cliente + '?\n\nQuesta azione è irreversibile!')) {
             return;
         }
         
-        console.log('ðŸ—‘ï¸ Eliminazione preventivo ID:', preventivoId);
+        console.log('🗑️ Eliminazione preventivo ID:', preventivoId);
         
         $.ajax({
             url: ajaxurl,
@@ -874,26 +899,26 @@ jQuery(document).ready(function($) {
                 $row.css('opacity', '0.5');
             },
             success: function(response) {
-                console.log('âœ… Risposta eliminazione:', response);
+                console.log('✅ Risposta eliminazione:', response);
                 
                 if (response.success) {
                     $row.fadeOut(400, function() {
                         $(this).remove();
                     });
-                    alert('âœ… Preventivo eliminato con successo');
+                    alert('✅ Preventivo eliminato con successo');
                 } else {
-                    alert('âŒ Errore: ' + (response.data || 'Impossibile eliminare il preventivo'));
+                    alert('❌ Errore: ' + (response.data || 'Impossibile eliminare il preventivo'));
                     $row.css('opacity', '1');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('âŒ Errore AJAX:', error);
-                alert('âŒ Errore di connessione al server');
+                console.error('❌ Errore AJAX:', error);
+                alert('❌ Errore di connessione al server');
                 $row.css('opacity', '1');
             }
         });
     });
 
-    console.log('âœ… Tutti gli handler JS registrati');
+    console.log('✅ Tutti gli handler JS registrati');
 });
 </script>
