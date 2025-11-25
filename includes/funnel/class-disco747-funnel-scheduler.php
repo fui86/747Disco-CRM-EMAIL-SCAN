@@ -28,6 +28,8 @@ class Disco747_Funnel_Scheduler {
         // Registra hook dopo salvataggio preventivo
         add_action('disco747_preventivo_created', array($this, 'handle_new_preventivo'), 10, 1);
         add_action('disco747_preventivo_confirmed', array($this, 'handle_preventivo_confirmed'), 10, 1);
+        add_action('disco747_preventivo_cancelled', array($this, 'handle_preventivo_cancelled'), 10, 1);
+        add_action('disco747_preventivo_reactivated', array($this, 'handle_preventivo_reactivated'), 10, 1);
     }
     
     /**
@@ -37,14 +39,14 @@ class Disco747_Funnel_Scheduler {
         // Check invii ogni ora
         if (!wp_next_scheduled('disco747_funnel_check_sends')) {
             wp_schedule_event(time(), 'hourly', 'disco747_funnel_check_sends');
-            error_log('[747Disco-Funnel-Scheduler] ✅ Cron orario attivato');
+            error_log('[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Cron orario attivato');
         }
         
         // Check pre-evento giornaliero (alle 09:00)
         if (!wp_next_scheduled('disco747_funnel_check_pre_evento')) {
             $tomorrow_9am = strtotime('tomorrow 09:00:00');
             wp_schedule_event($tomorrow_9am, 'daily', 'disco747_funnel_check_pre_evento');
-            error_log('[747Disco-Funnel-Scheduler] ✅ Cron giornaliero pre-evento attivato');
+            error_log('[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Cron giornaliero pre-evento attivato');
         }
     }
     
@@ -62,35 +64,35 @@ class Disco747_Funnel_Scheduler {
             wp_unschedule_event($timestamp_pre, 'disco747_funnel_check_pre_evento');
         }
         
-        error_log('[747Disco-Funnel-Scheduler] ⏹️ Cron disattivati');
+        error_log('[747Disco-Funnel-Scheduler] Ã¢ÂÂ¹Ã¯Â¸Â Cron disattivati');
     }
     
     /**
      * Processa invii in sospeso (CRON ORARIO)
      */
     public function process_pending_sends() {
-        error_log('[747Disco-Funnel-Scheduler] 🔄 Check invii in sospeso...');
+        error_log('[747Disco-Funnel-Scheduler] Ã°Å¸â€â€ž Check invii in sospeso...');
         
         $pending = $this->funnel_manager->get_pending_sends();
         
         if (empty($pending)) {
-            error_log('[747Disco-Funnel-Scheduler] ℹ️ Nessun invio in sospeso');
+            error_log('[747Disco-Funnel-Scheduler] Ã¢â€žÂ¹Ã¯Â¸Â Nessun invio in sospeso');
             return;
         }
         
         $count = count($pending);
-        error_log("[747Disco-Funnel-Scheduler] 📬 Trovati {$count} invii da processare");
+        error_log("[747Disco-Funnel-Scheduler] Ã°Å¸â€œÂ¬ Trovati {$count} invii da processare");
         
         foreach ($pending as $tracking) {
             try {
                 $this->funnel_manager->send_next_step($tracking->id);
-                error_log("[747Disco-Funnel-Scheduler] ✅ Inviato step per tracking #{$tracking->id}");
+                error_log("[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Inviato step per tracking #{$tracking->id}");
             } catch (\Exception $e) {
-                error_log("[747Disco-Funnel-Scheduler] ❌ Errore tracking #{$tracking->id}: " . $e->getMessage());
+                error_log("[747Disco-Funnel-Scheduler] Ã¢ÂÅ’ Errore tracking #{$tracking->id}: " . $e->getMessage());
             }
         }
         
-        error_log("[747Disco-Funnel-Scheduler] ✅ Processamento completato");
+        error_log("[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Processamento completato");
     }
     
     /**
@@ -100,7 +102,7 @@ class Disco747_Funnel_Scheduler {
     public function check_pre_evento_funnel() {
         global $wpdb;
         
-        error_log('[747Disco-Funnel-Scheduler] 🔄 Check funnel pre-evento...');
+        error_log('[747Disco-Funnel-Scheduler] Ã°Å¸â€â€ž Check funnel pre-evento...');
         
         $preventivi_table = $wpdb->prefix . 'disco747_preventivi';
         $tracking_table = $wpdb->prefix . 'disco747_funnel_tracking';
@@ -121,19 +123,19 @@ class Disco747_Funnel_Scheduler {
         ", $date_start, $date_end));
         
         if (empty($preventivi)) {
-            error_log('[747Disco-Funnel-Scheduler] ℹ️ Nessun evento da avviare nel funnel pre-evento');
+            error_log('[747Disco-Funnel-Scheduler] Ã¢â€žÂ¹Ã¯Â¸Â Nessun evento da avviare nel funnel pre-evento');
             return;
         }
         
         $count = count($preventivi);
-        error_log("[747Disco-Funnel-Scheduler] 📅 Trovati {$count} eventi per funnel pre-evento");
+        error_log("[747Disco-Funnel-Scheduler] Ã°Å¸â€œâ€¦ Trovati {$count} eventi per funnel pre-evento");
         
         foreach ($preventivi as $preventivo) {
             try {
                 $this->funnel_manager->start_funnel($preventivo->id, 'pre_evento');
-                error_log("[747Disco-Funnel-Scheduler] ✅ Funnel pre-evento avviato per #{$preventivo->id}");
+                error_log("[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Funnel pre-evento avviato per #{$preventivo->id}");
             } catch (\Exception $e) {
-                error_log("[747Disco-Funnel-Scheduler] ❌ Errore preventivo #{$preventivo->id}: " . $e->getMessage());
+                error_log("[747Disco-Funnel-Scheduler] Ã¢ÂÅ’ Errore preventivo #{$preventivo->id}: " . $e->getMessage());
             }
         }
     }
@@ -141,6 +143,10 @@ class Disco747_Funnel_Scheduler {
     /**
      * Handle nuovo preventivo creato
      * Avvia automaticamente il funnel pre-conferma
+     * 
+     * âœ… FIX: Usa STATO invece di acconto per determinare se avviare il funnel
+     * - stato = 'attivo' â†’ AVVIA funnel pre-conferma
+     * - stato = 'confermato' o 'annullato' â†’ NON avvia funnel
      */
     public function handle_new_preventivo($preventivo_id) {
         global $wpdb;
@@ -152,15 +158,20 @@ class Disco747_Funnel_Scheduler {
         ));
         
         if (!$preventivo) {
+            error_log("[747Disco-Funnel-Scheduler] âš ï¸ Preventivo #{$preventivo_id} non trovato");
             return;
         }
         
-        // Avvia funnel pre-conferma solo se NON è già confermato
-        if ($preventivo->acconto == 0 || $preventivo->acconto === null) {
-            error_log("[747Disco-Funnel-Scheduler] 🚀 Nuovo preventivo #{$preventivo_id} - Avvio funnel pre-conferma");
+        // âœ… LOGICA CORRETTA: Avvia funnel SOLO se stato = 'attivo'
+        $stato = $preventivo->stato ?? 'attivo';
+        
+        error_log("[747Disco-Funnel-Scheduler] ðŸ“Š Preventivo #{$preventivo_id} - Stato: '{$stato}', Acconto: â‚¬" . ($preventivo->acconto ?? 0));
+        
+        if ($stato === 'attivo') {
+            error_log("[747Disco-Funnel-Scheduler] ðŸš€ Nuovo preventivo #{$preventivo_id} (stato: {$stato}) - Avvio funnel pre-conferma");
             $this->funnel_manager->start_funnel($preventivo_id, 'pre_conferma');
         } else {
-            error_log("[747Disco-Funnel-Scheduler] ℹ️ Preventivo #{$preventivo_id} già confermato - Skip funnel pre-conferma");
+            error_log("[747Disco-Funnel-Scheduler] â„¹ï¸ Preventivo #{$preventivo_id} con stato '{$stato}' - Skip funnel pre-conferma (il funnel parte solo per preventivi ATTIVI)");
         }
     }
     
@@ -169,7 +180,7 @@ class Disco747_Funnel_Scheduler {
      * Stoppa il funnel pre-conferma se attivo
      */
     public function handle_preventivo_confirmed($preventivo_id) {
-        error_log("[747Disco-Funnel-Scheduler] ✅ Preventivo #{$preventivo_id} confermato - Stop funnel pre-conferma");
+        error_log("[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Preventivo #{$preventivo_id} confermato - Stop funnel pre-conferma");
         
         // Stoppa il funnel pre-conferma
         $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
@@ -179,7 +190,7 @@ class Disco747_Funnel_Scheduler {
      * Test manuale dello scheduler
      */
     public function test_run() {
-        error_log('[747Disco-Funnel-Scheduler] 🧪 TEST RUN MANUALE');
+        error_log('[747Disco-Funnel-Scheduler] Ã°Å¸Â§Âª TEST RUN MANUALE');
         
         echo "<h2>Test Funnel Scheduler</h2>";
         
@@ -189,7 +200,7 @@ class Disco747_Funnel_Scheduler {
         echo "<h3>2. Check Pre-Evento</h3>";
         $this->check_pre_evento_funnel();
         
-        echo "<p>✅ Test completato. Controlla i log per dettagli.</p>";
+        echo "<p>Ã¢Å“â€¦ Test completato. Controlla i log per dettagli.</p>";
     }
     
     /**
@@ -211,5 +222,27 @@ class Disco747_Funnel_Scheduler {
                 'next_run_relative' => $next_pre_evento_check ? human_time_diff($next_pre_evento_check) : 'N/A'
             )
         );
+    }
+    
+    /**
+     * Handle preventivo annullato - AGGIUNTO v12.0.5
+     * Stoppa il funnel pre-conferma se attivo
+     */
+    public function handle_preventivo_cancelled($preventivo_id) {
+        error_log("[747Disco-Funnel-Scheduler] CANCEL Preventivo #{$preventivo_id} annullato - Stop funnel pre-conferma");
+        
+        // Stoppa il funnel pre-conferma
+        $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+    }
+    
+    /**
+     * Handle preventivo riattivato - AGGIUNTO v12.0.5
+     * Riavvia il funnel pre-conferma se era stato fermato
+     */
+    public function handle_preventivo_reactivated($preventivo_id) {
+        error_log("[747Disco-Funnel-Scheduler] REACTIVATE Preventivo #{$preventivo_id} riattivato - Riavvio funnel pre-conferma");
+        
+        // Riavvia il funnel pre-conferma
+        $this->funnel_manager->start_funnel($preventivo_id, 'pre_conferma');
     }
 }

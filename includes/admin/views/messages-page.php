@@ -1,10 +1,15 @@
 <?php
 /**
  * Pagina Messaggi Automatici - 747 Disco CRM
- * VERSIONE 11.8.0 - Gestione 3 template Email + 3 template WhatsApp
+ * VERSIONE 12.0.0 - Gestione Template Email + WhatsApp + Template Form
+ * 
+ * NOVITÀ v12.0.0:
+ * - Sezione dedicata per i 3 template WhatsApp del form preventivo
+ * - Template modificabili direttamente dalla dashboard
+ * - Supporto emoji completo
  * 
  * @package Disco747_CRM
- * @version 11.8.0
+ * @version 12.0.0
  */
 
 if (!defined('ABSPATH')) {
@@ -22,11 +27,18 @@ if (isset($_POST['save_message_templates']) && wp_verify_nonce($_POST['disco747_
         update_option('disco747_email_enabled_' . $i, isset($_POST['email_enabled_' . $i]) ? 1 : 0);
     }
     
-    // Salva WhatsApp Templates
-    for ($i = 1; $i <= get_option('disco747_max_templates', 5); $i++) {
-        update_option('disco747_whatsapp_name_' . $i, sanitize_text_field($_POST['whatsapp_name_' . $i] ?? 'Template WhatsApp ' . $i));
-        update_option('disco747_whatsapp_template_' . $i, sanitize_textarea_field($_POST['whatsapp_template_' . $i] ?? ''));
-        update_option('disco747_whatsapp_enabled_' . $i, isset($_POST['whatsapp_enabled_' . $i]) ? 1 : 0);
+    // ✅ NUOVO: Salva Template WhatsApp Form (i 3 template del form preventivo)
+    for ($i = 1; $i <= 3; $i++) {
+        // Controlla se il template deve essere cancellato
+        if (isset($_POST['delete_form_whatsapp_' . $i])) {
+            delete_option('disco747_form_whatsapp_template_' . $i);
+            delete_option('disco747_form_whatsapp_name_' . $i);
+        } else {
+            // Salva normalmente
+            $template_content = $_POST['form_whatsapp_template_' . $i] ?? '';
+            update_option('disco747_form_whatsapp_template_' . $i, $template_content);
+            update_option('disco747_form_whatsapp_name_' . $i, sanitize_text_field($_POST['form_whatsapp_name_' . $i] ?? 'Template Form ' . $i));
+        }
     }
     
     echo '<div class="notice notice-success is-dismissible"><p><strong>✅ Template salvati con successo!</strong></p></div>';
@@ -37,7 +49,7 @@ $max_templates = get_option('disco747_max_templates', 5);
 
 // Carica impostazioni esistenti
 $email_templates = array();
-$whatsapp_templates = array();
+$form_whatsapp_templates = array();
 
 for ($i = 1; $i <= $max_templates; $i++) {
     $email_templates[$i] = array(
@@ -46,11 +58,19 @@ for ($i = 1; $i <= $max_templates; $i++) {
         'body' => get_option('disco747_email_template_' . $i, ''),
         'enabled' => get_option('disco747_email_enabled_' . $i, 1)
     );
-    
-    $whatsapp_templates[$i] = array(
-        'name' => get_option('disco747_whatsapp_name_' . $i, 'Template WhatsApp ' . $i),
-        'body' => get_option('disco747_whatsapp_template_' . $i, ''),
-        'enabled' => get_option('disco747_whatsapp_enabled_' . $i, 1)
+}
+
+// ✅ NUOVO: Carica i 3 template WhatsApp del form con valori di default
+$default_form_templates = array(
+    1 => "Ciao {{nome}}! 🎉\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} è pronto!\n\n💰 Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! 🎊",
+    2 => "Ciao {{nome}}! 🎈\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! 📞",
+    3 => "Ciao {{nome}}! ✅\n\nGrazie per aver confermato!\n\n📅 {{data_evento}}\n💰 Acconto: {{acconto}}\n\nCi vediamo presto! 🎉"
+);
+
+for ($i = 1; $i <= 3; $i++) {
+    $form_whatsapp_templates[$i] = array(
+        'name' => get_option('disco747_form_whatsapp_name_' . $i, 'Template Form WhatsApp #' . $i),
+        'body' => get_option('disco747_form_whatsapp_template_' . $i, $default_form_templates[$i])
     );
 }
 ?>
@@ -69,7 +89,7 @@ for ($i = 1; $i <= $max_templates; $i++) {
             <p>Configura i template per email e WhatsApp che potrai inviare dopo la creazione del preventivo.</p>
             
             <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
-                <strong style="font-size: 16px;">🔖 Campi dinamici disponibili (Placeholder)</strong>
+                <strong style="font-size: 16px;">📖 Campi dinamici disponibili (Placeholder)</strong>
                 <p style="margin: 10px 0; color: #666; font-size: 14px;">Clicca su un placeholder per copiarlo negli appunti</p>
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;">
@@ -98,105 +118,115 @@ for ($i = 1; $i <= $max_templates; $i++) {
                     <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
                         <strong style="display: block; margin-bottom: 10px; color: #f39c12;">🍽️ Menu</strong>
                         <code class="copyable-placeholder">{{menu}}</code>
-                        <code class="copyable-placeholder">{{tipo_menu}}</code>
-                    </div>
-                    
-                    <!-- Importi -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
-                        <strong style="display: block; margin-bottom: 10px; color: #dc3545;">💰 Importi</strong>
-                        <code class="copyable-placeholder">{{importo_totale}}</code>
-                        <code class="copyable-placeholder">{{importo_preventivo}}</code>
-                        <code class="copyable-placeholder">{{totale}}</code>
+                        <code class="copyable-placeholder">{{importo}}</code>
                         <code class="copyable-placeholder">{{acconto}}</code>
-                        <code class="copyable-placeholder">{{saldo}}</code>
                     </div>
                     
                     <!-- Extra -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8;">
-                        <strong style="display: block; margin-bottom: 10px; color: #17a2b8;">➕ Extra</strong>
-                        <code class="copyable-placeholder">{{extra1}}</code>
-                        <code class="copyable-placeholder">{{extra2}}</code>
-                        <code class="copyable-placeholder">{{extra3}}</code>
-                    </div>
-                    
-                    <!-- Omaggi -->
                     <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #6f42c1;">
-                        <strong style="display: block; margin-bottom: 10px; color: #6f42c1;">🎁 Omaggi</strong>
-                        <code class="copyable-placeholder">{{omaggio1}}</code>
-                        <code class="copyable-placeholder">{{omaggio2}}</code>
-                        <code class="copyable-placeholder">{{omaggio3}}</code>
-                    </div>
-                    
-                    <!-- Altro -->
-                    <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #6c757d;">
-                        <strong style="display: block; margin-bottom: 10px; color: #6c757d;">📋 Altro</strong>
+                        <strong style="display: block; margin-bottom: 10px; color: #6f42c1;">✨ Altro</strong>
                         <code class="copyable-placeholder">{{preventivo_id}}</code>
-                        <code class="copyable-placeholder">{{stato}}</code>
+                        <code class="copyable-placeholder">{{omaggio1}}</code>
+                        <code class="copyable-placeholder">{{extra1}}</code>
                     </div>
-                    
                 </div>
-                
-                <style>
-                .copyable-placeholder {
-                    display: block;
-                    padding: 6px 10px;
-                    margin: 4px 0;
-                    background: #f8f9fa;
-                    border: 1px solid #dee2e6;
-                    border-radius: 4px;
-                    font-size: 13px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    font-family: 'Courier New', monospace;
-                }
-                .copyable-placeholder:hover {
-                    background: #007bff;
-                    color: white;
-                    border-color: #007bff;
-                    transform: translateX(3px);
-                }
-                </style>
-                
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    document.querySelectorAll('.copyable-placeholder').forEach(function(el) {
-                        el.addEventListener('click', function() {
-                            const text = this.textContent;
-                            navigator.clipboard.writeText(text).then(function() {
-                                const original = el.textContent;
-                                el.style.background = '#28a745';
-                                el.style.color = 'white';
-                                el.style.borderColor = '#28a745';
-                                el.textContent = '✓ Copiato!';
-                                setTimeout(function() {
-                                    el.style.background = '';
-                                    el.style.color = '';
-                                    el.style.borderColor = '';
-                                    el.textContent = original;
-                                }, 1500);
-                            });
-                        });
-                    });
-                });
-                </script>
             </div>
         </div>
-    </div>
     </div>
 
     <form method="post" action="">
         <?php wp_nonce_field('disco747_save_messages', 'disco747_messages_nonce'); ?>
 
         <!-- ========================================
+             TEMPLATE WHATSAPP FORM PREVENTIVO (NUOVO)
+        ======================================== -->
+        <div class="disco747-card" style="margin-bottom: 30px; border: 3px solid #d4af37;">
+            <div class="disco747-card-header" style="background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%); color: #000; display: flex; justify-content: space-between; align-items: center; padding: 20px;">
+                <div>
+                    <h2 style="margin: 0; color: #000; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 24px;">📱</span>
+                        <span>Template WhatsApp Form Preventivo</span>
+                    </h2>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">
+                        Questi sono i 3 template usati quando clicchi il pulsante WhatsApp dalla dashboard preventivi
+                    </p>
+                </div>
+            </div>
+            <div class="disco747-card-content">
+                
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                    <strong style="color: #856404;">⚠️ IMPORTANTE:</strong>
+                    <ul style="margin: 10px 0 0 20px; color: #856404;">
+                        <li>Questi template vengono usati <strong>direttamente dal form preventivo</strong></li>
+                        <li>Puoi usare <strong>emoji</strong> liberamente (verranno preservate)</li>
+                        <li>Usa i <strong>placeholder</strong> per inserire dati dinamici</li>
+                        <li>Template 1: Preventivo nuovo | Template 2: Promemoria | Template 3: Conferma</li>
+                    </ul>
+                </div>
+                
+                <?php foreach ($form_whatsapp_templates as $i => $template): ?>
+                <div id="form-whatsapp-<?php echo $i; ?>" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #d4af37; position: relative;">
+                    
+                    <!-- Pulsante Cancella in alto a destra -->
+                    <div style="position: absolute; top: 15px; right: 15px;">
+                        <button type="button" 
+                                class="disco747-button" 
+                                onclick="deleteFormWhatsAppTemplate(<?php echo $i; ?>)"
+                                style="background: #dc3545; color: white; padding: 8px 15px; font-size: 13px; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <span>🗑️</span>
+                            <span>Cancella Template</span>
+                        </button>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px; padding-right: 180px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                            📝 Nome Template #<?php echo $i; ?>
+                        </label>
+                        <input type="text" 
+                               name="form_whatsapp_name_<?php echo $i; ?>" 
+                               id="form_whatsapp_name_<?php echo $i; ?>"
+                               value="<?php echo esc_attr($template['name']); ?>" 
+                               placeholder="Es: Template Preventivo Nuovo"
+                               style="font-size: 16px; font-weight: 600; color: #2b1e1a; border: 1px solid #ddd; padding: 10px 15px; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                    </div>
+                    
+                    <div class="disco747-form-group">
+                        <label for="form_whatsapp_template_<?php echo $i; ?>" style="display: block; font-weight: 600; margin-bottom: 8px;">
+                            💬 Messaggio WhatsApp
+                        </label>
+                        <textarea id="form_whatsapp_template_<?php echo $i; ?>" 
+                                  name="form_whatsapp_template_<?php echo $i; ?>" 
+                                  rows="10"
+                                  placeholder="Scrivi il messaggio WhatsApp con emoji 🎉..."
+                                  style="width: 100%; padding: 12px; border: 2px solid #d4af37; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; box-sizing: border-box;"><?php echo esc_textarea($template['body']); ?></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 15px; display: flex; gap: 10px;">
+                        <button type="button" class="disco747-button disco747-button-secondary" onclick="previewFormWhatsApp(<?php echo $i; ?>)">
+                            👁️ Anteprima
+                        </button>
+                        <button type="button" class="disco747-button" onclick="testFormWhatsApp(<?php echo $i; ?>)" style="background: #25d366; color: white; border: none;">
+                            📱 Testa WhatsApp
+                        </button>
+                        <button type="button" class="disco747-button" onclick="resetFormWhatsAppTemplate(<?php echo $i; ?>)" style="background: #6c757d; color: white; border: none;">
+                            🔄 Ripristina Default
+                        </button>
+                    </div>
+                    
+                    <!-- Campo nascosto per segnalare cancellazione -->
+                    <input type="hidden" name="delete_form_whatsapp_<?php echo $i; ?>" id="delete_flag_<?php echo $i; ?>" value="">
+                </div>
+                <?php endforeach; ?>
+                
+            </div>
+        </div>
+
+        <!-- ========================================
              TEMPLATE EMAIL
         ======================================== -->
         <div class="disco747-card" style="margin-bottom: 30px;">
-            <div class="disco747-card-header" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; display: flex; justify-content: space-between; align-items: center; padding: 20px;">
+            <div class="disco747-card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; justify-content: space-between; align-items: center; padding: 20px;">
                 <h2 style="margin: 0; color: white;">📧 Template Email</h2>
-                <button type="button" onclick="addEmailTemplate()" style="background: white; color: #007bff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.3s;">
-                    <span style="font-size: 16px;">➕</span>
-                    <span>Aggiungi Template</span>
-                </button>
             </div>
             <div class="disco747-card-content">
                 
@@ -244,200 +274,308 @@ for ($i = 1; $i <= $max_templates; $i++) {
             </div>
         </div>
 
-        <!-- ========================================
-             TEMPLATE WHATSAPP
-        ======================================== -->
-        <div class="disco747-card" style="margin-bottom: 30px;">
-            <div class="disco747-card-header" style="background: linear-gradient(135deg, #25d366 0%, #128c7e 100%); color: white; display: flex; justify-content: space-between; align-items: center; padding: 20px;">
-                <h2 style="margin: 0; color: white;">💬 Template WhatsApp</h2>
-                <button type="button" onclick="addWhatsAppTemplate()" style="background: white; color: #25d366; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.3s;">
-                    <span style="font-size: 16px;">➕</span>
-                    <span>Aggiungi Template</span>
-                </button>
-            </div>
-            <div class="disco747-card-content">
-                
-                <?php for ($i = 1; $i <= $max_templates; $i++): ?>
-                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #25d366;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <input type="text" 
-                               name="whatsapp_name_<?php echo $i; ?>" 
-                               value="<?php echo esc_attr($whatsapp_templates[$i]['name']); ?>" 
-                               placeholder="Nome Template"
-                               style="font-size: 18px; font-weight: 700; color: #2b1e1a; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; width: 50%;">
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" name="whatsapp_enabled_<?php echo $i; ?>" value="1" <?php checked($whatsapp_templates[$i]['enabled'], 1); ?>>
-                            <span style="font-weight: 600;">Attivo</span>
-                        </label>
-                    </div>
-                    
-                    <div class="disco747-form-group">
-                        <label for="whatsapp_template_<?php echo $i; ?>">Messaggio WhatsApp (Testo semplice)</label>
-                        <textarea id="whatsapp_template_<?php echo $i; ?>" 
-                                  name="whatsapp_template_<?php echo $i; ?>" 
-                                  rows="8"
-                                  placeholder="Scrivi il messaggio WhatsApp in testo semplice...&#10;&#10;Ciao {{nome}},&#10;grazie per averci scelto per il tuo {{tipo_evento}}!&#10;&#10;La tua festa si terrÃ  il {{data_evento}} con il {{menu}}."
-                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"><?php echo esc_textarea($whatsapp_templates[$i]['body']); ?></textarea>
-                    </div>
-                    
-                    <div style="margin-top: 10px;">
-                        <button type="button" class="disco747-button disco747-button-secondary" onclick="previewWhatsApp(<?php echo $i; ?>)">
-                            👁️ Anteprima
-                        </button>
-                    </div>
-                </div>
-                <?php endfor; ?>
-                
-            </div>
-        </div>
+
 
         <!-- Pulsante Salva -->
         <div class="disco747-form-actions">
             <button type="submit" name="save_message_templates" class="disco747-button disco747-button-primary" style="font-size: 18px; padding: 15px 30px;">
-                💾’¾ Salva Tutti i Template
+                💾 Salva Tutti i Template
             </button>
         </div>
     </form>
-</div>
 
-<!-- Modal Anteprima -->
-<div id="preview-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999999; padding: 50px;">
-    <div style="background: white; max-width: 800px; margin: 0 auto; border-radius: 12px; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;">
-        <div style="background: linear-gradient(135deg, #c28a4d 0%, #b8b1b3 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; color: white;">👁️ Anteprima</h3>
-            <button onclick="closePreview()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
-        </div>
-        <div id="preview-content" style="padding: 30px; overflow-y: auto; flex: 1;">
-            <!-- Contenuto anteprima -->
-        </div>
-    </div>
 </div>
 
 <script>
-function previewEmail(templateNumber) {
-    var subject = document.getElementById('email_subject_' + templateNumber).value;
-    var body = document.getElementById('email_template_' + templateNumber).value;
+// Funzione per copiare placeholder
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.copyable-placeholder').forEach(function(element) {
+        element.style.cursor = 'pointer';
+        element.style.display = 'inline-block';
+        element.style.margin = '5px';
+        element.style.padding = '4px 8px';
+        element.style.background = '#e9ecef';
+        element.style.borderRadius = '4px';
+        element.style.fontSize = '13px';
+        element.style.transition = 'all 0.2s';
+        
+        element.addEventListener('click', function() {
+            const text = this.textContent;
+            navigator.clipboard.writeText(text).then(function() {
+                const original = element.style.background;
+                element.style.background = '#28a745';
+                element.style.color = 'white';
+                setTimeout(function() {
+                    element.style.background = original;
+                    element.style.color = '';
+                }, 300);
+            });
+        });
+        
+        element.addEventListener('mouseenter', function() {
+            this.style.background = '#007bff';
+            this.style.color = 'white';
+        });
+        
+        element.addEventListener('mouseleave', function() {
+            this.style.background = '#e9ecef';
+            this.style.color = '';
+        });
+    });
+});
+
+// Anteprima Email
+function previewEmail(templateId) {
+    const subject = document.getElementById('email_subject_' + templateId).value;
+    const body = document.getElementById('email_template_' + templateId).value;
     
-    // Sostituisci placeholder con esempi
-    var preview = replaceExamplePlaceholders(body);
-    var previewSubject = replaceExamplePlaceholders(subject);
-    
-    document.getElementById('preview-content').innerHTML = 
-        '<div style="margin-bottom: 20px;"><strong>Oggetto:</strong> ' + previewSubject + '</div>' +
-        '<hr style="margin: 20px 0;">' +
-        '<div>' + preview + '</div>';
-    
-    document.getElementById('preview-modal').style.display = 'block';
+    const previewWindow = window.open('', 'Preview', 'width=800,height=600');
+    previewWindow.document.write(`
+        <html>
+        <head>
+            <title>Anteprima Email</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+                .preview-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .subject { font-size: 18px; font-weight: bold; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #d4af37; }
+            </style>
+        </head>
+        <body>
+            <div class="preview-container">
+                <div class="subject">Oggetto: ${subject}</div>
+                ${body}
+            </div>
+        </body>
+        </html>
+    `);
 }
 
-function previewWhatsApp(templateNumber) {
-    var body = document.getElementById('whatsapp_template_' + templateNumber).value;
+// ✅ NUOVO: Anteprima WhatsApp Form
+function previewFormWhatsApp(templateId) {
+    const name = document.getElementById('form_whatsapp_template_' + templateId).value;
+    const body = document.getElementById('form_whatsapp_template_' + templateId).value;
     
-    // Sostituisci placeholder con esempi
-    var preview = replaceExamplePlaceholders(body);
-    
-    // Simula aspetto WhatsApp
-    document.getElementById('preview-content').innerHTML = 
-        '<div style="background: #e5ddd5; padding: 20px; border-radius: 8px; font-family: system-ui, -apple-system, sans-serif;">' +
-        '<div style="background: #dcf8c6; padding: 15px; border-radius: 8px; white-space: pre-wrap; line-height: 1.5;">' + 
-        preview + 
-        '</div>' +
-        '</div>';
-    
-    document.getElementById('preview-modal').style.display = 'block';
+    // Crea finestra di anteprima stilizzata come WhatsApp
+    const previewWindow = window.open('', 'Preview WhatsApp', 'width=400,height=600');
+    previewWindow.document.write(`
+        <html>
+        <head>
+            <title>Anteprima WhatsApp</title>
+            <style>
+                body { 
+                    margin: 0; 
+                    padding: 0; 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    background: #0b141a;
+                }
+                .whatsapp-container {
+                    max-width: 400px;
+                    margin: 0 auto;
+                    background: #0b141a;
+                    height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .whatsapp-header {
+                    background: #202c33;
+                    color: #e9edef;
+                    padding: 15px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+                .whatsapp-chat {
+                    flex: 1;
+                    background: #0b141a url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%230b141a" width="100" height="100"/></svg>');
+                    padding: 20px;
+                    overflow-y: auto;
+                }
+                .message-bubble {
+                    background: #005c4b;
+                    color: #e9edef;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                    margin-bottom: 10px;
+                    max-width: 80%;
+                    margin-left: auto;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+                }
+                .time {
+                    font-size: 11px;
+                    color: #8696a0;
+                    text-align: right;
+                    margin-top: 5px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="whatsapp-container">
+                <div class="whatsapp-header">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: #d4af37;"></div>
+                    <div>
+                        <div style="font-weight: 600;">Cliente Esempio</div>
+                        <div style="font-size: 12px; opacity: 0.7;">online</div>
+                    </div>
+                </div>
+                <div class="whatsapp-chat">
+                    <div class="message-bubble">
+                        ${body.replace(/\n/g, '<br>')}
+                        <div class="time">${new Date().toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'})}</div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
 }
 
-function closePreview() {
-    document.getElementById('preview-modal').style.display = 'none';
+// ✅ NUOVO: Testa WhatsApp Form (apre WhatsApp con messaggio)
+function testFormWhatsApp(templateId) {
+    const body = document.getElementById('form_whatsapp_template_' + templateId).value;
+    
+    // Sostituisci placeholder con dati di esempio
+    let testMessage = body
+        .replace(/{{nome}}/g, 'Mario')
+        .replace(/{{cognome}}/g, 'Rossi')
+        .replace(/{{nome_completo}}/g, 'Mario Rossi')
+        .replace(/{{tipo_evento}}/g, 'Compleanno 18 anni')
+        .replace(/{{data_evento}}/g, '15/12/2024')
+        .replace(/{{menu}}/g, 'Menu 747')
+        .replace(/{{importo}}/g, '€ 1.500,00')
+        .replace(/{{acconto}}/g, '€ 500,00')
+        .replace(/{{numero_invitati}}/g, '50')
+        .replace(/{{preventivo_id}}/g, '123');
+    
+    // Apri WhatsApp Web con il messaggio
+    const whatsappUrl = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(testMessage);
+    window.open(whatsappUrl, '_blank');
 }
 
-function replaceExamplePlaceholders(text) {
-    var examples = {
-        '{{nome}}': 'Mario',
-        '{{cognome}}': 'Rossi',
-        '{{nome_completo}}': 'Mario Rossi',
-        '{{email}}': 'mario.rossi@email.com',
-        '{{telefono}}': '333 1234567',
-        '{{data_evento}}': '15/10/2025',
-        '{{tipo_evento}}': 'Compleanno',
-        '{{tipo_menu}}': 'Menu 747',
-        '{{menu}}': 'Menu 747',
-        '{{numero_invitati}}': '50',
-        '{{orario_inizio}}': '20:30',
-        '{{orario_fine}}': '01:30',
-        '{{importo_totale}}': '2.500,00€',
-        '{{importo_preventivo}}': '2.500,00€',
-        '{{totale}}': '2.500,00€',
-        '{{importo}}': '2.500,00€',
-        '{{acconto}}': '500,00€',
-        '{{saldo}}': '2.000,00€',
-        '{{extra1}}': 'Servizio fotografico',
-        '{{extra2}}': 'DJ professionista',
-        '{{extra3}}': 'Decorazioni extra',
-        '{{omaggio1}}': 'Crepes alla Nutella',
-        '{{omaggio2}}': 'Servizio Fotografico',
-        '{{omaggio3}}': 'Welcome drink',
-        '{{preventivo_id}}': 'PREV001',
-        '{{stato}}': 'Confermato'
+// ✅ NUOVO: Cancella template WhatsApp Form
+function deleteFormWhatsAppTemplate(templateId) {
+    if (!confirm('⚠️ SEI SICURO?\n\nVuoi cancellare definitivamente questo template?\n\nDopo il salvataggio, il template tornerà al valore predefinito.')) {
+        return;
+    }
+    
+    // Setta il flag di cancellazione
+    document.getElementById('delete_flag_' + templateId).value = '1';
+    
+    // Svuota i campi visivamente
+    document.getElementById('form_whatsapp_name_' + templateId).value = '';
+    document.getElementById('form_whatsapp_template_' + templateId).value = '';
+    
+    // Nascondi il box del template
+    const templateBox = document.getElementById('form-whatsapp-' + templateId);
+    templateBox.style.opacity = '0.5';
+    templateBox.style.pointerEvents = 'none';
+    
+    // Mostra messaggio
+    const deleteMessage = document.createElement('div');
+    deleteMessage.style.cssText = 'background: #dc3545; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: 600;';
+    deleteMessage.innerHTML = '🗑️ Template segnato per cancellazione - Salva per confermare';
+    templateBox.insertBefore(deleteMessage, templateBox.firstChild);
+    
+    alert('✅ Template segnato per cancellazione!\n\nClicca "💾 Salva Tutti i Template" in fondo alla pagina per confermare.');
+}
+
+// ✅ NUOVO: Ripristina template predefinito
+function resetFormWhatsAppTemplate(templateId) {
+    const defaultTemplates = {
+        1: "Ciao {{nome}}! 🎉\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} è pronto!\n\n💰 Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! 🎊",
+        2: "Ciao {{nome}}! 🎈\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! 📞",
+        3: "Ciao {{nome}}! ✅\n\nGrazie per aver confermato!\n\n📅 {{data_evento}}\n💰 Acconto: {{acconto}}\n\nCi vediamo presto! 🎉"
     };
     
-    var result = text;
-    for (var placeholder in examples) {
-        result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), examples[placeholder]);
+    if (!confirm('🔄 Ripristinare il template predefinito?\n\nIl testo attuale verrà sostituito con quello originale.')) {
+        return;
     }
     
-    return result;
+    // Ripristina il template predefinito
+    document.getElementById('form_whatsapp_template_' + templateId).value = defaultTemplates[templateId];
+    document.getElementById('form_whatsapp_name_' + templateId).value = 'Template Form WhatsApp #' + templateId;
+    
+    // Rimuovi eventuale flag di cancellazione
+    document.getElementById('delete_flag_' + templateId).value = '';
+    
+    // Ripristina l'opacità se era stato segnato per cancellazione
+    const templateBox = document.getElementById('form-whatsapp-' + templateId);
+    templateBox.style.opacity = '1';
+    templateBox.style.pointerEvents = 'auto';
+    
+    alert('✅ Template ripristinato!\n\nRicorda di salvare le modifiche cliccando "💾 Salva Tutti i Template".');
 }
-
-// Chiudi modal con ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closePreview();
-    }
-});
 </script>
 
 <style>
-/* Supporto emoji cross-browser */
-body, .disco747-wrap, .disco747-button, .disco747-page-title {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, 
-                 "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", 
-                 "Noto Color Emoji", sans-serif;
+.disco747-wrap {
+    background: #f5f5f5;
+    padding: 20px;
+}
+
+.disco747-page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2b1e1a;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.disco747-icon {
+    font-size: 40px;
+}
+
+.disco747-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.disco747-card-header {
+    background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+    color: #000;
+    padding: 20px;
+    font-weight: 600;
+}
+
+.disco747-card-content {
+    padding: 30px;
 }
 
 .disco747-form-group {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .disco747-form-group label {
     display: block;
-    margin-bottom: 5px;
     font-weight: 600;
+    margin-bottom: 8px;
     color: #2b1e1a;
-}
-
-.disco747-form-group input[type="text"],
-.disco747-form-group textarea {
-    width: 100%;
 }
 
 .disco747-button {
     padding: 10px 20px;
     border: none;
     border-radius: 6px;
-    cursor: pointer;
     font-weight: 600;
+    cursor: pointer;
     transition: all 0.3s;
 }
 
 .disco747-button-primary {
-    background: linear-gradient(135deg, #c28a4d 0%, #b8b1b3 100%);
-    color: white;
+    background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+    color: #000;
 }
 
 .disco747-button-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(194, 138, 77, 0.4);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
 }
 
 .disco747-button-secondary {
@@ -449,52 +587,8 @@ body, .disco747-wrap, .disco747-button, .disco747-page-title {
     background: #5a6268;
 }
 
-/* Nascondi footer WordPress nella pagina */
-#wpfooter {
-    display: none !important;
-}
-
-/* Rimuovi padding extra */
-.wrap {
-    margin-bottom: 0 !important;
+.disco747-form-actions {
+    text-align: center;
+    margin-top: 30px;
 }
 </style>
-
-<script>
-// Gestione aggiunta/rimozione template
-function addEmailTemplate() {
-    if (confirm('Vuoi aggiungere un nuovo slot per template email? (Dovrai salvare la pagina per confermare)')) {
-        // Incrementa il numero massimo di template
-        let currentMax = <?php echo $max_templates; ?>;
-        
-        // Invia richiesta per aggiornare il numero
-        jQuery.post(ajaxurl, {
-            action: 'disco747_update_setting',
-            nonce: '<?php echo wp_create_nonce("disco747_admin_nonce"); ?>',
-            setting_key: 'disco747_max_templates',
-            setting_value: currentMax + 1
-        }, function() {
-            // Ricarica pagina per mostrare nuovo template
-            location.reload();
-        });
-    }
-}
-
-function addWhatsAppTemplate() {
-    if (confirm('Vuoi aggiungere un nuovo slot per template WhatsApp? (Dovrai salvare la pagina per confermare)')) {
-        // Incrementa il numero massimo di template
-        let currentMax = <?php echo $max_templates; ?>;
-        
-        // Invia richiesta per aggiornare il numero
-        jQuery.post(ajaxurl, {
-            action: 'disco747_update_setting',
-            nonce: '<?php echo wp_create_nonce("disco747_admin_nonce"); ?>',
-            setting_key: 'disco747_max_templates',
-            setting_value: currentMax + 1
-        }, function() {
-            // Ricarica pagina per mostrare nuovo template
-            location.reload();
-        });
-    }
-}
-</script>

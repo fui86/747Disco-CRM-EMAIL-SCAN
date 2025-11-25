@@ -115,7 +115,7 @@ class Disco747_Ajax {
     }
 
     /**
-     * ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¯ Handler per batch scan di file Excel su Google Drive
+     * Ã°Å¸Å½Â¯ Handler per batch scan di file Excel su Google Drive
      */
     public function handle_batch_scan() {
         error_log('[747Disco-Scan] handle_batch_scan chiamato');
@@ -168,7 +168,7 @@ class Disco747_Ajax {
     }
 
     /**
-     * ÃƒÂ°Ã…Â¸Ã¢â‚¬â€Ã¢â‚¬ËœÃƒÂ¯Ã‚Â¸Ã‚Â Handler per reset e scan completo
+     * Ã°Å¸â€”â€˜Ã¯Â¸Â Handler per reset e scan completo
      */
     public function handle_reset_and_scan() {
         error_log('[747Disco-Scan] handle_reset_and_scan chiamato');
@@ -207,7 +207,7 @@ class Disco747_Ajax {
     }
 
     /**
-     * ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â§ Handler per invio email con template
+     * Ã°Å¸â€œÂ§ Handler per invio email con template
      */
     public function handle_send_email_template() {
         try {
@@ -262,7 +262,7 @@ class Disco747_Ajax {
                 throw new \Exception('Email Manager non disponibile');
             }
             
-            // âœ… LISTA UFFICIALE: Passa esattamente i dati per i placeholder richiesti
+            // ✅ LISTA UFFICIALE: Passa esattamente i dati per i placeholder richiesti
             $email_data = array(
                 // === CLIENTE ===
                 'nome_referente' => $preventivo['nome_referente'] ?? '',
@@ -309,7 +309,7 @@ class Disco747_Ajax {
             if ($attach_pdf) {
                 $this->log('[Email] PDF richiesto - verifico esistenza...');
                 
-                // Controlla se esiste giÃƒÆ’Ã‚Â  un PDF nel database
+                // Controlla se esiste giÃƒÂ  un PDF nel database
                 if (!empty($preventivo['pdf_url'])) {
                     $pdf_path = $preventivo['pdf_url'];
                     $this->log('[Email] PDF path dal DB: ' . $pdf_path);
@@ -357,7 +357,7 @@ class Disco747_Ajax {
                         $pdf_path = $pdf_generator->generate_pdf($pdf_data);
                         
                         if ($pdf_path && file_exists($pdf_path)) {
-                            $this->log('[Email] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ PDF generato con successo: ' . basename($pdf_path));
+                            $this->log('[Email] Ã¢Å“â€¦ PDF generato con successo: ' . basename($pdf_path));
                             
                             // Aggiorna database con path PDF
                             $wpdb->update(
@@ -368,14 +368,14 @@ class Disco747_Ajax {
                                 array('%d')
                             );
                         } else {
-                            $this->log('[Email] ÃƒÂ¢Ã‚ÂÃ…â€™ ERRORE: PDF non generato o file non trovato', 'ERROR');
+                            $this->log('[Email] Ã¢ÂÅ’ ERRORE: PDF non generato o file non trovato', 'ERROR');
                             $pdf_path = null;
                         }
                     } else {
-                        $this->log('[Email] ÃƒÂ¢Ã‚ÂÃ…â€™ PDF Generator non disponibile', 'ERROR');
+                        $this->log('[Email] Ã¢ÂÅ’ PDF Generator non disponibile', 'ERROR');
                     }
                 } else {
-                    $this->log('[Email] ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ PDF esistente trovato: ' . basename($pdf_path));
+                    $this->log('[Email] Ã¢Å“â€¦ PDF esistente trovato: ' . basename($pdf_path));
                 }
             }
             
@@ -419,7 +419,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¬ Handler per invio WhatsApp con template
+     * Ã°Å¸â€™Â¬ Handler per invio WhatsApp con template
      */
     public function handle_send_whatsapp_template() {
         try {
@@ -464,26 +464,14 @@ class Disco747_Ajax {
                 throw new \Exception('Numero telefono non disponibile');
             }
             
-            // âœ… Template WhatsApp con EMOJI CORRETTE (UTF-8)
-            // ✅ NUOVO v12.0.0: Carica template WhatsApp dal database
-            // Prova prima i template configurabili dalla dashboard
-            $template_from_db = get_option('disco747_form_whatsapp_template_' . $template_id, false);
+            // Template WhatsApp
+            $templates = array(
+                '1' => "Ciao {{nome}}! Ã°Å¸Å½â€°\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} ÃƒÂ¨ pronto!\n\nÃ°Å¸â€™Â° Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! Ã°Å¸Å½Å ",
+                '2' => "Ciao {{nome}}! Ã°Å¸Å½Ë†\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! Ã°Å¸â€œÅ¾",
+                '3' => "Ciao {{nome}}! Ã¢Å“â€¦\n\nGrazie per aver confermato!\n\nÃ°Å¸â€œâ€¦ {{data_evento}}\nÃ°Å¸â€™Â° Acconto: {{acconto}}\n\nCi vediamo presto! Ã°Å¸Å½â€°"
+            );
             
-            if ($template_from_db) {
-                // Usa template dal database
-                $whatsapp_message = $template_from_db;
-                $this->log("[WhatsApp] 📋 Template caricato dal database (ID: {$template_id})");
-            } else {
-                // Fallback: usa template predefiniti
-                $default_templates = array(
-                    '1' => "Ciao {{nome}}! 🎉\n\nIl tuo preventivo per {{tipo_evento}} del {{data_evento}} è pronto!\n\n💰 Importo: {{importo}}\n\n747 Disco - La tua festa indimenticabile! 🎊",
-                    '2' => "Ciao {{nome}}! 🎈\n\nTi ricordiamo il tuo evento del {{data_evento}}.\n\nHai confermato? Rispondi per finalizzare! 📞",
-                    '3' => "Ciao {{nome}}! ✅\n\nGrazie per aver confermato!\n\n📅 {{data_evento}}\n💰 Acconto: {{acconto}}\n\nCi vediamo presto! 🎉"
-                );
-                $whatsapp_message = $default_templates[$template_id] ?? $default_templates['1'];
-                $this->log("[WhatsApp] 🔄 Template predefinito usato come fallback (ID: {$template_id})");
-            }
-            
+            $whatsapp_message = $templates[$template_id] ?? $templates['1'];
             
             // Sostituisci placeholder
             $replacements = array(
@@ -496,27 +484,28 @@ class Disco747_Ajax {
                 '{{tipo_evento}}' => $preventivo['tipo_evento'] ?? '',
                 '{{menu}}' => $preventivo['tipo_menu'] ?? '',
                 '{{numero_invitati}}' => $preventivo['numero_invitati'] ?? '',
-                '{{importo}}' => 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ ' . number_format($preventivo['importo_totale'] ?? 0, 2, ',', '.'),
-                '{{acconto}}' => 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ ' . number_format($preventivo['acconto'] ?? 0, 2, ',', '.'),
+                '{{importo}}' => 'Ã¢â€šÂ¬ ' . number_format($preventivo['importo_totale'] ?? 0, 2, ',', '.'),
+                '{{acconto}}' => 'Ã¢â€šÂ¬ ' . number_format($preventivo['acconto'] ?? 0, 2, ',', '.'),
                 '{{preventivo_id}}' => $preventivo['preventivo_id'] ?? ''
             );
             
             $whatsapp_message = str_replace(array_keys($replacements), array_values($replacements), $whatsapp_message);
             
-            // âœ… FIX EMOJI: Formatta numero telefono (SENZA +)
-            $phone = preg_replace('/[^0-9]/', '', $telefono); // Rimuove tutto tranne numeri
+            // Formatta numero telefono
+            $phone = preg_replace('/[^0-9+]/', '', $telefono);
             
-            // Aggiungi prefisso Italia se mancante
-            if (substr($phone, 0, 2) !== '39') {
-                $phone = '39' . $phone;
+            if (substr($phone, 0, 1) !== '+') {
+                if (substr($phone, 0, 2) === '39') {
+                    $phone = '+' . $phone;
+                } else {
+                    $phone = '+39' . $phone;
+                }
             }
             
-            // âœ… FIX EMOJI: Genera link WhatsApp corretto
-            // IMPORTANTE: Usa api.whatsapp.com/send + rawurlencode per emoji
-            $whatsapp_url = 'https://api.whatsapp.com/send?phone=' . $phone . '&text=' . rawurlencode($whatsapp_message);
+            // Genera link WhatsApp
+            $whatsapp_url = 'https://wa.me/' . $phone . '?text=' . urlencode($whatsapp_message);
             
-            $this->log('[WhatsApp] âœ… Link generato per: ' . $phone);
-            $this->log('[WhatsApp] âœ… URL con emoji correttamente codificato');
+            $this->log('[WhatsApp] Link generato per: ' . $phone);
             
             wp_send_json_success(array(
                 'message' => 'Link WhatsApp generato!',
@@ -532,7 +521,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Handler per ottenere template disponibili
+     * Ã°Å¸â€œâ€¹ Handler per ottenere template disponibili
      */
     public function handle_get_templates() {
         try {
@@ -543,7 +532,7 @@ class Disco747_Ajax {
             // Leggi numero massimo di template configurati
             $max_templates = get_option('disco747_max_templates', 5);
             
-            // Ã°Å¸â€œÂ§ Carica template EMAIL dalle impostazioni WordPress
+            // ðŸ“§ Carica template EMAIL dalle impostazioni WordPress
             $email_templates = array();
             for ($i = 1; $i <= $max_templates; $i++) {
                 $name = get_option('disco747_email_name_' . $i, 'Template Email ' . $i);
@@ -558,7 +547,7 @@ class Disco747_Ajax {
                 }
             }
             
-            // Ã°Å¸â€™Â¬ Carica template WHATSAPP dalle impostazioni WordPress
+            // ðŸ’¬ Carica template WHATSAPP dalle impostazioni WordPress
             $whatsapp_templates = array();
             for ($i = 1; $i <= $max_templates; $i++) {
                 $name = get_option('disco747_whatsapp_name_' . $i, 'Template WhatsApp ' . $i);
@@ -586,7 +575,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Handler per compilare template
+     * Ã°Å¸â€œÂ Handler per compilare template
      */
     public function handle_compile_template() {
         try {
@@ -609,7 +598,7 @@ class Disco747_Ajax {
     }
     
     /**
-     * ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  Salva log invio email nel database
+     * Ã°Å¸â€œÅ  Salva log invio email nel database
      */
     private function log_email_sent($preventivo_id, $email_to, $template_id, $success, $error_message = null) {
         global $wpdb;

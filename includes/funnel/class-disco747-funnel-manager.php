@@ -452,20 +452,31 @@ class Disco747_Funnel_Manager {
         
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
         
+        // ✅ FIX EMOTICON v12.0.4: NON codificare le emoticon!
+        // WhatsApp Web richiede emoticon grezze (UTF-8), non percent-encoded
+        
         // Assicura che il testo sia UTF-8 corretto
         if (function_exists('mb_convert_encoding')) {
             $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'UTF-8');
         }
         
-        // SOLUZIONE PERFETTA: Codifica solo caratteri speciali, preserva emoji e a capo
-        // 1. Converti a capo in codice WhatsApp
-        $whatsapp_message_encoded = str_replace(array("\r\n", "\n", "\r"), "%0A", $whatsapp_message);
+        // Codifica SOLO caratteri speciali, NON le emoticon
+        $whatsapp_message_encoded = $whatsapp_message;
         
-        // 2. Codifica con rawurlencode (gestisce meglio UTF-8 rispetto a urlencode)
-        $whatsapp_message_encoded = rawurlencode($whatsapp_message_encoded);
+        // Sostituisci manualmente solo i caratteri che devono essere codificati
+        $whatsapp_message_encoded = str_replace("\r\n", "\n", $whatsapp_message_encoded); // Normalizza a capo
+        $whatsapp_message_encoded = str_replace("\r", "", $whatsapp_message_encoded);     // Rimuovi CR
+        $whatsapp_message_encoded = str_replace("\n", "%0A", $whatsapp_message_encoded);  // A capo → %0A
+        $whatsapp_message_encoded = str_replace(" ", "%20", $whatsapp_message_encoded);   // Spazio → %20
+        $whatsapp_message_encoded = str_replace("!", "%21", $whatsapp_message_encoded);   // ! → %21
+        $whatsapp_message_encoded = str_replace(":", "%3A", $whatsapp_message_encoded);   // : → %3A
+        $whatsapp_message_encoded = str_replace("/", "%2F", $whatsapp_message_encoded);   // / → %2F
+        $whatsapp_message_encoded = str_replace("€", "%E2%82%AC", $whatsapp_message_encoded); // € → %E2%82%AC
+        $whatsapp_message_encoded = str_replace(",", "%2C", $whatsapp_message_encoded);   // , → %2C
         
-        // 3. Ripristina %0A che rawurlencode ha codificato ulteriormente
-        $whatsapp_message_encoded = str_replace('%250A', '%0A', $whatsapp_message_encoded);
+        // EMOTICON 🎉 💰 📅 etc. → RESTANO GREZZE (non codificate!)
+        
+        error_log("[747Disco-Funnel] WhatsApp message encoding: emoticon RAW (non percent-encoded)");
         
         // Crea URL WhatsApp valido
         $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
@@ -651,13 +662,16 @@ class Disco747_Funnel_Manager {
     public function get_pending_sends() {
         global $wpdb;
         
+        // ✅ FIX: Invia email funnel SOLO a preventivi in stato "attivo"
+        // Esclude: confermati, annullati, e qualsiasi altro stato
         return $wpdb->get_results("
-            SELECT t.*, p.nome_cliente, p.email, p.telefono
+            SELECT t.*, p.nome_cliente, p.email, p.telefono, p.stato
             FROM {$this->tracking_table} t
             LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
             WHERE t.status = 'active' 
               AND t.next_send_at IS NOT NULL
               AND t.next_send_at <= NOW()
+              AND p.stato = 'attivo'
             ORDER BY t.next_send_at ASC
         ");
     }

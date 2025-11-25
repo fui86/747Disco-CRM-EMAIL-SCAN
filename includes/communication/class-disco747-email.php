@@ -1,11 +1,17 @@
 <?php
 /**
  * Email Handler Class - 747 Disco CRM
- * VERSIONE COMPLETA AGGIORNATA con template HTML professionale
+ * VERSIONE CORRETTA v11.8.0 - FIX PLACEHOLDER OMAGGI & EXTRA
+ * 
+ * MODIFICHE:
+ * ✅ Aggiunti placeholder omaggio1, omaggio2, omaggio3
+ * ✅ Aggiunti placeholder extra1, extra2, extra3
+ * ✅ Aggiunti importi extra1_importo, extra2_importo, extra3_importo formattati
+ * ✅ Aggiunto totale_con_extra calcolato
  * 
  * @package    Disco747_CRM
  * @subpackage Communication
- * @since      11.7.3
+ * @since      11.8.0
  * @author     747 Disco Team
  */
 
@@ -42,7 +48,7 @@ class Disco747_Email {
         );
         
         $this->setup_hooks();
-        $this->log('Email Handler inizializzato');
+        $this->log('Email Handler v11.8.0 inizializzato con placeholder omaggi & extra');
     }
 
     /**
@@ -56,7 +62,7 @@ class Disco747_Email {
     }
 
     /**
-     * âœ… METODO PRINCIPALE: Invia email preventivo con PDF allegato
+     * ✅ METODO PRINCIPALE: Invia email preventivo con PDF allegato
      * 
      * @param array $preventivo_data Dati del preventivo
      * @param string $pdf_path Path del PDF da allegare (opzionale)
@@ -106,7 +112,7 @@ class Disco747_Email {
             $this->log_delivery($email_data, $sent, $attachments);
             
             if ($sent) {
-                $this->log('âœ… Email inviata con successo a: ' . $email_data['recipient_email']);
+                $this->log('✅ Email inviata con successo a: ' . $email_data['recipient_email']);
             } else {
                 throw new Exception('Errore invio email tramite wp_mail');
             }
@@ -114,16 +120,17 @@ class Disco747_Email {
             return $sent;
             
         } catch (Exception $e) {
-            $this->log('âŒ Errore invio email: ' . $e->getMessage(), 'ERROR');
+            $this->log('❌ Errore invio email: ' . $e->getMessage(), 'ERROR');
             return false;
         }
     }
 
     /**
-     * âœ… Prepara i dati per l'email con TUTTE le variabili necessarie
+     * ✅ VERSIONE CORRETTA: Prepara i dati per l'email con TUTTI i placeholder
      * 
      * @param array $preventivo_data Dati preventivo
      * @param array $options Opzioni
+     * @param int $template_id Template ID
      * @return array Dati email preparati
      */
     private function prepare_email_data($preventivo_data, $options = array(), $template_id = 1) {
@@ -133,32 +140,81 @@ class Disco747_Email {
             throw new Exception('Email destinatario non valida: ' . $recipient_email);
         }
         
-        // âœ… Prepara TUTTE le variabili per il template
+        // Calcola importi extra
+        $extra1_importo = floatval($preventivo_data['extra1_importo'] ?? 0);
+        $extra2_importo = floatval($preventivo_data['extra2_importo'] ?? 0);
+        $extra3_importo = floatval($preventivo_data['extra3_importo'] ?? 0);
+        $extra_totale = $extra1_importo + $extra2_importo + $extra3_importo;
+        
+        // Calcola totale con extra
+        $importo_base = floatval($preventivo_data['importo_preventivo'] ?? 0);
+        $totale_con_extra = $importo_base + $extra_totale;
+        
+        // ✅ LISTA UFFICIALE: Prepara ESATTAMENTE i placeholder richiesti
         $template_vars = array(
-            // Dati cliente
-            'nome_referente' => $preventivo_data['nome_referente'] ?? '',
-            'cognome_referente' => $preventivo_data['cognome_referente'] ?? '',
+            // === CLIENTE ===
+            'nome' => $preventivo_data['nome_referente'] ?? '',
+            'cognome' => $preventivo_data['cognome_referente'] ?? '',
+            'nome_completo' => trim(($preventivo_data['nome_referente'] ?? '') . ' ' . ($preventivo_data['cognome_referente'] ?? '')),
+            'email' => $preventivo_data['mail'] ?? $preventivo_data['email'] ?? '',
+            'telefono' => $preventivo_data['telefono'] ?? $preventivo_data['cellulare'] ?? '',
             
-            // Dati evento
+            // === EVENTO ===
             'data_evento' => $this->format_date($preventivo_data['data_evento'] ?? ''),
             'tipo_evento' => $preventivo_data['tipo_evento'] ?? '',
             'numero_invitati' => $preventivo_data['numero_invitati'] ?? 0,
-            'tipo_menu' => $preventivo_data['tipo_menu'] ?? '',
-            
-            // âœ… ORARI (fondamentali per il template)
             'orario_inizio' => $this->format_time($preventivo_data['orario_inizio'] ?? '20:30'),
             'orario_fine' => $this->format_time($preventivo_data['orario_fine'] ?? '01:30'),
             
-            // Importi formattati
-            'importo' => $this->format_currency($preventivo_data['importo_preventivo'] ?? 0),
-            'acconto' => $this->format_currency($preventivo_data['acconto'] ?? 0),
+            // === MENU ===
+            'menu' => $preventivo_data['tipo_menu'] ?? '',
+            'tipo_menu' => $preventivo_data['tipo_menu'] ?? '',
             
-            // âœ… PREZZO EXTRA PERSONA DINAMICO (Menu 7=20â‚¬, Menu 74=25â‚¬, Menu 747=30â‚¬)
+            // === IMPORTI ===
+            'importo_totale' => $this->format_currency($importo_base),
+            'importo_preventivo' => $this->format_currency($importo_base),
+            'totale' => $this->format_currency($totale_con_extra),
+            'acconto' => $this->format_currency($preventivo_data['acconto'] ?? 0),
+            'saldo' => $this->format_currency($totale_con_extra - floatval($preventivo_data['acconto'] ?? 0)),
+            
+            // === EXTRA ===
+            'extra1' => $preventivo_data['extra1'] ?? '',
+            'extra2' => $preventivo_data['extra2'] ?? '',
+            'extra3' => $preventivo_data['extra3'] ?? '',
+            
+            // === OMAGGI ===
+            'omaggio1' => $preventivo_data['omaggio1'] ?? '',
+            'omaggio2' => $preventivo_data['omaggio2'] ?? '',
+            'omaggio3' => $preventivo_data['omaggio3'] ?? '',
+            
+            // === ALTRO ===
+            'preventivo_id' => $preventivo_data['preventivo_id'] ?? '',
+            'stato' => $preventivo_data['stato'] ?? 'attivo',
+            
+            // === PLACEHOLDER AGGIUNTIVI PER CALCOLI INTERNI (non documentati ma utili) ===
+            'extra1_importo' => $extra1_importo,
+            'extra1_importo_formatted' => $this->format_currency($extra1_importo),
+            'extra2_importo' => $extra2_importo,
+            'extra2_importo_formatted' => $this->format_currency($extra2_importo),
+            'extra3_importo' => $extra3_importo,
+            'extra3_importo_formatted' => $this->format_currency($extra3_importo),
+            'extra_totale' => $this->format_currency($extra_totale),
             'prezzo_extra_persona' => $this->get_prezzo_extra_persona($preventivo_data['tipo_menu'] ?? 'Menu 74')
         );
         
+        // Log debug variabili
+        $this->log('========== PLACEHOLDER EMAIL PREPARATI ==========');
+        $this->log('Omaggi: ' . ($template_vars['omaggio1'] ? '✓' : '✗') . ' ' . 
+                                ($template_vars['omaggio2'] ? '✓' : '✗') . ' ' .
+                                ($template_vars['omaggio3'] ? '✓' : '✗'));
+        $this->log('Extra: ' . ($template_vars['extra1'] ? '✓' : '✗') . ' ' .
+                              ($template_vars['extra2'] ? '✓' : '✗') . ' ' .
+                              ($template_vars['extra3'] ? '✓' : '✗'));
+        $this->log('Extra totale: ' . $template_vars['extra_totale']);
+        $this->log('==============================================');
+        
         // Oggetto email dal template salvato
-        $subject = get_option('disco747_email_subject_' . $template_id, 'Il tuo preventivo 747 Disco Ã¨ pronto! ðŸŽ‰');
+        $subject = get_option('disco747_email_subject_' . $template_id, 'Il tuo preventivo 747 Disco è pronto! 🎉');
         
         return array(
             'recipient_email' => $recipient_email,
@@ -170,7 +226,7 @@ class Disco747_Email {
     }
 
     /**
-     * âœ… NUOVO METODO: Calcola prezzo extra persona in base al menu
+     * ✅ NUOVO METODO: Calcola prezzo extra persona in base al menu
      * 
      * @param string $tipo_menu
      * @return string Prezzo formattato (es: "20,00")
@@ -188,181 +244,215 @@ class Disco747_Email {
     }
 
     /**
-     * âœ… Genera contenuto HTML dell'email con il TEMPLATE BELLISSIMO
+     * ✅ Genera contenuto HTML dell'email con il TEMPLATE BELLISSIMO
      * 
-     * @param array $email_data Dati email
+     * @param array $email_data Dati email preparati
+     * @param int $template_id Template ID
      * @return string HTML content
      */
     private function generate_email_content($email_data, $template_id = 1) {
-        $vars = $email_data['template_vars'];
+        // Recupera template HTML personalizzato dal database
+        $custom_template = get_option('disco747_email_template_' . $template_id, '');
         
-        // Carica template HTML salvato dall'utente
-        $template_html = get_option('disco747_email_template_' . $template_id, '');
-        
-        // Se il template personalizzato esiste, usalo
-        if (!empty($template_html)) {
-            $this->log('Uso template personalizzato ID: ' . $template_id);
-            
-            // Sostituisci placeholder nel template
-            $placeholders = array(
-                '{{nome}}' => esc_html($vars['nome_referente']),
-                '{{cognome}}' => esc_html($vars['cognome_referente']),
-                '{{nome_completo}}' => esc_html($vars['nome_referente'] . ' ' . $vars['cognome_referente']),
-                '{{data_evento}}' => esc_html($vars['data_evento']),
-                '{{tipo_evento}}' => esc_html($vars['tipo_evento']),
-                '{{numero_invitati}}' => esc_html($vars['numero_invitati']),
-                '{{menu}}' => esc_html($vars['tipo_menu']),
-                '{{tipo_menu}}' => esc_html($vars['tipo_menu']),
-                '{{orario_inizio}}' => esc_html($vars['orario_inizio']),
-                '{{orario_fine}}' => esc_html($vars['orario_fine']),
-                '{{importo}}' => esc_html($vars['importo']),
-                '{{acconto}}' => esc_html($vars['acconto']),
-                '{{prezzo_extra_persona}}' => esc_html($vars['prezzo_extra_persona'])
-            );
-            
-            return str_replace(array_keys($placeholders), array_values($placeholders), $template_html);
+        if (!empty($custom_template)) {
+            // Sostituisci placeholder nel template personalizzato
+            $html = $this->replace_placeholders($custom_template, $email_data['template_vars']);
+            $this->log('✅ Template personalizzato compilato con successo');
+            return $html;
         }
         
-        // Altrimenti usa il template HTML di default (fallback)
-        $this->log('Uso template HTML di default (fallback)');
+        // Fallback: template hardcoded se nessun template salvato
+        $this->log('⚠️ Nessun template personalizzato, uso template di default');
+        return $this->get_default_template($email_data['template_vars']);
+    }
+
+    /**
+     * ✅ Sostituisce i placeholder nel template con i valori
+     * 
+     * @param string $template Template HTML
+     * @param array $vars Variabili da sostituire
+     * @return string Template compilato
+     */
+    private function replace_placeholders($template, $vars) {
+        foreach ($vars as $key => $value) {
+            $placeholder = '{{' . $key . '}}';
+            $template = str_replace($placeholder, esc_html($value), $template);
+        }
         
-        // âœ… TEMPLATE HTML PROFESSIONALE CON GRAFICA 747 DISCO
+        return $template;
+    }
+
+    /**
+     * ✅ Template email di default (bellissimo!)
+     * 
+     * @param array $vars Variabili template
+     * @return string HTML template
+     */
+    private function get_default_template($vars) {
+        // Estrai variabili
+        $nome = esc_html($vars['nome_referente']);
+        $cognome = esc_html($vars['cognome_referente']);
+        $data_evento = esc_html($vars['data_evento']);
+        $tipo_evento = esc_html($vars['tipo_evento']);
+        $numero_invitati = esc_html($vars['numero_invitati']);
+        $tipo_menu = esc_html($vars['tipo_menu']);
+        $orario_inizio = esc_html($vars['orario_inizio']);
+        $orario_fine = esc_html($vars['orario_fine']);
+        $importo = esc_html($vars['importo']);
+        $prezzo_extra = esc_html($vars['prezzo_extra_persona']);
+        
+        // Costruisci lista omaggi
+        $omaggi_html = '';
+        if (!empty($vars['omaggio1'])) {
+            $omaggi_html .= '<li style="padding: 8px 0; color: #333; font-size: 14px;">🎁 ' . esc_html($vars['omaggio1']) . '</li>';
+        }
+        if (!empty($vars['omaggio2'])) {
+            $omaggi_html .= '<li style="padding: 8px 0; color: #333; font-size: 14px;">🎁 ' . esc_html($vars['omaggio2']) . '</li>';
+        }
+        if (!empty($vars['omaggio3'])) {
+            $omaggi_html .= '<li style="padding: 8px 0; color: #333; font-size: 14px;">🎁 ' . esc_html($vars['omaggio3']) . '</li>';
+        }
+        
+        // Costruisci lista extra a pagamento (solo se presenti)
+        $extra_html = '';
+        if (!empty($vars['extra1']) && $vars['extra1_importo'] > 0) {
+            $extra_html .= '<li style="padding: 8px 0; color: #333; font-size: 14px;">💰 ' . esc_html($vars['extra1']) . ' - ' . esc_html($vars['extra1_importo_formatted']) . '</li>';
+        }
+        if (!empty($vars['extra2']) && $vars['extra2_importo'] > 0) {
+            $extra_html .= '<li style="padding: 8px 0; color: #333; font-size: 14px;">💰 ' . esc_html($vars['extra2']) . ' - ' . esc_html($vars['extra2_importo_formatted']) . '</li>';
+        }
+        if (!empty($vars['extra3']) && $vars['extra3_importo'] > 0) {
+            $extra_html .= '<li style="padding: 8px 0; color: #333; font-size: 14px;">💰 ' . esc_html($vars['extra3']) . ' - ' . esc_html($vars['extra3_importo_formatted']) . '</li>';
+        }
+        
         $html = '<!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Il tuo preventivo 747 Disco Ã¨ pronto!</title>
+    <title>Il tuo preventivo 747 Disco</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9f9f9;">
-    <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif; background-color: #0a0a0a; color: #ffffff;">
+    
+    <div style="max-width: 600px; margin: 0 auto; background-color: #1a1a1a;">
         
-        <!-- Logo -->
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img src="https://gestionale.747disco.it/wp-content/uploads/2025/06/images.png" alt="747 Disco" style="max-width: 160px;">
+        <!-- HEADER CON LOGO -->
+        <div style="background: linear-gradient(135deg, #c28a4d 0%, #f4d03f 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 36px; font-weight: 700; color: #000000; text-transform: uppercase; letter-spacing: 3px;">
+                747 DISCO
+            </h1>
+            <p style="margin: 10px 0 0; font-size: 14px; color: rgba(0,0,0,0.7); text-transform: uppercase; letter-spacing: 2px;">
+                La tua festa, la nostra passione
+            </p>
         </div>
         
-        <!-- Header con gradiente -->
-        <div style="background: linear-gradient(135deg, #c28a4d 0%, #b8b1b3 100%); padding: 30px; border-radius: 15px; text-align: center; color: white;">
-            <h1 style="margin: 0; font-size: 28px;">ðŸŽ‰ IL TUO EVENTO DA SOGNO</h1>
-            <p style="margin: 10px 0 0; font-size: 16px;">Preventivo personalizzato pronto!</p>
-        </div>
-        
-        <!-- Contenuto principale -->
-        <div style="background: white; padding: 30px; margin: 20px 0; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #c28a4d; margin-top: 0;">Buonasera ' . esc_html($vars['nome_referente']) . ',</h2>
+        <!-- CONTENUTO PRINCIPALE -->
+        <div style="padding: 30px 25px; background-color: #ffffff; color: #333333;">
             
-            <p style="color: #333; line-height: 1.6; font-size: 16px;">
-                Siamo entusiasti di presentarle il preventivo per il suo <strong>' . esc_html($vars['tipo_evento']) . '</strong> che si terrÃ  il <strong>' . esc_html($vars['data_evento']) . '</strong>!
+            <!-- Saluto personalizzato -->
+            <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+                Gentile <strong>' . $nome . ' ' . $cognome . '</strong>,
             </p>
             
-            <!-- Box REGALO SPECIALE -->
-            <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; border: 3px dashed rgba(255,255,255,0.5);">
-                <p style="margin: 0; color: white; font-size: 18px; font-weight: bold;">ðŸŽ REGALO SPECIALE SOLO PER LEI</p>
-                <p style="margin: 15px 0 10px; color: white; font-size: 32px; font-weight: bold;">VALORE â‚¬450</p>
-                <p style="margin: 0; color: rgba(255,255,255,0.95); font-size: 15px;">
-                    âœ¨ Servizio Fotografico Professionale (â‚¬250)<br>
-                    ðŸ« Crepes Nutella Express per tutti gli ospiti (â‚¬200)
-                </p>
-                <p style="margin: 15px 0 0; color: white; font-size: 13px; font-style: italic;">
-                    Omaggi riservati esclusivamente a chi conferma entro 7 giorni!
-                </p>
-            </div>
+            <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Siamo lieti di inviarle il preventivo per il suo <strong>' . $tipo_evento . '</strong> del <strong>' . $data_evento . '</strong>. 
+                Il nostro team è pronto a rendere la sua festa un\'esperienza indimenticabile!
+            </p>
             
-            <!-- Dettagli evento -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #c28a4d;">
-                <h3 style="color: #2b1e1a; margin-top: 0;">ðŸ“‹ Riepilogo del Suo Evento</h3>
+            <!-- Box dettagli evento -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #c28a4d;">
+                <h2 style="margin: 0 0 15px; color: #c28a4d; font-size: 20px; font-weight: 600;">
+                    📋 Dettagli Evento
+                </h2>
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
-                        <td style="padding: 8px 0; color: #666; font-size: 15px;"><strong>ðŸ“… Data:</strong></td>
-                        <td style="padding: 8px 0; color: #333; font-size: 15px; text-align: right;">' . esc_html($vars['data_evento']) . '</td>
+                        <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;">🗓️ Data</td>
+                        <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px;">' . $data_evento . '</td>
                     </tr>
                     <tr>
-                        <td style="padding: 8px 0; color: #666; font-size: 15px;"><strong>ðŸŽ‰ Evento:</strong></td>
-                        <td style="padding: 8px 0; color: #333; font-size: 15px; text-align: right;">' . esc_html($vars['tipo_evento']) . '</td>
+                        <td style="padding: 8px 0; color: #666; font-size: 14px;">⏰ Orario</td>
+                        <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px;">' . $orario_inizio . ' - ' . $orario_fine . '</td>
                     </tr>
                     <tr>
-                        <td style="padding: 8px 0; color: #666; font-size: 15px;"><strong>ðŸ‘¥ Ospiti:</strong></td>
-                        <td style="padding: 8px 0; color: #333; font-size: 15px; text-align: right;">' . esc_html($vars['numero_invitati']) . ' persone</td>
+                        <td style="padding: 8px 0; color: #666; font-size: 14px;">👥 Invitati</td>
+                        <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px;">' . $numero_invitati . ' persone</td>
                     </tr>
                     <tr>
-                        <td style="padding: 8px 0; color: #666; font-size: 15px;"><strong>ðŸ½ï¸ Menu:</strong></td>
-                        <td style="padding: 8px 0; color: #333; font-size: 15px; text-align: right;">' . esc_html($vars['tipo_menu']) . '</td>
+                        <td style="padding: 8px 0; color: #666; font-size: 14px;">🍽️ Menu</td>
+                        <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px;">' . $tipo_menu . '</td>
                     </tr>
                     <tr>
-                        <td style="padding: 8px 0; color: #666; font-size: 15px;"><strong>ðŸ• Orario:</strong></td>
-                        <td style="padding: 8px 0; color: #333; font-size: 15px; text-align: right;">' . esc_html($vars['orario_inizio']) . ' - ' . esc_html($vars['orario_fine']) . '</td>
+                        <td style="padding: 8px 0; color: #666; font-size: 14px;">➕ Extra persona</td>
+                        <td style="padding: 8px 0; color: #333; font-weight: 600; font-size: 14px;">€' . $prezzo_extra . '</td>
                     </tr>
                 </table>
-            </div>
-            
-            <!-- TUTTO INCLUSO -->
-            <div style="background: #fff; padding: 20px; border-radius: 8px; margin: 25px 0; border: 2px solid #c28a4d;">
-                <h3 style="color: #c28a4d; margin-top: 0; text-align: center;">âœ¨ TUTTO INCLUSO NEL PACCHETTO</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div style="padding: 8px; background: #f8f9fa; border-radius: 5px;">
-                        <span style="color: #28a745; font-size: 18px;">âœ“</span> 
-                        <span style="color: #333; font-size: 14px;">Allestimenti sala personalizzati</span>
-                    </div>
-                    <div style="padding: 8px; background: #f8f9fa; border-radius: 5px;">
-                        <span style="color: #28a745; font-size: 18px;">âœ“</span> 
-                        <span style="color: #333; font-size: 14px;">DJ & Animazione</span>
-                    </div>
-                    <div style="padding: 8px; background: #f8f9fa; border-radius: 5px;">
-                        <span style="color: #28a745; font-size: 18px;">âœ“</span> 
-                        <span style="color: #333; font-size: 14px;">SIAE inclusa</span>
-                    </div>
-                    <div style="padding: 8px; background: #f8f9fa; border-radius: 5px;">
-                        <span style="color: #28a745; font-size: 18px;">âœ“</span> 
-                        <span style="color: #333; font-size: 14px;">18 luminoso</span>
-                    </div>
-                    <div style="padding: 8px; background: #f8f9fa; border-radius: 5px;">
-                        <span style="color: #28a745; font-size: 18px;">âœ“</span> 
-                        <span style="color: #333; font-size: 14px;">Locandina virtuale invito</span>
-                    </div>
-                    <div style="padding: 8px; background: #f8f9fa; border-radius: 5px;">
-                        <span style="color: #28a745; font-size: 18px;">âœ“</span> 
-                        <span style="color: #333; font-size: 14px;">Menu selezionato</span>
-                    </div>
-                </div>
-                <p style="margin: 15px 0 0; text-align: center; color: #666; font-size: 13px;">
-                    <em>Persone extra oltre le ' . esc_html($vars['numero_invitati']) . ' quotate: â‚¬' . esc_html($vars['prezzo_extra_persona']) . ' cad. (da definire 10 giorni prima)</em>
-                </p>
-            </div>
-            
-            <!-- EXTRA DISPONIBILI -->
-            <div style="background: #fff8e6; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
-                <h3 style="color: #e67e22; margin-top: 0;">â­ Vuole rendere la festa ancora piÃ¹ speciale?</h3>
+            </div>';
+        
+        // Aggiungi sezione omaggi se presenti
+        if (!empty($omaggi_html)) {
+            $html .= '
+            <!-- Box omaggi inclusi -->
+            <div style="background: #e8f5e9; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #4caf50;">
+                <h3 style="margin: 0 0 10px; color: #2e7d32; font-size: 18px; font-weight: 600;">
+                    🎁 Omaggi Inclusi nel Pacchetto
+                </h3>
+                <p style="color: #666; margin: 10px 0; font-size: 14px;">Ecco cosa è incluso gratuitamente:</p>
+                <ul style="list-style: none; padding: 0; margin: 15px 0;">
+                    ' . $omaggi_html . '
+                </ul>
+            </div>';
+        }
+        
+        // Aggiungi sezione extra se presenti
+        if (!empty($extra_html)) {
+            $html .= '
+            <!-- Box extra a pagamento -->
+            <div style="background: #fff3e0; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #ff9800;">
+                <h3 style="margin: 0 0 10px; color: #e65100; font-size: 18px; font-weight: 600;">
+                    💰 Extra a Pagamento Selezionati
+                </h3>
+                <ul style="list-style: none; padding: 0; margin: 15px 0;">
+                    ' . $extra_html . '
+                </ul>
+            </div>';
+        }
+        
+        $html .= '
+            <!-- Box extra disponibili -->
+            <div style="background: #e3f2fd; padding: 20px; border-radius: 12px; margin: 25px 0; border-left: 4px solid #2196f3;">
+                <h3 style="margin: 0 0 10px; color: #1565c0; font-size: 18px; font-weight: 600;">
+                    ✨ Extra Disponibili
+                </h3>
                 <p style="color: #666; margin: 10px 0; font-size: 14px;">Aggiunga uno di questi extra esclusivi:</p>
                 <ul style="list-style: none; padding: 0; margin: 15px 0;">
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸ¥‚ <strong>Aperol Spritz in aperitivo</strong> - â‚¬80,00</li>
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸº <strong>Birra per tutta la cena</strong> - â‚¬3,00/persona</li>
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸ· <strong>Vino per tutta la cena</strong> - â‚¬2,50/persona</li>
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸ¤ <strong>Frittini misti</strong> - â‚¬4,50/persona</li>
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸ‰ <strong>Tagliata di frutta</strong> - â‚¬120,00</li>
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸ« <strong>Fontana di cioccolato</strong> - â‚¬260,00</li>
-                    <li style="padding: 8px 0; color: #333; font-size: 14px;">ðŸ¾ <strong>Consumazioni alcoliche</strong> - â‚¬4,00 cad.</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🥂 <strong>Aperol Spritz in aperitivo</strong> - €80,00</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🍺 <strong>Birra per tutta la cena</strong> - €3,00/persona</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🍷 <strong>Vino per tutta la cena</strong> - €2,50/persona</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🍤 <strong>Frittini misti</strong> - €4,50/persona</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🍉 <strong>Tagliata di frutta</strong> - €120,00</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🍫 <strong>Fontana di cioccolato</strong> - €260,00</li>
+                    <li style="padding: 8px 0; color: #333; font-size: 14px;">🍾 <strong>Consumazioni alcoliche</strong> - €4,00 cad.</li>
                 </ul>
             </div>
             
             <!-- Box investimento -->
             <div style="background: linear-gradient(135deg, #2b1e1a 0%, #3c3c3c 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center;">
                 <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Investimento Totale</p>
-                <p style="margin: 10px 0; color: #c28a4d; font-size: 42px; font-weight: bold;">' . esc_html($vars['importo']) . '</p>
+                <p style="margin: 10px 0; color: #c28a4d; font-size: 42px; font-weight: bold;">' . $importo . '</p>
                 <p style="margin: 5px 0 0; color: rgba(255,255,255,0.7); font-size: 13px;">
-                    <em>Include tutto quanto descritto + omaggi del valore di â‚¬450</em>
+                    <em>Include tutto quanto descritto + omaggi del valore di €450</em>
                 </p>
             </div>
             
             <!-- CTA PRINCIPALE -->
             <div style="background: #f0f9ff; padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; border: 2px solid #3b82f6;">
                 <p style="color: #1e40af; font-size: 18px; font-weight: bold; margin: 0 0 15px;">
-                    â° Confermi entro 7 giorni e si assicuri:<br>
-                    <span style="font-size: 24px; color: #c28a4d;">â‚¬450 di omaggi GRATIS!</span>
+                    ⏰ Confermi entro 7 giorni e si assicuri:<br>
+                    <span style="font-size: 24px; color: #c28a4d;">€450 di omaggi GRATIS!</span>
                 </p>
-                <a href="https://wa.me/393331234567?text=Salve%2C%20vorrei%20confermare%20il%20preventivo%20per%20' . urlencode($vars['tipo_evento']) . '" 
+                <a href="https://wa.me/393331234567?text=Salve%2C%20vorrei%20confermare%20il%20preventivo%20per%20' . urlencode($tipo_evento) . '" 
                    style="display: inline-block; background: #25d366; color: white; padding: 18px 45px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 17px; margin: 10px 0; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);">
-                    ðŸ’¬ Conferma Subito su WhatsApp
+                    💬 Conferma Subito su WhatsApp
                 </a>
                 <p style="margin: 15px 0 0; color: #666; font-size: 13px;">
                     Oppure risponda a questa email o ci chiami al numero in calce
@@ -370,11 +460,11 @@ class Disco747_Email {
             </div>
             
             <p style="color: #333; line-height: 1.6; font-size: 15px; margin-top: 25px;">
-                Il preventivo completo Ã¨ allegato in PDF. Siamo a disposizione per qualsiasi chiarimento o personalizzazione.
+                Il preventivo completo è allegato in PDF. Siamo a disposizione per qualsiasi chiarimento o personalizzazione.
             </p>
             
             <p style="color: #333; line-height: 1.6; font-size: 15px; margin-top: 20px;">
-                <strong>Non vediamo l\'ora di rendere il suo ' . esc_html($vars['tipo_evento']) . ' indimenticabile!</strong>
+                <strong>Non vediamo l\'ora di rendere il suo ' . $tipo_evento . ' indimenticabile!</strong>
             </p>
         </div>
         
@@ -385,12 +475,12 @@ class Disco747_Email {
                 <em style="color: #999;">La tua festa, la nostra passione</em>
             </p>
             <p style="margin: 15px 0 5px;">
-                ðŸ“§ info@gestionale.747disco.it | ðŸ“ž +39 333 123 4567<br>
-                ðŸŒ <a href="https://www.gestionale.747disco.it" style="color: #c28a4d; text-decoration: none;">www.gestionale.747disco.it</a>
+                📧 info@gestionale.747disco.it | 📞 +39 333 123 4567<br>
+                🌐 <a href="https://www.gestionale.747disco.it" style="color: #c28a4d; text-decoration: none;">www.gestionale.747disco.it</a>
             </p>
             <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                 <p style="margin: 0; font-size: 11px; color: #999; line-height: 1.4;">
-                    Hai ricevuto questa email perchÃ© hai richiesto un preventivo a 747 Disco.<br>
+                    Hai ricevuto questa email perché hai richiesto un preventivo a 747 Disco.<br>
                     Se non sei interessato, puoi ignorare questa comunicazione.
                 </p>
             </div>
@@ -421,13 +511,20 @@ class Disco747_Email {
     }
 
     /**
-     * Headers email
+     * ✅ Headers email con BCC automatico all'utente corrente
      */
     private function get_email_headers() {
         $headers = array(
             'Content-Type: text/html; charset=UTF-8',
             'From: ' . $this->smtp_config['from_name'] . ' <' . $this->smtp_config['from_email'] . '>'
         );
+        
+        // ✅ NUOVO: Aggiungi BCC all'utente WordPress corrente che gestisce il preventivo
+        $current_user = wp_get_current_user();
+        if ($current_user && $current_user->user_email) {
+            $headers[] = 'Bcc: ' . $current_user->user_email;
+            $this->log('✅ BCC aggiunto automaticamente a: ' . $current_user->user_email);
+        }
         
         return $headers;
     }
@@ -496,7 +593,7 @@ class Disco747_Email {
      * Formatta valuta
      */
     private function format_currency($amount) {
-        return 'â‚¬' . number_format(floatval($amount), 2, ',', '.');
+        return '€' . number_format(floatval($amount), 2, ',', '.');
     }
 
     /**
