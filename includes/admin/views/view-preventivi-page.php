@@ -597,7 +597,7 @@ $stats = array(
                                 
                                 <?php if ($page < $total_pages): ?>
                                     <a href="<?php echo add_query_arg('paged', $page + 1); ?>" class="button button-primary">
-                                        Successiva ↑
+                                        Successiva →
                                     </a>
                                 <?php endif; ?>
                             </div>
