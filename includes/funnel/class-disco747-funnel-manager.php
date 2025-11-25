@@ -659,7 +659,7 @@ class Disco747_Funnel_Manager {
     public function get_active_trackings($funnel_type = null) {
         global $wpdb;
         
-        $sql = "SELECT t.*, p.nome_cliente, p.email, p.telefono, p.tipo_evento, p.data_evento
+        $sql = "SELECT t.*, p.nome_cliente, p.email, p.telefono, p.tipo_evento, p.data_evento, p.stato
                 FROM {$this->tracking_table} t
                 LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
                 WHERE t.status = 'active'";
@@ -670,7 +670,17 @@ class Disco747_Funnel_Manager {
         
         $sql .= " ORDER BY t.next_send_at ASC";
         
-        return $wpdb->get_results($sql);
+        $results = $wpdb->get_results($sql);
+        
+        // Debug logging: mostra tutti i tracking attivi con i loro stati
+        if (!empty($results)) {
+            error_log("[747Disco-Funnel] 📊 get_active_trackings() trovati " . count($results) . " tracking attivi:");
+            foreach ($results as $tracking) {
+                error_log("[747Disco-Funnel]   - Tracking #{$tracking->id}: Preventivo #{$tracking->preventivo_id}, Funnel: {$tracking->funnel_type}, Stato preventivo: " . ($tracking->stato ?? 'NULL'));
+            }
+        }
+        
+        return $results;
     }
     
     /**
@@ -682,7 +692,7 @@ class Disco747_Funnel_Manager {
         // ✅ FIX: Filtra per stato in base al tipo di funnel
         // - pre_conferma: solo preventivi 'attivo'
         // - pre_evento: solo preventivi 'confermato'
-        return $wpdb->get_results("
+        $results = $wpdb->get_results("
             SELECT t.*, p.nome_cliente, p.email, p.telefono, p.stato
             FROM {$this->tracking_table} t
             LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
@@ -695,5 +705,15 @@ class Disco747_Funnel_Manager {
               )
             ORDER BY t.next_send_at ASC
         ");
+        
+        // Debug logging: mostra cosa viene trovato
+        if (!empty($results)) {
+            error_log("[747Disco-Funnel] 📋 get_pending_sends() trovati " . count($results) . " tracking:");
+            foreach ($results as $tracking) {
+                error_log("[747Disco-Funnel]   - Tracking #{$tracking->id}: Preventivo #{$tracking->preventivo_id}, Funnel: {$tracking->funnel_type}, Stato: {$tracking->stato}");
+            }
+        }
+        
+        return $results;
     }
 }
