@@ -661,17 +661,18 @@ class Disco747_Admin {
             // Sanitize filename for header (remove any potentially dangerous characters)
             $safe_filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $filename);
             
-            // Output Excel-compatible file (Tab-separated with UTF-8 BOM)
-            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+            // Output CSV file with semicolon separator (Excel default for Italian locale)
+            header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename="' . $safe_filename . '"');
             header('Cache-Control: max-age=0');
+            header('Pragma: public');
             
             $output = fopen('php://output', 'w');
             
             // UTF-8 BOM for Excel compatibility
             fwrite($output, "\xEF\xBB\xBF");
             
-            // Headers (tab-separated)
+            // Headers - use semicolon separator for Italian Excel
             $headers = array(
                 'Data Evento',
                 'Cliente',
@@ -684,7 +685,7 @@ class Disco747_Admin {
                 'Acconto',
                 'Stato'
             );
-            fwrite($output, implode("\t", $headers) . "\n");
+            fputcsv($output, $headers, ';', '"', '\\');
 
             // Data rows
             foreach ($preventivi as $prev) {
@@ -703,12 +704,7 @@ class Disco747_Admin {
                     strtoupper($prev['stato'] ?? '')
                 );
                 
-                // Escape tabs and newlines in data
-                $row = array_map(function($cell) {
-                    return str_replace(array("\t", "\n", "\r"), ' ', $cell);
-                }, $row);
-                
-                fwrite($output, implode("\t", $row) . "\n");
+                fputcsv($output, $row, ';', '"', '\\');
             }
 
             fclose($output);
@@ -752,7 +748,7 @@ class Disco747_Admin {
             $parts[] = date('Y-m-d_His');
         }
 
-        return implode('_', $parts) . '.xls';
+        return implode('_', $parts) . '.csv';
     }
 
     public function show_admin_notices() {
