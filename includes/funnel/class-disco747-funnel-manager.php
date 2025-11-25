@@ -135,10 +135,18 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        // ✅ FIX: NON inviare email funnel pre-conferma a preventivi già confermati
+        // ✅ FIX: Verifica stato corretto per tipo di funnel
+        // - pre_conferma: deve essere 'attivo'
+        // - pre_evento: deve essere 'confermato'
         if ($tracking->funnel_type === 'pre_conferma' && $preventivo->stato !== 'attivo') {
             error_log("[747Disco-Funnel] ⚠️ SKIP: Preventivo #{$preventivo->id} ha stato '{$preventivo->stato}' (non attivo) - Funnel pre-conferma stoppato");
             $this->stop_funnel($tracking->preventivo_id, 'pre_conferma');
+            return false;
+        }
+        
+        if ($tracking->funnel_type === 'pre_evento' && $preventivo->stato !== 'confermato') {
+            error_log("[747Disco-Funnel] ⚠️ SKIP: Preventivo #{$preventivo->id} ha stato '{$preventivo->stato}' (non confermato) - Funnel pre-evento stoppato");
+            $this->stop_funnel($tracking->preventivo_id, 'pre_evento');
             return false;
         }
         
@@ -671,8 +679,9 @@ class Disco747_Funnel_Manager {
     public function get_pending_sends() {
         global $wpdb;
         
-        // ✅ FIX: Invia email funnel SOLO a preventivi in stato "attivo"
-        // Esclude: confermati, annullati, e qualsiasi altro stato
+        // ✅ FIX: Filtra per stato in base al tipo di funnel
+        // - pre_conferma: solo preventivi 'attivo'
+        // - pre_evento: solo preventivi 'confermato'
         return $wpdb->get_results("
             SELECT t.*, p.nome_cliente, p.email, p.telefono, p.stato
             FROM {$this->tracking_table} t
@@ -680,7 +689,10 @@ class Disco747_Funnel_Manager {
             WHERE t.status = 'active' 
               AND t.next_send_at IS NOT NULL
               AND t.next_send_at <= NOW()
-              AND p.stato = 'attivo'
+              AND (
+                (t.funnel_type = 'pre_conferma' AND p.stato = 'attivo')
+                OR (t.funnel_type = 'pre_evento' AND p.stato = 'confermato')
+              )
             ORDER BY t.next_send_at ASC
         ");
     }
