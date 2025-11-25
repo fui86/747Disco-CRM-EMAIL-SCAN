@@ -661,8 +661,8 @@ class Disco747_Admin {
             // Sanitize filename for header (remove any potentially dangerous characters)
             $safe_filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $filename);
             
-            // Output CSV file with semicolon separator (Excel default for Italian locale)
-            header('Content-Type: text/csv; charset=utf-8');
+            // Output CSV file optimized for Excel
+            header('Content-Type: application/vnd.ms-excel; charset=utf-8');
             header('Content-Disposition: attachment; filename="' . $safe_filename . '"');
             header('Cache-Control: max-age=0');
             header('Pragma: public');
@@ -671,6 +671,9 @@ class Disco747_Admin {
             
             // UTF-8 BOM for Excel compatibility
             fwrite($output, "\xEF\xBB\xBF");
+            
+            // Excel separator directive - tells Excel to use semicolon as delimiter
+            fwrite($output, "sep=;\n");
             
             // Headers - use semicolon separator for Italian Excel
             $headers = array(
@@ -685,7 +688,7 @@ class Disco747_Admin {
                 'Acconto',
                 'Stato'
             );
-            fputcsv($output, $headers, ';', '"', '\\');
+            fputcsv($output, $headers, ';');
 
             // Data rows
             foreach ($preventivi as $prev) {
@@ -704,7 +707,7 @@ class Disco747_Admin {
                     strtoupper($prev['stato'] ?? '')
                 );
                 
-                fputcsv($output, $row, ';', '"', '\\');
+                fputcsv($output, $row, ';');
             }
 
             fclose($output);
