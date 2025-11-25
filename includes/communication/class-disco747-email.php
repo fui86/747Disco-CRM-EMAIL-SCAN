@@ -144,11 +144,49 @@ class Disco747_Email {
         $extra1_importo = floatval($preventivo_data['extra1_importo'] ?? 0);
         $extra2_importo = floatval($preventivo_data['extra2_importo'] ?? 0);
         $extra3_importo = floatval($preventivo_data['extra3_importo'] ?? 0);
-        $extra_totale = $extra1_importo + $extra2_importo + $extra3_importo;
-        
-        // Calcola totale con extra
-        $importo_base = floatval($preventivo_data['importo_preventivo'] ?? 0);
-        $totale_con_extra = $importo_base + $extra_totale;
+
+        // Calcola extra totale (solo se hanno importo > 0)
+        $extra_totale = 0;
+        if (!empty($preventivo_data['extra1']) && $extra1_importo > 0) {
+            $extra_totale += $extra1_importo;
+        }
+        if (!empty($preventivo_data['extra2']) && $extra2_importo > 0) {
+            $extra_totale += $extra2_importo;
+        }
+        if (!empty($preventivo_data['extra3']) && $extra3_importo > 0) {
+            $extra_totale += $extra3_importo;
+        }
+
+        // ✅ CALCOLO COME PDF GENERATOR - ALLINEAMENTO COMPLETO
+        $importo_preventivo = floatval($preventivo_data['importo_preventivo'] ?? $preventivo_data['importo_totale'] ?? 0);
+        $acconto = floatval($preventivo_data['acconto'] ?? 0);
+
+        // SCONTO MENU in base al tipo di menu (come in class-disco747-pdf.php linea 121-129)
+        $sconti_menu = array(
+            'Menu 7' => 400,
+            'Menu 7-4' => 500,
+            'Menu 74' => 500,
+            'Menu 7-4-7' => 600,
+            'Menu 747' => 600
+        );
+        $tipo_menu = $preventivo_data['tipo_menu'] ?? 'Menu 7';
+        $sconto_menu = $sconti_menu[$tipo_menu] ?? 400;
+
+        // CALCOLI FINALI (formula IDENTICA al PDF generator)
+        $totale_parziale = $importo_preventivo + $sconto_menu + $extra_totale; // Totale teorico con sconto
+        $totale = $importo_preventivo + $extra_totale; // Totale effettivo da pagare
+        $saldo = $totale - $acconto;
+
+        // Log per debug
+        $this->log('========== CALCOLI EMAIL (allineati a PDF) ==========');
+        $this->log('  - Importo Base: ' . $importo_preventivo);
+        $this->log('  - Sconto Menu (' . $tipo_menu . '): ' . $sconto_menu);
+        $this->log('  - Extra Totale: ' . $extra_totale);
+        $this->log('  - Totale Parziale (barrato): ' . $totale_parziale);
+        $this->log('  - Totale (finale): ' . $totale);
+        $this->log('  - Acconto: ' . $acconto);
+        $this->log('  - Saldo: ' . $saldo);
+        $this->log('=====================================================');
         
         // ✅ LISTA UFFICIALE: Prepara ESATTAMENTE i placeholder richiesti
         $template_vars = array(
@@ -170,12 +208,32 @@ class Disco747_Email {
             'menu' => $preventivo_data['tipo_menu'] ?? '',
             'tipo_menu' => $preventivo_data['tipo_menu'] ?? '',
             
-            // === IMPORTI ===
-            'importo_totale' => $this->format_currency($importo_base),
-            'importo_preventivo' => $this->format_currency($importo_base),
-            'totale' => $this->format_currency($totale_con_extra),
-            'acconto' => $this->format_currency($preventivo_data['acconto'] ?? 0),
-            'saldo' => $this->format_currency($totale_con_extra - floatval($preventivo_data['acconto'] ?? 0)),
+            // === IMPORTI - ALLINEATI AL PDF ===
+            'importo_totale' => $this->format_currency($importo_preventivo),
+            'importo_preventivo' => $this->format_currency($importo_preventivo),
+
+            // ✅ AGGIUNTI: Placeholder per sconto menu (usati nei template PDF)
+            'sconto_menu' => $sconto_menu,
+            'sconto_allinclusive' => $this->format_currency($sconto_menu),
+            'sconto_allinclusive_formatted' => $this->format_currency($sconto_menu),
+
+            // ✅ AGGIUNTI: Totale parziale barrato (importo base + sconto menu + extra)
+            'totale_parziale' => $this->format_currency($totale_parziale),
+            'totale_parziale_raw' => $totale_parziale,
+
+            // Totale Effettivo (importo base + extra) - CORRETTO
+            'totale' => $this->format_currency($totale),
+            'totale_raw' => $totale,
+            'totale_lordo' => $this->format_currency($totale),
+            'totale_finale' => $this->format_currency($totale),
+
+            // Acconto e Saldo - CORRETTI (calcolati sul totale finale)
+            'acconto' => $this->format_currency($acconto),
+            'acconto_raw' => $acconto,
+            'acconto_formatted' => $this->format_currency($acconto),
+
+            'saldo' => $this->format_currency($saldo),
+            'saldo_raw' => $saldo,
             
             // === EXTRA ===
             'extra1' => $preventivo_data['extra1'] ?? '',
