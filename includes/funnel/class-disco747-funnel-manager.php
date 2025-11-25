@@ -217,8 +217,23 @@ class Disco747_Funnel_Manager {
         
         // ✅ FIX: Se non c'è un prossimo step, completa il funnel immediatamente
         if (!$next_step_data) {
-            // Non c'è un prossimo step - completa il funnel
-            $this->complete_funnel($tracking_id);
+            // Non c'è un prossimo step - salva i log e completa il funnel
+            $wpdb->update(
+                $this->tracking_table,
+                array(
+                    'current_step' => $next_step_number,
+                    'last_sent_at' => current_time('mysql'),
+                    'emails_log' => json_encode($emails_log),
+                    'whatsapp_log' => json_encode($whatsapp_log),
+                    'status' => 'completed',
+                    'completed_at' => current_time('mysql'),
+                    'next_send_at' => null
+                ),
+                array('id' => $tracking_id),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+            
             error_log("[747Disco-Funnel] ✅ Step {$next_step_number} inviato (ultimo step) - Funnel completato per tracking #{$tracking_id}");
             return true;
         }
