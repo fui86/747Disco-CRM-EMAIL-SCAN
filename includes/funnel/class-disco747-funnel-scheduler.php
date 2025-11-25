@@ -183,7 +183,13 @@ class Disco747_Funnel_Scheduler {
         error_log("[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Preventivo #{$preventivo_id} confermato - Stop funnel pre-conferma");
         
         // Stoppa il funnel pre-conferma
-        $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        $result = $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        
+        if ($result) {
+            error_log("[747Disco-Funnel-Scheduler] ✅ Funnel pre-conferma stoppato con successo per preventivo #{$preventivo_id}");
+        } else {
+            error_log("[747Disco-Funnel-Scheduler] ⚠️ Nessun funnel attivo trovato per preventivo #{$preventivo_id}");
+        }
     }
     
     /**

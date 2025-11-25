@@ -135,6 +135,15 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
+        // ✅ FIX: NON inviare email funnel pre-conferma a preventivi già confermati
+        if ($tracking->funnel_type === 'pre_conferma' && $preventivo->stato !== 'attivo') {
+            error_log("[747Disco-Funnel] ⚠️ SKIP: Preventivo #{$preventivo->id} ha stato '{$preventivo->stato}' (non attivo) - Funnel pre-conferma stoppato");
+            $this->stop_funnel($tracking->preventivo_id, 'pre_conferma');
+            return false;
+        }
+        
+        error_log("[747Disco-Funnel] ✅ Verifica stato: Preventivo #{$preventivo->id} - Stato: '{$preventivo->stato}' - Funnel: '{$tracking->funnel_type}'");
+        
         $next_step_number = $tracking->current_step + 1;
         $step = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->sequences_table} 
