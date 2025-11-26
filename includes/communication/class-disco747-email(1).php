@@ -1,15 +1,9 @@
 <?php
 /**
  * Email Handler Class - 747 Disco CRM
- * VERSIONE CORRETTA v11.9.0 - FIX CALCOLI TOTALI PDF ALLEGATO
+ * VERSIONE CORRETTA v11.8.0 - FIX PLACEHOLDER OMAGGI & EXTRA
  * 
- * MODIFICHE v11.9.0:
- * ✅ Allineamento calcoli totali al PDF Generator
- * ✅ Aggiunti placeholder sconto_allinclusive_formatted
- * ✅ Aggiunti placeholder totale_parziale (barrato)
- * ✅ Corretti calcoli acconto e saldo
- * 
- * MODIFICHE v11.8.0:
+ * MODIFICHE:
  * ✅ Aggiunti placeholder omaggio1, omaggio2, omaggio3
  * ✅ Aggiunti placeholder extra1, extra2, extra3
  * ✅ Aggiunti importi extra1_importo, extra2_importo, extra3_importo formattati
@@ -17,7 +11,7 @@
  * 
  * @package    Disco747_CRM
  * @subpackage Communication
- * @since      11.9.0
+ * @since      11.8.0
  * @author     747 Disco Team
  */
 
@@ -54,7 +48,7 @@ class Disco747_Email {
         );
         
         $this->setup_hooks();
-        $this->log('Email Handler v11.9.0 inizializzato - Calcoli allineati a PDF Generator');
+        $this->log('Email Handler v11.8.0 inizializzato con placeholder omaggi & extra');
     }
 
     /**
@@ -132,7 +126,7 @@ class Disco747_Email {
     }
 
     /**
-     * ✅ VERSIONE CORRETTA v11.9.0: Prepara i dati per l'email con calcoli allineati al PDF Generator
+     * ✅ VERSIONE CORRETTA: Prepara i dati per l'email con TUTTI i placeholder
      * 
      * @param array $preventivo_data Dati preventivo
      * @param array $options Opzioni
@@ -150,49 +144,11 @@ class Disco747_Email {
         $extra1_importo = floatval($preventivo_data['extra1_importo'] ?? 0);
         $extra2_importo = floatval($preventivo_data['extra2_importo'] ?? 0);
         $extra3_importo = floatval($preventivo_data['extra3_importo'] ?? 0);
-
-        // Calcola extra totale (solo se hanno importo > 0)
-        $extra_totale = 0;
-        if (!empty($preventivo_data['extra1']) && $extra1_importo > 0) {
-            $extra_totale += $extra1_importo;
-        }
-        if (!empty($preventivo_data['extra2']) && $extra2_importo > 0) {
-            $extra_totale += $extra2_importo;
-        }
-        if (!empty($preventivo_data['extra3']) && $extra3_importo > 0) {
-            $extra_totale += $extra3_importo;
-        }
-
-        // ✅ CALCOLO COME PDF GENERATOR - ALLINEAMENTO COMPLETO
-        $importo_preventivo = floatval($preventivo_data['importo_preventivo'] ?? $preventivo_data['importo_totale'] ?? 0);
-        $acconto = floatval($preventivo_data['acconto'] ?? 0);
-
-        // SCONTO MENU in base al tipo di menu (come in class-disco747-pdf.php linea 121-129)
-        $sconti_menu = array(
-            'Menu 7' => 400,
-            'Menu 7-4' => 500,
-            'Menu 74' => 500,
-            'Menu 7-4-7' => 600,
-            'Menu 747' => 600
-        );
-        $tipo_menu = $preventivo_data['tipo_menu'] ?? 'Menu 7';
-        $sconto_menu = $sconti_menu[$tipo_menu] ?? 400;
-
-        // CALCOLI FINALI (formula IDENTICA al PDF generator)
-        $totale_parziale = $importo_preventivo + $sconto_menu + $extra_totale; // Totale teorico con sconto
-        $totale = $importo_preventivo + $extra_totale; // Totale effettivo da pagare
-        $saldo = $totale - $acconto;
-
-        // Log per debug
-        $this->log('========== CALCOLI EMAIL (allineati a PDF) ==========');
-        $this->log('  - Importo Base: ' . $importo_preventivo);
-        $this->log('  - Sconto Menu (' . $tipo_menu . '): ' . $sconto_menu);
-        $this->log('  - Extra Totale: ' . $extra_totale);
-        $this->log('  - Totale Parziale (barrato): ' . $totale_parziale);
-        $this->log('  - Totale (finale): ' . $totale);
-        $this->log('  - Acconto: ' . $acconto);
-        $this->log('  - Saldo: ' . $saldo);
-        $this->log('=====================================================');
+        $extra_totale = $extra1_importo + $extra2_importo + $extra3_importo;
+        
+        // Calcola totale con extra
+        $importo_base = floatval($preventivo_data['importo_preventivo'] ?? 0);
+        $totale_con_extra = $importo_base + $extra_totale;
         
         // ✅ LISTA UFFICIALE: Prepara ESATTAMENTE i placeholder richiesti
         $template_vars = array(
@@ -214,32 +170,12 @@ class Disco747_Email {
             'menu' => $preventivo_data['tipo_menu'] ?? '',
             'tipo_menu' => $preventivo_data['tipo_menu'] ?? '',
             
-            // === IMPORTI - ALLINEATI AL PDF ===
-            'importo_totale' => $this->format_currency($importo_preventivo),
-            'importo_preventivo' => $this->format_currency($importo_preventivo),
-
-            // ✅ AGGIUNTI: Placeholder per sconto menu (usati nei template PDF)
-            'sconto_menu' => $sconto_menu,
-            'sconto_allinclusive' => $this->format_currency($sconto_menu),
-            'sconto_allinclusive_formatted' => $this->format_currency($sconto_menu),
-
-            // ✅ AGGIUNTI: Totale parziale barrato (importo base + sconto menu + extra)
-            'totale_parziale' => $this->format_currency($totale_parziale),
-            'totale_parziale_raw' => $totale_parziale,
-
-            // Totale Effettivo (importo base + extra) - CORRETTO
-            'totale' => $this->format_currency($totale),
-            'totale_raw' => $totale,
-            'totale_lordo' => $this->format_currency($totale),
-            'totale_finale' => $this->format_currency($totale),
-
-            // Acconto e Saldo - CORRETTI (calcolati sul totale finale)
-            'acconto' => $this->format_currency($acconto),
-            'acconto_raw' => $acconto,
-            'acconto_formatted' => $this->format_currency($acconto),
-
-            'saldo' => $this->format_currency($saldo),
-            'saldo_raw' => $saldo,
+            // === IMPORTI ===
+            'importo_totale' => $this->format_currency($importo_base),
+            'importo_preventivo' => $this->format_currency($importo_base),
+            'totale' => $this->format_currency($totale_con_extra),
+            'acconto' => $this->format_currency($preventivo_data['acconto'] ?? 0),
+            'saldo' => $this->format_currency($totale_con_extra - floatval($preventivo_data['acconto'] ?? 0)),
             
             // === EXTRA ===
             'extra1' => $preventivo_data['extra1'] ?? '',
@@ -275,8 +211,6 @@ class Disco747_Email {
                               ($template_vars['extra2'] ? '✓' : '✗') . ' ' .
                               ($template_vars['extra3'] ? '✓' : '✗'));
         $this->log('Extra totale: ' . $template_vars['extra_totale']);
-        $this->log('Totale parziale: ' . $template_vars['totale_parziale']);
-        $this->log('Sconto menu: ' . $template_vars['sconto_allinclusive_formatted']);
         $this->log('==============================================');
         
         // Oggetto email dal template salvato
@@ -356,15 +290,15 @@ class Disco747_Email {
      */
     private function get_default_template($vars) {
         // Estrai variabili
-        $nome = esc_html($vars['nome'] ?? '');
-        $cognome = esc_html($vars['cognome'] ?? '');
+        $nome = esc_html($vars['nome_referente']);
+        $cognome = esc_html($vars['cognome_referente']);
         $data_evento = esc_html($vars['data_evento']);
         $tipo_evento = esc_html($vars['tipo_evento']);
         $numero_invitati = esc_html($vars['numero_invitati']);
         $tipo_menu = esc_html($vars['tipo_menu']);
         $orario_inizio = esc_html($vars['orario_inizio']);
         $orario_fine = esc_html($vars['orario_fine']);
-        $importo = esc_html($vars['totale']); // ✅ Usa totale finale
+        $importo = esc_html($vars['importo']);
         $prezzo_extra = esc_html($vars['prezzo_extra_persona']);
         
         // Costruisci lista omaggi
@@ -517,7 +451,7 @@ class Disco747_Email {
                     <span style="font-size: 24px; color: #c28a4d;">€450 di omaggi GRATIS!</span>
                 </p>
                 <a href="https://wa.me/393331234567?text=Salve%2C%20vorrei%20confermare%20il%20preventivo%20per%20' . urlencode($tipo_evento) . '" 
-                   style="display: inline-block; background: #25d366; color: white; padding: 18px 45px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 17px; margin: 10px 0; box-shadow: 0 4px 12px rgba(37,211,102,0.3);">
+                   style="display: inline-block; background: #25d366; color: white; padding: 18px 45px; text-decoration: none; border-radius: 30px; font-weight: bold; font-size: 17px; margin: 10px 0; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);">
                     💬 Conferma Subito su WhatsApp
                 </a>
                 <p style="margin: 15px 0 0; color: #666; font-size: 13px;">

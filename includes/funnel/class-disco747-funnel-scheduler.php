@@ -183,7 +183,13 @@ class Disco747_Funnel_Scheduler {
         error_log("[747Disco-Funnel-Scheduler] Ã¢Å“â€¦ Preventivo #{$preventivo_id} confermato - Stop funnel pre-conferma");
         
         // Stoppa il funnel pre-conferma
-        $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        $result = $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        
+        if ($result) {
+            error_log("[747Disco-Funnel-Scheduler] ✅ Funnel pre-conferma stoppato con successo per preventivo #{$preventivo_id}");
+        } else {
+            error_log("[747Disco-Funnel-Scheduler] ⚠️ Nessun funnel attivo trovato per preventivo #{$preventivo_id}");
+        }
     }
     
     /**
@@ -194,6 +200,10 @@ class Disco747_Funnel_Scheduler {
         
         echo "<h2>Test Funnel Scheduler</h2>";
         
+        
+        echo "<h3>0. Debug Report Tracking</h3>";
+        $this->funnel_manager->debug_tracking_report();
+        echo "<p>✅ Report generato nei log</p>";
         echo "<h3>1. Check Invii Pending</h3>";
         $this->process_pending_sends();
         
@@ -229,10 +239,16 @@ class Disco747_Funnel_Scheduler {
      * Stoppa il funnel pre-conferma se attivo
      */
     public function handle_preventivo_cancelled($preventivo_id) {
-        error_log("[747Disco-Funnel-Scheduler] CANCEL Preventivo #{$preventivo_id} annullato - Stop funnel pre-conferma");
+        error_log("[747Disco-Funnel-Scheduler] ❌ Preventivo #{$preventivo_id} annullato - Stop funnel pre-conferma");
         
         // Stoppa il funnel pre-conferma
-        $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        $result = $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        
+        if ($result) {
+            error_log("[747Disco-Funnel-Scheduler] ✅ Funnel pre-conferma stoppato con successo per preventivo #{$preventivo_id}");
+        } else {
+            error_log("[747Disco-Funnel-Scheduler] ⚠️ Nessun funnel attivo trovato per preventivo #{$preventivo_id}");
+        }
     }
     
     /**

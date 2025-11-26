@@ -135,23 +135,6 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        // ✅ FIX: Verifica stato corretto per tipo di funnel
-        // - pre_conferma: deve essere 'attivo'
-        // - pre_evento: deve essere 'confermato'
-        if ($tracking->funnel_type === 'pre_conferma' && $preventivo->stato !== 'attivo') {
-            error_log("[747Disco-Funnel] ⚠️ SKIP: Preventivo #{$preventivo->id} ha stato '{$preventivo->stato}' (non attivo) - Funnel pre-conferma stoppato");
-            $this->stop_funnel($tracking->preventivo_id, 'pre_conferma');
-            return false;
-        }
-        
-        if ($tracking->funnel_type === 'pre_evento' && $preventivo->stato !== 'confermato') {
-            error_log("[747Disco-Funnel] ⚠️ SKIP: Preventivo #{$preventivo->id} ha stato '{$preventivo->stato}' (non confermato) - Funnel pre-evento stoppato");
-            $this->stop_funnel($tracking->preventivo_id, 'pre_evento');
-            return false;
-        }
-        
-        error_log("[747Disco-Funnel] ✅ Verifica stato: Preventivo #{$preventivo->id} - Stato: '{$preventivo->stato}' - Funnel: '{$tracking->funnel_type}'");
-        
         $next_step_number = $tracking->current_step + 1;
         $step = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM {$this->sequences_table} 
@@ -213,29 +196,6 @@ class Disco747_Funnel_Manager {
                 $days_diff = $next_step_data->days_offset - $step->days_offset;
                 $next_send_at = date('Y-m-d', strtotime("+{$days_diff} days")) . ' ' . $send_time;
             }
-        }
-        
-        // ✅ FIX: Se non c'è un prossimo step, completa il funnel immediatamente
-        if (!$next_step_data) {
-            // Non c'è un prossimo step - salva i log e completa il funnel
-            $wpdb->update(
-                $this->tracking_table,
-                array(
-                    'current_step' => $next_step_number,
-                    'last_sent_at' => current_time('mysql'),
-                    'emails_log' => json_encode($emails_log),
-                    'whatsapp_log' => json_encode($whatsapp_log),
-                    'status' => 'completed',
-                    'completed_at' => current_time('mysql'),
-                    'next_send_at' => null
-                ),
-                array('id' => $tracking_id),
-                array('%d', '%s', '%s', '%s', '%s', '%s', '%s'),
-                array('%d')
-            );
-            
-            error_log("[747Disco-Funnel] ✅ Step {$next_step_number} inviato (ultimo step) - Funnel completato per tracking #{$tracking_id}");
-            return true;
         }
         
         $wpdb->update(
@@ -656,7 +616,7 @@ class Disco747_Funnel_Manager {
     public function stop_funnel($preventivo_id, $funnel_type) {
         global $wpdb;
         
-        $updated = $wpdb->update(
+        $wpdb->update(
             $this->tracking_table,
             array(
                 'status' => 'stopped',
@@ -665,20 +625,15 @@ class Disco747_Funnel_Manager {
             ),
             array(
                 'preventivo_id' => $preventivo_id,
-                'funnel_type' => $funnel_type,
-                'status' => 'active'  // Solo i tracking attivi
+                'funnel_type' => $funnel_type
             ),
             array('%s', '%s', '%s'),
-            array('%d', '%s', '%s')
+            array('%d', '%s')
         );
         
-        if ($updated) {
-            error_log("[747Disco-Funnel] ✅ Funnel stoppato per preventivo #{$preventivo_id} (tipo: {$funnel_type})");
-            return true;
-        } else {
-            error_log("[747Disco-Funnel] ℹ️ Nessun funnel attivo da stoppare per preventivo #{$preventivo_id} (tipo: {$funnel_type})");
-            return false;
-        }
+        error_log("[747Disco-Funnel] Funnel stoppato per preventivo #{$preventivo_id}");
+        
+        return true;
     }
     
     /**
@@ -687,7 +642,7 @@ class Disco747_Funnel_Manager {
     public function get_active_trackings($funnel_type = null) {
         global $wpdb;
         
-        $sql = "SELECT t.*, p.nome_cliente, p.email, p.telefono, p.tipo_evento, p.data_evento, p.stato
+        $sql = "SELECT t.*, p.nome_cliente, p.email, p.telefono, p.tipo_evento, p.data_evento
                 FROM {$this->tracking_table} t
                 LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
                 WHERE t.status = 'active'";
@@ -698,17 +653,7 @@ class Disco747_Funnel_Manager {
         
         $sql .= " ORDER BY t.next_send_at ASC";
         
-        $results = $wpdb->get_results($sql);
-        
-        // Debug logging: mostra tutti i tracking attivi con i loro stati
-        if (!empty($results)) {
-            error_log("[747Disco-Funnel] 📊 get_active_trackings() trovati " . count($results) . " tracking attivi:");
-            foreach ($results as $tracking) {
-                error_log("[747Disco-Funnel]   - Tracking #{$tracking->id}: Preventivo #{$tracking->preventivo_id}, Funnel: {$tracking->funnel_type}, Stato preventivo: " . ($tracking->stato ?? 'NULL'));
-            }
-        }
-        
-        return $results;
+        return $wpdb->get_results($sql);
     }
     
     /**
@@ -717,142 +662,17 @@ class Disco747_Funnel_Manager {
     public function get_pending_sends() {
         global $wpdb;
         
-        // ✅ FIX: Filtra per stato in base al tipo di funnel
-        // - pre_conferma: solo preventivi 'attivo'
-        // - pre_evento: solo preventivi 'confermato'
-        $results = $wpdb->get_results("
+        // ✅ FIX: Invia email funnel SOLO a preventivi in stato "attivo"
+        // Esclude: confermati, annullati, e qualsiasi altro stato
+        return $wpdb->get_results("
             SELECT t.*, p.nome_cliente, p.email, p.telefono, p.stato
             FROM {$this->tracking_table} t
             LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
             WHERE t.status = 'active' 
               AND t.next_send_at IS NOT NULL
               AND t.next_send_at <= NOW()
-              AND (
-                (t.funnel_type = 'pre_conferma' AND p.stato = 'attivo')
-                OR (t.funnel_type = 'pre_evento' AND p.stato = 'confermato')
-              )
+              AND p.stato = 'attivo'
             ORDER BY t.next_send_at ASC
         ");
-        
-        // Debug logging: mostra cosa viene trovato
-        if (!empty($results)) {
-            error_log("[747Disco-Funnel] 📋 get_pending_sends() trovati " . count($results) . " tracking:");
-            foreach ($results as $tracking) {
-                error_log("[747Disco-Funnel]   - Tracking #{$tracking->id}: Preventivo #{$tracking->preventivo_id}, Funnel: {$tracking->funnel_type}, Stato: {$tracking->stato}");
-            }
-        }
-        
-        return $results;
-    }
-    
-    /**
-     * Debug: Report completo tracking attivi con stato preventivo
-     * Utile per diagnosticare problemi con invii email
-     */
-    public function debug_tracking_report() {
-        global $wpdb;
-        
-        error_log("[747Disco-Funnel] 🔍 === DEBUG REPORT TRACKING ATTIVI ===");
-        
-        // Conta tracking per funnel_type e stato preventivo
-        $report = $wpdb->get_results("
-            SELECT 
-                t.funnel_type,
-                p.stato as preventivo_stato,
-                COUNT(*) as count
-            FROM {$this->tracking_table} t
-            LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
-            WHERE t.status = 'active'
-            GROUP BY t.funnel_type, p.stato
-            ORDER BY t.funnel_type, p.stato
-        ");
-        
-        foreach ($report as $row) {
-            $stato = $row->preventivo_stato ?? 'NULL';
-            error_log("[747Disco-Funnel]   Funnel: {$row->funnel_type}, Stato: {$stato}, Count: {$row->count}");
-        }
-        
-        // Mostra tracking che NON dovrebbero essere attivi
-        $problematic = $wpdb->get_results("
-            SELECT t.id, t.preventivo_id, t.funnel_type, p.stato
-            FROM {$this->tracking_table} t
-            LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
-            WHERE t.status = 'active'
-              AND (
-                (t.funnel_type = 'pre_conferma' AND p.stato != 'attivo')
-                OR (t.funnel_type = 'pre_evento' AND p.stato != 'confermato')
-              )
-        ");
-        
-        if (!empty($problematic)) {
-            error_log("[747Disco-Funnel] ⚠️ TROVATI " . count($problematic) . " TRACKING PROBLEMATICI (dovrebbero essere stoppati):");
-            foreach ($problematic as $t) {
-                error_log("[747Disco-Funnel]   - Tracking #{$t->id}: Preventivo #{$t->preventivo_id}, Funnel: {$t->funnel_type}, Stato: {$t->stato} ❌");
-            }
-        } else {
-            error_log("[747Disco-Funnel] ✅ Nessun tracking problematico trovato");
-        }
-        
-        // Check per tracking "stuck" (attivi ma senza next_send_at)
-        $stuck = $wpdb->get_results("
-            SELECT t.id, t.preventivo_id, t.funnel_type, t.current_step, p.stato
-            FROM {$this->tracking_table} t
-            LEFT JOIN {$this->preventivi_table} p ON t.preventivo_id = p.id
-            WHERE t.status = 'active'
-              AND t.next_send_at IS NULL
-        ");
-        
-        if (!empty($stuck)) {
-            error_log("[747Disco-Funnel] ⚠️ TROVATI " . count($stuck) . " TRACKING STUCK (attivi ma senza next_send_at):");
-            foreach ($stuck as $t) {
-                error_log("[747Disco-Funnel]   - Tracking #{$t->id}: Preventivo #{$t->preventivo_id}, Funnel: {$t->funnel_type}, Step: {$t->current_step}, Stato preventivo: {$t->stato} ❌");
-            }
-        }
-        
-        error_log("[747Disco-Funnel] === FINE DEBUG REPORT ===");
-    }
-    
-    /**
-     * Ripara tracking "stuck" (attivi ma senza next_send_at)
-     * Questi tracking hanno completato tutti gli step ma non sono stati marcati come completati
-     */
-    public function fix_stuck_trackings() {
-        global $wpdb;
-        
-        // Trova tracking stuck
-        $stuck = $wpdb->get_results("
-            SELECT t.id, t.preventivo_id, t.funnel_type, t.current_step
-            FROM {$this->tracking_table} t
-            WHERE t.status = 'active'
-              AND t.next_send_at IS NULL
-        ");
-        
-        if (empty($stuck)) {
-            error_log("[747Disco-Funnel] ✅ Nessun tracking stuck da riparare");
-            return 0;
-        }
-        
-        $fixed = 0;
-        foreach ($stuck as $tracking) {
-            // Verifica se c'è un prossimo step configurato
-            $next_step = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$this->sequences_table} 
-                 WHERE funnel_type = %s AND step_number = %d AND active = 1",
-                $tracking->funnel_type,
-                $tracking->current_step + 1
-            ));
-            
-            if (!$next_step) {
-                // Non c'è un prossimo step - il funnel dovrebbe essere completato
-                $this->complete_funnel($tracking->id);
-                error_log("[747Disco-Funnel] 🔧 Riparato tracking #{$tracking->id}: marcato come completato");
-                $fixed++;
-            } else {
-                error_log("[747Disco-Funnel] ⚠️ Tracking #{$tracking->id} ha un next_step configurato ma next_send_at=NULL - richiede indagine manuale");
-            }
-        }
-        
-        error_log("[747Disco-Funnel] ✅ Riparati {$fixed} tracking stuck");
-        return $fixed;
     }
 }
