@@ -239,10 +239,16 @@ class Disco747_Funnel_Scheduler {
      * Stoppa il funnel pre-conferma se attivo
      */
     public function handle_preventivo_cancelled($preventivo_id) {
-        error_log("[747Disco-Funnel-Scheduler] CANCEL Preventivo #{$preventivo_id} annullato - Stop funnel pre-conferma");
+        error_log("[747Disco-Funnel-Scheduler] ❌ Preventivo #{$preventivo_id} annullato - Stop funnel pre-conferma");
         
         // Stoppa il funnel pre-conferma
-        $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        $result = $this->funnel_manager->stop_funnel($preventivo_id, 'pre_conferma');
+        
+        if ($result) {
+            error_log("[747Disco-Funnel-Scheduler] ✅ Funnel pre-conferma stoppato con successo per preventivo #{$preventivo_id}");
+        } else {
+            error_log("[747Disco-Funnel-Scheduler] ⚠️ Nessun funnel attivo trovato per preventivo #{$preventivo_id}");
+        }
     }
     
     /**

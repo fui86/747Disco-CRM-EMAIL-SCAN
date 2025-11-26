@@ -656,7 +656,7 @@ class Disco747_Funnel_Manager {
     public function stop_funnel($preventivo_id, $funnel_type) {
         global $wpdb;
         
-        $wpdb->update(
+        $updated = $wpdb->update(
             $this->tracking_table,
             array(
                 'status' => 'stopped',
@@ -665,15 +665,20 @@ class Disco747_Funnel_Manager {
             ),
             array(
                 'preventivo_id' => $preventivo_id,
-                'funnel_type' => $funnel_type
+                'funnel_type' => $funnel_type,
+                'status' => 'active'  // Solo i tracking attivi
             ),
             array('%s', '%s', '%s'),
-            array('%d', '%s')
+            array('%d', '%s', '%s')
         );
         
-        error_log("[747Disco-Funnel] Funnel stoppato per preventivo #{$preventivo_id}");
-        
-        return true;
+        if ($updated) {
+            error_log("[747Disco-Funnel] ✅ Funnel stoppato per preventivo #{$preventivo_id} (tipo: {$funnel_type})");
+            return true;
+        } else {
+            error_log("[747Disco-Funnel] ℹ️ Nessun funnel attivo da stoppare per preventivo #{$preventivo_id} (tipo: {$funnel_type})");
+            return false;
+        }
     }
     
     /**
