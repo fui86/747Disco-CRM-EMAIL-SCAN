@@ -620,31 +620,72 @@ final class Disco747_CRM_Plugin {
     }
 
     /**
-     * Cleanup file temporanei vecchi
+     * Cleanup file temporanei vecchi E PDF inviati via email
      */
     public function cleanup_old_files() {
         try {
             $upload_dir = wp_upload_dir();
+            $total_cleaned = 0;
+            
+            // 1️⃣ CLEANUP FILE TEMPORANEI (già esistente - mantieni)
             $temp_dir = $upload_dir['basedir'] . '/preventivi/temp/';
             
             if (is_dir($temp_dir)) {
                 $files = glob($temp_dir . '*');
-                $count = 0;
+                $count_temp = 0;
                 
                 foreach ($files as $file) {
                     if (is_file($file) && (time() - filemtime($file)) > 86400) { // 24 ore
                         if (unlink($file)) {
-                            $count++;
+                            $count_temp++;
                         }
                     }
                 }
                 
-                if ($count > 0) {
-                    $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹ Cleanup: {$count} file temporanei eliminati");
+                if ($count_temp > 0) {
+                    $this->public_log("🗑️ Cleanup TEMP: {$count_temp} file temporanei eliminati");
+                    $total_cleaned += $count_temp;
                 }
             }
+            
+            // 2️⃣ NUOVO: CLEANUP PDF PREVENTIVI INVIATI VIA EMAIL
+            $preventivi_dir = $upload_dir['basedir'] . '/preventivi/';
+            
+            if (is_dir($preventivi_dir)) {
+                $pdf_files = glob($preventivi_dir . '*.pdf');
+                $count_pdf = 0;
+                $retention_days = 7; // Configurabile: elimina PDF dopo 7 giorni
+                $retention_seconds = $retention_days * 86400;
+                
+                foreach ($pdf_files as $pdf_file) {
+                    if (is_file($pdf_file)) {
+                        $file_age = time() - filemtime($pdf_file);
+                        
+                        // Cancella solo PDF più vecchi di $retention_days giorni
+                        if ($file_age > $retention_seconds) {
+                            if (unlink($pdf_file)) {
+                                $count_pdf++;
+                                $this->public_log("��️ PDF eliminato: " . basename($pdf_file) . " (età: " . round($file_age / 86400, 1) . " giorni)");
+                            }
+                        }
+                    }
+                }
+                
+                if ($count_pdf > 0) {
+                    $this->public_log("✅ Cleanup PDF: {$count_pdf} preventivi eliminati (>= {$retention_days} giorni)");
+                    $total_cleaned += $count_pdf;
+                }
+            }
+            
+            // Log finale
+            if ($total_cleaned > 0) {
+                $this->public_log("✅ Cleanup completato: {$total_cleaned} file totali eliminati");
+            } else {
+                $this->public_log("ℹ️ Cleanup eseguito: nessun file da eliminare");
+            }
+            
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore cleanup: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore cleanup: ' . $e->getMessage(), 'ERROR');
         }
     }
 
