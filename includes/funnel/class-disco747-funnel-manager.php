@@ -4,6 +4,7 @@
  * Gestisce la logica del funnel marketing con supporto HTML e anteprima
  * 
  * NOVITA:
+ * - FIX EMOJI: Link WhatsApp con emoji correttamente codificate
  * - Gestione corretta HTML con CSS inline
  * - Anteprima email funzionante
  * - Test invio email
@@ -11,7 +12,7 @@
  * 
  * @package    Disco747_CRM
  * @subpackage Funnel
- * @version    2.0.0
+ * @version    2.1.0
  */
 
 namespace Disco747_CRM\Funnel;
@@ -485,41 +486,24 @@ class Disco747_Funnel_Manager {
             return false;
         }
         
-        $whatsapp_number = preg_replace('/[^0-9+]/', '', $telefono);
-        if (substr($whatsapp_number, 0, 1) !== '+') {
-            $whatsapp_number = '+39' . ltrim($whatsapp_number, '0');
-        }
-        
         $whatsapp_message = $this->replace_variables($step->whatsapp_text, $preventivo);
         
-        // ✅ FIX EMOTICON v12.0.4: NON codificare le emoticon!
-        // WhatsApp Web richiede emoticon grezze (UTF-8), non percent-encoded
-        
-        // Assicura che il testo sia UTF-8 corretto
+        // ✅ FIX EMOJI v2.1.0: Usa rawurlencode per gestire correttamente le emoji
+        // Forza encoding UTF-8
         if (function_exists('mb_convert_encoding')) {
-            $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'UTF-8');
+            $whatsapp_message = mb_convert_encoding($whatsapp_message, 'UTF-8', 'auto');
         }
         
-        // Codifica SOLO caratteri speciali, NON le emoticon
-        $whatsapp_message_encoded = $whatsapp_message;
+        // Pulisce il numero di telefono (rimuove + per l'URL)
+        $whatsapp_number_clean = preg_replace('/[^0-9]/', '', $telefono);
+        if (substr($whatsapp_number_clean, 0, 2) !== '39') {
+            $whatsapp_number_clean = '39' . ltrim($whatsapp_number_clean, '0');
+        }
         
-        // Sostituisci manualmente solo i caratteri che devono essere codificati
-        $whatsapp_message_encoded = str_replace("\r\n", "\n", $whatsapp_message_encoded); // Normalizza a capo
-        $whatsapp_message_encoded = str_replace("\r", "", $whatsapp_message_encoded);     // Rimuovi CR
-        $whatsapp_message_encoded = str_replace("\n", "%0A", $whatsapp_message_encoded);  // A capo → %0A
-        $whatsapp_message_encoded = str_replace(" ", "%20", $whatsapp_message_encoded);   // Spazio → %20
-        $whatsapp_message_encoded = str_replace("!", "%21", $whatsapp_message_encoded);   // ! → %21
-        $whatsapp_message_encoded = str_replace(":", "%3A", $whatsapp_message_encoded);   // : → %3A
-        $whatsapp_message_encoded = str_replace("/", "%2F", $whatsapp_message_encoded);   // / → %2F
-        $whatsapp_message_encoded = str_replace("€", "%E2%82%AC", $whatsapp_message_encoded); // € → %E2%82%AC
-        $whatsapp_message_encoded = str_replace(",", "%2C", $whatsapp_message_encoded);   // , → %2C
+        // Costruisci URL WhatsApp con api.whatsapp.com/send + rawurlencode
+        $whatsapp_url = 'https://api.whatsapp.com/send?phone=' . $whatsapp_number_clean . '&text=' . rawurlencode($whatsapp_message);
         
-        // EMOTICON 🎉 💰 📅 etc. → RESTANO GREZZE (non codificate!)
-        
-        error_log("[747Disco-Funnel] WhatsApp message encoding: emoticon RAW (non percent-encoded)");
-        
-        // Crea URL WhatsApp valido
-        $whatsapp_url = "https://wa.me/{$whatsapp_number}?text={$whatsapp_message_encoded}";
+        error_log("[747Disco-Funnel] ✅ WhatsApp URL generato con emoji correttamente codificate");
         
         $mark_sent_url = admin_url('admin.php?page=disco747-funnel&action=mark_whatsapp_sent&tracking=' . $tracking_id . '&step=' . $step->step_number);
         
