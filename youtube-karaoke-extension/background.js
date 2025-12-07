@@ -56,10 +56,11 @@ async function moveWindowToSecondaryDisplay(tab) {
     }
     
     // Crea una nuova finestra sul secondo monitor con l'URL del video
+    // NON crearla in fullscreen subito, altrimenti ignora left/top
     const newWindow = await chrome.windows.create({
       url: tab.url,
       type: 'popup',  // Tipo popup per non mostrare barra degli indirizzi
-      state: 'fullscreen',  // Direttamente fullscreen
+      state: 'normal',  // Prima crea come normale, poi fullscreen
       left: secondaryDisplay.bounds.left,
       top: secondaryDisplay.bounds.top,
       width: secondaryDisplay.bounds.width,

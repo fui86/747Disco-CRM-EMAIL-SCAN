@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('YouTube Karaoke: Fullscreen attivato nella finestra karaoke');
         sendResponse({success: true});
       }
-    }, 500);
+    }, 1000); // Ridotto a 1 secondo per essere più reattivo
   }
   return true;
 });
@@ -145,7 +145,7 @@ function openVideoInFullscreen() {
             console.log('Fullscreen attivato nella finestra karaoke');
           });
         }
-      }, 2000); // Attende 2 secondi per il caricamento della pagina
+      }, 3000); // Attende 3 secondi per il caricamento e posizionamento della pagina
     } else {
       // Se non c'è un secondo monitor, usa fullscreen normale
       console.log('YouTube Karaoke: Secondo monitor non disponibile, uso fullscreen normale');
