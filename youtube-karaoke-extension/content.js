@@ -148,59 +148,82 @@ document.addEventListener('msfullscreenchange', () => {
   isFullscreenActive = !!document.msFullscreenElement;
 });
 
-// Variabili per gestire il fade-out audio
-let fadeOutInterval = null;
+// Variabili per gestire il fade audio
+let fadeInterval = null;
 let originalVolume = 1.0;
 
-// Funzione per applicare fade-out all'audio
-function applyAudioFadeOut(video) {
+// Funzione per applicare fade-IN all'audio (quando si preme play)
+function applyAudioFadeIn(video) {
   if (!video) return;
   
-  // Salva il volume originale
-  originalVolume = video.volume;
+  // Cancella eventuale fade in corso
+  if (fadeInterval) {
+    clearInterval(fadeInterval);
+    fadeInterval = null;
+  }
   
-  // Durata fade-out: 2 secondi
-  const fadeOutDuration = 2000; // millisecondi
+  // Durata fade-in: 2 secondi
+  const fadeDuration = 2000; // millisecondi
   const steps = 40; // numero di step per un fade smooth
-  const stepDuration = fadeOutDuration / steps;
-  const volumeDecrement = originalVolume / steps;
+  const stepDuration = fadeDuration / steps;
+  const volumeIncrement = originalVolume / steps;
   
   let currentStep = 0;
   
-  // Cancella eventuale fade-out in corso
-  if (fadeOutInterval) {
-    clearInterval(fadeOutInterval);
+  // Inizia da volume 0
+  video.volume = 0;
+  
+  fadeInterval = setInterval(() => {
+    currentStep++;
+    
+    if (currentStep >= steps) {
+      video.volume = originalVolume;
+      clearInterval(fadeInterval);
+      fadeInterval = null;
+      console.log('YouTube Karaoke: Fade-in completato');
+    } else {
+      video.volume = Math.min(originalVolume, volumeIncrement * currentStep);
+    }
+  }, stepDuration);
+  
+  console.log('YouTube Karaoke: Fade-in audio avviato (2 secondi)');
+}
+
+// Funzione per applicare fade-OUT all'audio (quando si preme pause/stop)
+function applyAudioFadeOut(video) {
+  if (!video) return;
+  
+  // Cancella eventuale fade in corso
+  if (fadeInterval) {
+    clearInterval(fadeInterval);
+    fadeInterval = null;
   }
   
-  fadeOutInterval = setInterval(() => {
+  // Salva il volume corrente come punto di partenza
+  const startVolume = video.volume;
+  
+  // Durata fade-out: 2 secondi
+  const fadeDuration = 2000; // millisecondi
+  const steps = 40; // numero di step per un fade smooth
+  const stepDuration = fadeDuration / steps;
+  const volumeDecrement = startVolume / steps;
+  
+  let currentStep = 0;
+  
+  fadeInterval = setInterval(() => {
     currentStep++;
     
     if (currentStep >= steps) {
       video.volume = 0;
-      clearInterval(fadeOutInterval);
-      fadeOutInterval = null;
+      clearInterval(fadeInterval);
+      fadeInterval = null;
       console.log('YouTube Karaoke: Fade-out completato');
     } else {
-      video.volume = Math.max(0, originalVolume - (volumeDecrement * currentStep));
+      video.volume = Math.max(0, startVolume - (volumeDecrement * currentStep));
     }
   }, stepDuration);
   
   console.log('YouTube Karaoke: Fade-out audio avviato (2 secondi)');
-}
-
-// Funzione per ripristinare il volume
-function restoreAudioVolume(video) {
-  if (!video) return;
-  
-  // Cancella eventuale fade-out in corso
-  if (fadeOutInterval) {
-    clearInterval(fadeOutInterval);
-    fadeOutInterval = null;
-  }
-  
-  // Ripristina il volume originale
-  video.volume = originalVolume;
-  console.log('YouTube Karaoke: Volume ripristinato');
 }
 
 // Osserva i cambiamenti dello stato del video (play/pause)
@@ -208,21 +231,36 @@ function monitorVideoState() {
   const video = document.querySelector('video');
   
   if (video) {
+    // Salva il volume originale all'inizio
+    if (video.volume > 0) {
+      originalVolume = video.volume;
+    }
+    
     // Listener per quando il video viene messo in pausa
     video.addEventListener('pause', () => {
       console.log('YouTube Karaoke: Video in pausa, avvio fade-out');
       applyAudioFadeOut(video);
     });
     
-    // Listener per quando il video riprende
-    video.addEventListener('play', () => {
-      console.log('YouTube Karaoke: Video in play, ripristino volume');
-      restoreAudioVolume(video);
+    // Listener per quando viene fermato (ended)
+    video.addEventListener('ended', () => {
+      console.log('YouTube Karaoke: Video terminato, avvio fade-out');
+      applyAudioFadeOut(video);
     });
     
-    // Listener per quando il video viene messo in play (in caso di cambio video)
+    // Listener per quando il video riprende/inizia
+    video.addEventListener('play', () => {
+      console.log('YouTube Karaoke: Video in play, avvio fade-in');
+      applyAudioFadeIn(video);
+    });
+    
+    // Listener per quando il video è effettivamente in riproduzione
     video.addEventListener('playing', () => {
-      restoreAudioVolume(video);
+      // Solo se non c'è già un fade in corso
+      if (!fadeInterval) {
+        console.log('YouTube Karaoke: Video playing, avvio fade-in');
+        applyAudioFadeIn(video);
+      }
     });
     
     console.log('YouTube Karaoke: Monitoraggio stato video attivato');
