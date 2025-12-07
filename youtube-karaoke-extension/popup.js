@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Pulsante per aprire il video a pieno schermo
+  // Pulsante per toggle fullscreen
   fullscreenBtn.addEventListener('click', async () => {
     try {
       // Ottieni la scheda attiva
@@ -59,20 +59,50 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Invia il messaggio al content script
-      chrome.tabs.sendMessage(tab.id, { action: 'openFullscreen' }, (response) => {
+      // Prima ottieni lo stato corrente del fullscreen
+      chrome.tabs.sendMessage(tab.id, { action: 'getFullscreenState' }, (stateResponse) => {
         if (chrome.runtime.lastError) {
           showStatus('Errore: ricarica la pagina YouTube', 'error');
           console.error(chrome.runtime.lastError);
-        } else {
-          showStatus('Video avviato in fullscreen!', 'success');
-          // Chiudi il popup dopo un breve delay
-          setTimeout(() => window.close(), 1500);
+          return;
         }
+
+        // Ora invia il comando di toggle
+        chrome.tabs.sendMessage(tab.id, { action: 'toggleFullscreen' }, (response) => {
+          if (chrome.runtime.lastError) {
+            showStatus('Errore: ricarica la pagina YouTube', 'error');
+            console.error(chrome.runtime.lastError);
+          } else {
+            const isNowFullscreen = response.isFullscreen;
+            if (isNowFullscreen) {
+              showStatus('Fullscreen attivato!', 'success');
+              fullscreenBtn.textContent = '🔲 Disattiva Fullscreen';
+            } else {
+              showStatus('Fullscreen disattivato', 'success');
+              fullscreenBtn.textContent = '📺 Attiva Fullscreen su Secondo Monitor';
+            }
+            // Non chiudere il popup per permettere toggle rapido
+          }
+        });
       });
     } catch (error) {
       showStatus('Errore: ' + error.message, 'error');
       console.error(error);
+    }
+  });
+
+  // Aggiorna il testo del pulsante all'apertura del popup
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && isYouTubeUrl(tabs[0].url)) {
+      chrome.tabs.sendMessage(tabs[0].id, { action: 'getFullscreenState' }, (response) => {
+        if (!chrome.runtime.lastError && response) {
+          if (response.isFullscreen) {
+            fullscreenBtn.textContent = '🔲 Disattiva Fullscreen';
+          } else {
+            fullscreenBtn.textContent = '📺 Attiva Fullscreen su Secondo Monitor';
+          }
+        }
+      });
     }
   });
 
