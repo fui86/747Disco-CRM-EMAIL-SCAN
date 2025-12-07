@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const adSkipperToggle = document.getElementById('adSkipperToggle');
   const autoFullscreenToggle = document.getElementById('autoFullscreenToggle');
   const fullscreenBtn = document.getElementById('fullscreenBtn');
+  const playlistBtn = document.getElementById('playlistBtn');
   const status = document.getElementById('status');
 
   // Helper function to validate YouTube URL
@@ -89,6 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('Errore: ' + error.message, 'error');
       console.error(error);
     }
+  });
+
+  // Pulsante per aprire la playlist
+  playlistBtn.addEventListener('click', () => {
+    window.location.href = 'playlist.html';
   });
 
   // Aggiorna il testo del pulsante all'apertura del popup

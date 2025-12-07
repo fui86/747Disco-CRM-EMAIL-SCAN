@@ -115,6 +115,9 @@ input:checked + .slider:before {
 /* Buttons */
 .actions {
   margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .btn {
@@ -142,6 +145,18 @@ input:checked + .slider:before {
 
 .btn-primary:active {
   transform: translateY(0);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.9);
+  color: #764ba2;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  background: white;
 }
 
 /* Info Section */
