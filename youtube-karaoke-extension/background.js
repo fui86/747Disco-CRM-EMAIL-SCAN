@@ -5,57 +5,111 @@ console.log('YouTube Karaoke Extension: Background script loaded');
 // Ascolta i messaggi dal content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'moveToSecondaryDisplay') {
-    moveWindowToSecondaryDisplay(sender.tab);
-    sendResponse({success: true});
+    moveWindowToSecondaryDisplay(sender.tab).then(result => {
+      sendResponse(result);
+    });
+    return true; // Mantieni il canale aperto per la risposta asincrona
+  } else if (request.action === 'closeKaraokeWindow') {
+    closeKaraokeWindow(sender.tab.id).then(result => {
+      sendResponse(result);
+    });
+    return true;
+  } else if (request.action === 'checkKaraokeWindow') {
+    const hasWindow = karaokeWindows.has(sender.tab.id);
+    sendResponse({ hasKaraokeWindow: hasWindow });
   }
   return true;
 });
 
-// Funzione per spostare la finestra sul secondo monitor
+// Mappa per tenere traccia delle finestre karaoke create
+const karaokeWindows = new Map();
+
+// Funzione per creare una nuova finestra sul secondo monitor con il video
 async function moveWindowToSecondaryDisplay(tab) {
   try {
-    // Ottieni la finestra corrente
-    const window = await chrome.windows.get(tab.windowId);
-    
     // Ottieni informazioni sui display disponibili
     const displays = await chrome.system.display.getInfo();
     
     console.log('Displays disponibili:', displays.length);
     
     if (displays.length < 2) {
-      console.log('YouTube Karaoke: Solo un display disponibile');
-      // Se c'è solo un display, non serve spostare la finestra
-      return;
+      console.log('YouTube Karaoke: Solo un display disponibile, uso fullscreen normale');
+      // Se c'è solo un display, ritorna e il content script gestirà il fullscreen normale
+      return { secondaryDisplayAvailable: false };
     }
     
     // Trova il secondo display (display secondario)
     const secondaryDisplay = displays[1];
     
-    console.log('YouTube Karaoke: Spostamento sul display secondario:', secondaryDisplay.name);
+    console.log('YouTube Karaoke: Creazione finestra sul display secondario:', secondaryDisplay.name);
     console.log('Secondary display bounds:', secondaryDisplay.bounds);
     
-    // Prima riporta la finestra allo stato normale (se è maximized/fullscreen)
-    await chrome.windows.update(window.id, {
-      state: 'normal'
+    // Se esiste già una finestra karaoke per questo tab, chiudila
+    if (karaokeWindows.has(tab.id)) {
+      const existingWindowId = karaokeWindows.get(tab.id);
+      try {
+        await chrome.windows.remove(existingWindowId);
+      } catch (e) {
+        console.log('Finestra karaoke precedente già chiusa');
+      }
+      karaokeWindows.delete(tab.id);
+    }
+    
+    // Crea una nuova finestra sul secondo monitor con l'URL del video
+    const newWindow = await chrome.windows.create({
+      url: tab.url,
+      type: 'popup',  // Tipo popup per non mostrare barra degli indirizzi
+      state: 'fullscreen',  // Direttamente fullscreen
+      left: secondaryDisplay.bounds.left,
+      top: secondaryDisplay.bounds.top,
+      width: secondaryDisplay.bounds.width,
+      height: secondaryDisplay.bounds.height
     });
     
-    // Aspetta un momento per assicurarsi che la finestra sia tornata normale
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Salva l'ID della finestra creata
+    karaokeWindows.set(tab.id, newWindow.id);
     
-    // Sposta la finestra sul secondo display
-    await chrome.windows.update(window.id, {
-      left: secondaryDisplay.bounds.left + 50,  // +50 per essere sicuri di essere nel secondo monitor
-      top: secondaryDisplay.bounds.top + 50,
-      width: secondaryDisplay.bounds.width - 100,
-      height: secondaryDisplay.bounds.height - 100,
-      state: 'normal'
+    // Listener per rimuovere dalla mappa quando la finestra viene chiusa
+    chrome.windows.onRemoved.addListener((windowId) => {
+      for (const [tabId, karaokWindowId] of karaokeWindows.entries()) {
+        if (karaokWindowId === windowId) {
+          karaokeWindows.delete(tabId);
+          console.log('YouTube Karaoke: Finestra karaoke chiusa');
+          break;
+        }
+      }
     });
     
-    console.log('YouTube Karaoke: Finestra spostata sul display secondario');
+    console.log('YouTube Karaoke: Nuova finestra creata sul display secondario con ID:', newWindow.id);
+    
+    return { 
+      secondaryDisplayAvailable: true, 
+      windowId: newWindow.id,
+      tabId: newWindow.tabs[0].id 
+    };
     
   } catch (error) {
-    console.error('YouTube Karaoke: Errore nello spostamento sul display secondario:', error);
+    console.error('YouTube Karaoke: Errore nella creazione della finestra sul display secondario:', error);
+    return { secondaryDisplayAvailable: false, error: error.message };
   }
+}
+
+// Funzione per chiudere la finestra karaoke
+async function closeKaraokeWindow(tabId) {
+  if (karaokeWindows.has(tabId)) {
+    const windowId = karaokeWindows.get(tabId);
+    try {
+      await chrome.windows.remove(windowId);
+      karaokeWindows.delete(tabId);
+      console.log('YouTube Karaoke: Finestra karaoke chiusa manualmente');
+      return { success: true };
+    } catch (error) {
+      console.error('Errore nella chiusura della finestra karaoke:', error);
+      karaokeWindows.delete(tabId);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: true, message: 'Nessuna finestra karaoke attiva' };
 }
 
 // Listener per l'installazione dell'estensione

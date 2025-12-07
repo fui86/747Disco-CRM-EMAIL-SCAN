@@ -25,6 +25,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({success: true, isFullscreen: isFullscreenActive});
   } else if (request.action === 'getFullscreenState') {
     sendResponse({isFullscreen: isFullscreenActive});
+  } else if (request.action === 'activateFullscreen') {
+    // Questo messaggio viene ricevuto dalla finestra karaoke sul secondo monitor
+    setTimeout(() => {
+      const video = document.querySelector('video');
+      if (video) {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+          video.webkitRequestFullscreen();
+        } else if (video.mozRequestFullScreen) {
+          video.mozRequestFullScreen();
+        } else if (video.msRequestFullscreen) {
+          video.msRequestFullscreen();
+        }
+        console.log('YouTube Karaoke: Fullscreen attivato nella finestra karaoke');
+        sendResponse({success: true});
+      }
+    }, 500);
   }
   return true;
 });
@@ -78,33 +96,28 @@ function toggleFullscreen() {
     return;
   }
 
-  // Se è già in fullscreen, esci
-  if (isFullscreenActive || document.fullscreenElement || document.webkitFullscreenElement || 
-      document.mozFullScreenElement || document.msFullscreenElement) {
-    exitFullscreen();
+  // Se è già in fullscreen, esci (chiudi la finestra karaoke)
+  if (isFullscreenActive) {
+    closeKaraokeWindow();
   } else {
-    // Altrimenti entra in fullscreen
+    // Altrimenti entra in fullscreen (crea finestra sul secondo monitor)
     openVideoInFullscreen();
   }
 }
 
-// Funzione per uscire dal fullscreen
-function exitFullscreen() {
-  if (document.exitFullscreen) {
-    document.exitFullscreen();
-  } else if (document.webkitExitFullscreen) {
-    document.webkitExitFullscreen();
-  } else if (document.mozCancelFullScreen) {
-    document.mozCancelFullScreen();
-  } else if (document.msExitFullscreen) {
-    document.msExitFullscreen();
-  }
-  
-  isFullscreenActive = false;
-  console.log('YouTube Karaoke: Uscita da fullscreen');
+// Funzione per chiudere la finestra karaoke
+function closeKaraokeWindow() {
+  chrome.runtime.sendMessage({
+    action: 'closeKaraokeWindow'
+  }, (response) => {
+    if (response && response.success) {
+      isFullscreenActive = false;
+      console.log('YouTube Karaoke: Finestra karaoke chiusa');
+    }
+  });
 }
 
-// Funzione per aprire il video a pieno schermo
+// Funzione per aprire il video a pieno schermo su secondo monitor
 function openVideoInFullscreen() {
   const video = document.querySelector('video');
   
@@ -113,14 +126,29 @@ function openVideoInFullscreen() {
     return;
   }
 
-  isFullscreenActive = true;
-
-  // Invia messaggio al background per spostare la finestra sul secondo monitor PRIMA di andare fullscreen
+  // Invia messaggio al background per creare una nuova finestra sul secondo monitor
   chrome.runtime.sendMessage({
     action: 'moveToSecondaryDisplay'
   }, (response) => {
-    // Dopo che la finestra è stata spostata, vai fullscreen
-    setTimeout(() => {
+    if (response && response.secondaryDisplayAvailable) {
+      isFullscreenActive = true;
+      console.log('YouTube Karaoke: Finestra karaoke creata sul secondo monitor');
+      console.log('Tab corrente rimane attivo per i controlli');
+      
+      // Attendi che la nuova finestra carichi il video e poi avvia il fullscreen
+      setTimeout(() => {
+        // Invia messaggio alla nuova finestra per avviare il fullscreen
+        if (response.tabId) {
+          chrome.tabs.sendMessage(response.tabId, {
+            action: 'activateFullscreen'
+          }, (res) => {
+            console.log('Fullscreen attivato nella finestra karaoke');
+          });
+        }
+      }, 2000); // Attende 2 secondi per il caricamento della pagina
+    } else {
+      // Se non c'è un secondo monitor, usa fullscreen normale
+      console.log('YouTube Karaoke: Secondo monitor non disponibile, uso fullscreen normale');
       if (video.requestFullscreen) {
         video.requestFullscreen();
       } else if (video.webkitRequestFullscreen) {
@@ -130,24 +158,10 @@ function openVideoInFullscreen() {
       } else if (video.msRequestFullscreen) {
         video.msRequestFullscreen();
       }
-      console.log('YouTube Karaoke: Video a pieno schermo richiesto');
-    }, 100);
+      isFullscreenActive = true;
+    }
   });
 }
-
-// Listener per cambiamenti dello stato fullscreen
-document.addEventListener('fullscreenchange', () => {
-  isFullscreenActive = !!document.fullscreenElement;
-});
-document.addEventListener('webkitfullscreenchange', () => {
-  isFullscreenActive = !!document.webkitFullscreenElement;
-});
-document.addEventListener('mozfullscreenchange', () => {
-  isFullscreenActive = !!document.mozFullScreenElement;
-});
-document.addEventListener('msfullscreenchange', () => {
-  isFullscreenActive = !!document.msFullscreenElement;
-});
 
 // Variabili per gestire il fade audio
 let fadeInterval = null;
