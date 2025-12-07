@@ -110,13 +110,18 @@ class Disco747_Processor {
             $preventivo_id = $this->save_to_database($data, $uploaded_urls);
             $this->log('[747Disco-Create] Ã¢Å“â€¦ Salvato con ID: ' . $preventivo_id);
             
-            // 🚀 HOOK: Lancia evento preventivo creato/confermato (per funnel automation)
+            // 🚀 HOOK: Lancia evento preventivo creato/confermato/annullato (per funnel automation)
+            // ✅ FIX: Gestione corretta degli stati - solo preventivi ATTIVI entrano nel funnel
             if ($data['stato'] === 'confermato' && $data['acconto'] > 0) {
                 // Se è confermato, lancia hook conferma (stoppa pre-conferma, avvia pre-evento)
                 do_action('disco747_preventivo_confirmed', $preventivo_id);
                 $this->log('[747Disco-Create] 🎯 Hook disco747_preventivo_confirmed lanciato (ID: ' . $preventivo_id . ')');
-            } else {
-                // Se NON è confermato, lancia hook creazione (avvia funnel pre-conferma)
+            } elseif ($data['stato'] === 'annullato') {
+                // Se è annullato, lancia hook annullamento (non avvia alcun funnel)
+                do_action('disco747_preventivo_cancelled', $preventivo_id);
+                $this->log('[747Disco-Create] 🛑 Hook disco747_preventivo_cancelled lanciato (ID: ' . $preventivo_id . ')');
+            } elseif ($data['stato'] === 'attivo') {
+                // Solo se è ATTIVO, lancia hook creazione (avvia funnel pre-conferma)
                 do_action('disco747_preventivo_created', $preventivo_id);
                 $this->log('[747Disco-Create] 🎯 Hook disco747_preventivo_created lanciato (ID: ' . $preventivo_id . ')');
             }
