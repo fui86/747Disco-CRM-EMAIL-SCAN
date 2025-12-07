@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎤 YouTube Karaoke Player</title>
+  <link rel="stylesheet" href="player.css">
+</head>
+<body>
+  <div class="player-container">
+    <header>
+      <h1>🎤 YouTube Karaoke Player</h1>
+      <p>Controllo completo dal monitor principale</p>
+    </header>
+
+    <div class="main-content">
+      <!-- Sezione Playlist -->
+      <div class="playlist-section">
+        <h2>📋 Playlist</h2>
+        <div class="add-video">
+          <input type="text" id="videoUrl" placeholder="Incolla URL YouTube qui..." />
+          <button id="addVideoBtn">➕ Aggiungi</button>
+        </div>
+        
+        <div id="playlistList" class="playlist-items"></div>
+        
+        <div class="playlist-actions">
+          <button id="clearPlaylistBtn" class="danger">🗑️ Svuota Playlist</button>
+        </div>
+      </div>
+
+      <!-- Sezione Controlli -->
+      <div class="controls-section">
+        <h2>🎮 Controlli</h2>
+        
+        <div class="now-playing">
+          <p><strong>In riproduzione:</strong></p>
+          <p id="currentVideoInfo">Nessun video</p>
+        </div>
+
+        <div class="player-controls">
+          <button id="prevBtn" class="control-btn">⏮️ Precedente</button>
+          <button id="playPauseBtn" class="control-btn primary">▶️ Play</button>
+          <button id="nextBtn" class="control-btn">⏭️ Successivo</button>
+        </div>
+
+        <div class="volume-control">
+          <label for="volumeSlider">🔊 Volume</label>
+          <input type="range" id="volumeSlider" min="0" max="100" value="100" />
+          <span id="volumeValue">100%</span>
+        </div>
+
+        <div class="fullscreen-control">
+          <button id="castToSecondaryBtn" class="control-btn secondary">📺 Trasmetti su Secondo Monitor</button>
+          <p id="castStatus"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <span id="statusMessage">Pronto</span>
+    </div>
+  </div>
+
+  <script src="player.js"></script>
+</body>
+</html>

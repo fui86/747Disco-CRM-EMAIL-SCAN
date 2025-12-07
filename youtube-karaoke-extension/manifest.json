@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "YouTube Karaoke - Ad Skipper & Fullscreen",
-  "version": "1.0.0",
-  "description": "Salta automaticamente le pubblicità di YouTube e trasmetti video a pieno schermo sul secondo monitor per karaoke",
+  "version": "2.0.0",
+  "description": "Player karaoke professionale con playlist, controllo totale e trasmissione su secondo monitor",
   "permissions": [
     "tabs",
     "storage",
@@ -36,13 +36,10 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "commands": {
-    "open-karaoke-fullscreen": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+K"
-      },
-      "description": "Apri video a pieno schermo sul secondo monitor"
+  "web_accessible_resources": [
+    {
+      "resources": ["karaoke-display.html", "karaoke-display.js"],
+      "matches": ["<all_urls>"]
     }
-  }
+  ]
 }
