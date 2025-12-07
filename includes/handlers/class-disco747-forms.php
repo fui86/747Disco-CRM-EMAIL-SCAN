@@ -45,9 +45,11 @@ class Disco747_Forms {
         // Hook AJAX solo per PDF (email e whatsapp gestiti da class-disco747-ajax.php)
         add_action('wp_ajax_disco747_generate_pdf', array($this, 'handle_generate_pdf'));
         
+        // ✅ FIX: Cleanup più frequente (ogni 10 minuti) per prevenire conflitti file
+        add_filter('cron_schedules', array($this, 'add_ten_minute_cron_interval'));
         add_action('disco747_cleanup_temp_files', array($this, 'cleanup_temp_files'));
         if (!wp_next_scheduled('disco747_cleanup_temp_files')) {
-            wp_schedule_event(time(), 'hourly', 'disco747_cleanup_temp_files');
+            wp_schedule_event(time(), 'ten_minutes', 'disco747_cleanup_temp_files');
         }
         
         $this->log('[Forms] Hook AJAX registrati correttamente');
@@ -1270,26 +1272,64 @@ class Disco747_Forms {
     
     /**
      * ========================================================================
-     * HELPER: Cleanup file temporanei
+     * HELPER: Aggiungi intervallo cron personalizzato (10 minuti)
      * ========================================================================
+     */
+    public function add_ten_minute_cron_interval($schedules) {
+        if (!isset($schedules['ten_minutes'])) {
+            $schedules['ten_minutes'] = array(
+                'interval' => 600, // 10 minuti in secondi
+                'display'  => __('Ogni 10 minuti', 'disco747')
+            );
+        }
+        return $schedules;
+    }
+    
+    /**
+     * ========================================================================
+     * HELPER: Cleanup file temporanei - VERSIONE AGGRESSIVA
+     * ========================================================================
+     * FIX: Cleanup più frequente e aggressivo per prevenire conflitti file
+     * - Gira ogni 10 minuti invece che ogni ora
+     * - Cancella file più vecchi di 10 minuti (invece di 1 ora)
+     * - Pulisce tutta la cartella /preventivi/ (non solo /temp/)
      */
     public function cleanup_temp_files() {
         $upload_dir = wp_upload_dir();
-        $temp_dir = $upload_dir['basedir'] . '/preventivi/temp/';
+        $base_dir = $upload_dir['basedir'] . '/preventivi/';
         
-        if (!is_dir($temp_dir)) {
+        if (!is_dir($base_dir)) {
             return;
         }
         
-        $files = glob($temp_dir . '*');
         $now = time();
+        $max_age = 600; // 10 minuti in secondi
+        $count = 0;
         
-        foreach ($files as $file) {
-            if (is_file($file)) {
-                if ($now - filemtime($file) >= 3600) { // 1 ora
-                    @unlink($file);
+        // Funzione ricorsiva per scandire tutte le sottocartelle
+        $scan_directory = function($dir) use (&$scan_directory, $now, $max_age, &$count) {
+            $files = glob($dir . '*', GLOB_MARK);
+            
+            foreach ($files as $file) {
+                if (is_dir($file)) {
+                    // Ricorsione nelle sottocartelle (es. /2024/11/)
+                    $scan_directory($file);
+                } elseif (is_file($file)) {
+                    // Cancella file più vecchi di 10 minuti
+                    if ($now - filemtime($file) >= $max_age) {
+                        if (@unlink($file)) {
+                            $count++;
+                        }
+                    }
                 }
             }
+        };
+        
+        // Esegui cleanup
+        $scan_directory($base_dir);
+        
+        if ($count > 0) {
+            $this->log("[Cleanup] 🧹 Eliminati {$count} file temporanei più vecchi di 10 minuti");
         }
     }
     
