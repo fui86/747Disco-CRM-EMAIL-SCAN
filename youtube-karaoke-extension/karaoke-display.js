@@ -4,144 +4,46 @@ console.log('Karaoke Display: Script caricato');
 const videoContainer = document.getElementById('videoContainer');
 const loadingMessage = document.getElementById('loadingMessage');
 
-let currentPlayer = null;
-let fadeInterval = null;
-let originalVolume = 100;
+let currentVideoId = null;
+let isPlaying = false;
 
 // Ascolta i comandi dal player principale
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Karaoke Display: Messaggio ricevuto', request.action);
 
   if (request.action === 'playKaraokeVideo') {
-    playVideo(request.videoId, request.volume || 100);
+    playVideo(request.videoId);
     sendResponse({ success: true });
   } else if (request.action === 'pauseKaraokeVideo') {
-    pauseVideo();
-    sendResponse({ success: true });
+    // Non possiamo controllare pause/play su YouTube diretto
+    sendResponse({ success: false, message: 'Controllo play/pause non disponibile su YouTube diretto' });
   } else if (request.action === 'resumeKaraokeVideo') {
-    resumeVideo();
-    sendResponse({ success: true });
+    sendResponse({ success: false, message: 'Controllo play/pause non disponibile su YouTube diretto' });
   } else if (request.action === 'setKaraokeVolume') {
-    setVolume(request.volume);
-    sendResponse({ success: true });
+    sendResponse({ success: false, message: 'Controllo volume non disponibile su YouTube diretto' });
   }
 
   return true;
 });
 
-function playVideo(videoId, volume) {
+function playVideo(videoId) {
   console.log('Karaoke Display: Riproduzione video', videoId);
   
-  // Rimuovi il messaggio di caricamento
+  currentVideoId = videoId;
+  
+  // Nascondi messaggio di caricamento
   loadingMessage.style.display = 'none';
   
-  // Rimuovi il player precedente se esiste
-  if (currentPlayer) {
-    currentPlayer.remove();
-  }
+  // Reindirizza a YouTube per evitare Error 153
+  // Questo apre il video direttamente su YouTube
+  window.location.href = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
   
-  // Crea nuovo iframe con YouTube Player
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&showinfo=0&fs=1&loop=0&enablejsapi=1&origin=${window.location.origin}`;
-  iframe.allow = 'autoplay; fullscreen';
-  iframe.allowFullscreen = true;
-  
-  videoContainer.appendChild(iframe);
-  currentPlayer = iframe;
-  
-  originalVolume = volume;
-  
-  // Applica fade-in audio (simulato)
-  startFadeIn();
-}
-
-function pauseVideo() {
-  console.log('Karaoke Display: Pausa video');
-  if (currentPlayer && currentPlayer.contentWindow) {
-    // Invia comando pausa tramite postMessage API di YouTube
-    currentPlayer.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-    
-    // Applica fade-out audio
-    startFadeOut();
-  }
-}
-
-function resumeVideo() {
-  console.log('Karaoke Display: Riprendi video');
-  if (currentPlayer && currentPlayer.contentWindow) {
-    // Invia comando play tramite postMessage API di YouTube
-    currentPlayer.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-    
-    // Applica fade-in audio
-    startFadeIn();
-  }
-}
-
-function setVolume(volume) {
-  console.log('Karaoke Display: Imposta volume', volume);
-  originalVolume = volume;
-  
-  if (currentPlayer && currentPlayer.contentWindow) {
-    // Invia comando volume tramite postMessage API di YouTube
-    currentPlayer.contentWindow.postMessage(`{"event":"command","func":"setVolume","args":[${volume}]}`, '*');
-  }
-}
-
-function startFadeIn() {
-  // Cancella fade precedente
-  if (fadeInterval) {
-    clearInterval(fadeInterval);
-  }
-  
-  let currentVol = 0;
-  const steps = 40;
-  const increment = originalVolume / steps;
-  const delay = 2000 / steps; // 2 secondi totali
-  
-  if (currentPlayer && currentPlayer.contentWindow) {
-    currentPlayer.contentWindow.postMessage(`{"event":"command","func":"setVolume","args":[0]}`, '*');
-    
-    fadeInterval = setInterval(() => {
-      currentVol += increment;
-      if (currentVol >= originalVolume) {
-        currentVol = originalVolume;
-        clearInterval(fadeInterval);
-        fadeInterval = null;
-      }
-      
-      if (currentPlayer && currentPlayer.contentWindow) {
-        currentPlayer.contentWindow.postMessage(`{"event":"command","func":"setVolume","args":[${Math.round(currentVol)}]}`, '*');
-      }
-    }, delay);
-  }
-}
-
-function startFadeOut() {
-  // Cancella fade precedente
-  if (fadeInterval) {
-    clearInterval(fadeInterval);
-  }
-  
-  let currentVol = originalVolume;
-  const steps = 40;
-  const decrement = originalVolume / steps;
-  const delay = 2000 / steps; // 2 secondi totali
-  
-  if (currentPlayer && currentPlayer.contentWindow) {
-    fadeInterval = setInterval(() => {
-      currentVol -= decrement;
-      if (currentVol <= 0) {
-        currentVol = 0;
-        clearInterval(fadeInterval);
-        fadeInterval = null;
-      }
-      
-      if (currentPlayer && currentPlayer.contentWindow) {
-        currentPlayer.contentWindow.postMessage(`{"event":"command","func":"setVolume","args":[${Math.round(currentVol)}]}`, '*');
-      }
-    }, delay);
-  }
+  isPlaying = true;
 }
 
 // Inizializzazione
 console.log('Karaoke Display: Pronto a ricevere video');
+
+// Nota: Usando YouTube diretto invece di iframe evita l'errore 153
+// I controlli play/pause/volume devono essere gestiti direttamente dall'utente
+// nella finestra del secondo monitor o tramite la pagina YouTube originale

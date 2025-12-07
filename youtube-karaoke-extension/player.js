@@ -162,19 +162,8 @@ function togglePlayPause() {
     // Inizia dal primo video
     playVideo(0);
   } else {
-    // Toggle play/pause
-    isPlaying = !isPlaying;
-    updatePlayPauseButton();
-    
-    chrome.tabs.sendMessage(karaokeTabId, {
-      action: isPlaying ? 'resumeKaraokeVideo' : 'pauseKaraokeVideo'
-    }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Errore:', chrome.runtime.lastError);
-      }
-    });
-    
-    showStatus(isPlaying ? 'Riproduzione' : 'Pausa', 'success');
+    // NOTA: Play/Pause manuale - usa i controlli nella finestra karaoke
+    showStatus('⚠️ Usa i controlli YouTube nella finestra del secondo monitor per play/pause', 'info');
   }
 }
 
@@ -188,12 +177,8 @@ function updateVolume() {
   currentVolume = parseInt(volumeSlider.value);
   volumeValue.textContent = `${currentVolume}%`;
   
-  if (karaokeTabId) {
-    chrome.tabs.sendMessage(karaokeTabId, {
-      action: 'setKaraokeVolume',
-      volume: currentVolume
-    });
-  }
+  // NOTA: Volume manuale - regolalo nella finestra karaoke
+  showStatus('⚠️ Regola il volume usando i controlli YouTube nella finestra del secondo monitor', 'info');
 }
 
 function toggleCastToSecondary() {
