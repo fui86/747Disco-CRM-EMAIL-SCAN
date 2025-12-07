@@ -24,10 +24,7 @@ async function moveWindowToSecondaryDisplay(tab) {
     
     if (displays.length < 2) {
       console.log('YouTube Karaoke: Solo un display disponibile');
-      // Se c'è solo un display, massimizza la finestra
-      await chrome.windows.update(window.id, {
-        state: 'fullscreen'
-      });
+      // Se c'è solo un display, non serve spostare la finestra
       return;
     }
     
@@ -35,22 +32,26 @@ async function moveWindowToSecondaryDisplay(tab) {
     const secondaryDisplay = displays[1];
     
     console.log('YouTube Karaoke: Spostamento sul display secondario:', secondaryDisplay.name);
+    console.log('Secondary display bounds:', secondaryDisplay.bounds);
     
-    // Crea una nuova finestra sul secondo display in modalità fullscreen
-    const newWindow = await chrome.windows.create({
-      url: tab.url,
-      type: 'popup',
-      state: 'fullscreen',
-      left: secondaryDisplay.bounds.left,
-      top: secondaryDisplay.bounds.top,
-      width: secondaryDisplay.bounds.width,
-      height: secondaryDisplay.bounds.height
+    // Prima riporta la finestra allo stato normale (se è maximized/fullscreen)
+    await chrome.windows.update(window.id, {
+      state: 'normal'
     });
     
-    // Chiudi la scheda originale (opzionale, dipende dalle preferenze)
-    // await chrome.tabs.remove(tab.id);
+    // Aspetta un momento per assicurarsi che la finestra sia tornata normale
+    await new Promise(resolve => setTimeout(resolve, 100));
     
-    console.log('YouTube Karaoke: Finestra creata sul display secondario');
+    // Sposta la finestra sul secondo display
+    await chrome.windows.update(window.id, {
+      left: secondaryDisplay.bounds.left + 50,  // +50 per essere sicuri di essere nel secondo monitor
+      top: secondaryDisplay.bounds.top + 50,
+      width: secondaryDisplay.bounds.width - 100,
+      height: secondaryDisplay.bounds.height - 100,
+      state: 'normal'
+    });
+    
+    console.log('YouTube Karaoke: Finestra spostata sul display secondario');
     
   } catch (error) {
     console.error('YouTube Karaoke: Errore nello spostamento sul display secondario:', error);

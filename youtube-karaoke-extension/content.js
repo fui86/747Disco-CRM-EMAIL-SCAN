@@ -113,25 +113,26 @@ function openVideoInFullscreen() {
     return;
   }
 
-  // Richiedi il fullscreen
-  if (video.requestFullscreen) {
-    video.requestFullscreen();
-  } else if (video.webkitRequestFullscreen) {
-    video.webkitRequestFullscreen();
-  } else if (video.mozRequestFullScreen) {
-    video.mozRequestFullScreen();
-  } else if (video.msRequestFullscreen) {
-    video.msRequestFullscreen();
-  }
-
   isFullscreenActive = true;
 
-  // Invia messaggio al background per spostare la finestra sul secondo monitor
+  // Invia messaggio al background per spostare la finestra sul secondo monitor PRIMA di andare fullscreen
   chrome.runtime.sendMessage({
     action: 'moveToSecondaryDisplay'
+  }, (response) => {
+    // Dopo che la finestra è stata spostata, vai fullscreen
+    setTimeout(() => {
+      if (video.requestFullscreen) {
+        video.requestFullscreen();
+      } else if (video.webkitRequestFullscreen) {
+        video.webkitRequestFullscreen();
+      } else if (video.mozRequestFullScreen) {
+        video.mozRequestFullScreen();
+      } else if (video.msRequestFullscreen) {
+        video.msRequestFullscreen();
+      }
+      console.log('YouTube Karaoke: Video a pieno schermo richiesto');
+    }, 100);
   });
-
-  console.log('YouTube Karaoke: Video a pieno schermo richiesto');
 }
 
 // Listener per cambiamenti dello stato fullscreen
