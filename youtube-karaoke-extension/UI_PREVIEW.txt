@@ -1,0 +1,150 @@
+═══════════════════════════════════════════════════════════
+     YOUTUBE KARAOKE EXTENSION - ANTEPRIMA INTERFACCIA
+═══════════════════════════════════════════════════════════
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  🎤 YouTube Karaoke                               🔵┃
+┃  Salta pubblicità & Fullscreen                     ┃
+┃                                                     ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                     ┃
+┃  ╔═══════════════════════════════════════════╗    ┃
+┃  ║                                           ║    ┃
+┃  ║  ⚪────⚫  Salta Pubblicità               ║    ┃
+┃  ║          Salta automaticamente gli annunci║    ┃
+┃  ║                                           ║    ┃
+┃  ║  ⚫────⚪  Fullscreen Automatico          ║    ┃
+┃  ║          Avvia in fullscreen quando       ║    ┃
+┃  ║          possibile                        ║    ┃
+┃  ║                                           ║    ┃
+┃  ╚═══════════════════════════════════════════╝    ┃
+┃                                                     ┃
+┃  ╔═══════════════════════════════════════════╗    ┃
+┃  ║                                           ║    ┃
+┃  ║   📺  Apri su Secondo Monitor            ║    ┃
+┃  ║                                           ║    ┃
+┃  ╚═══════════════════════════════════════════╝    ┃
+┃                                                     ┃
+┃  ╔═══════════════════════════════════════════╗    ┃
+┃  ║  Scorciatoia: Ctrl+Shift+K                ║    ┃
+┃  ║                                           ║    ┃
+┃  ║  Utilizza questa estensione per avviare  ║    ┃
+┃  ║  i video di YouTube a pieno schermo sul   ║    ┃
+┃  ║  secondo monitor per il karaoke!          ║    ┃
+┃  ╚═══════════════════════════════════════════╝    ┃
+┃                                                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+═══════════════════════════════════════════════════════════
+                   SETUP KARAOKE IDEALE
+═══════════════════════════════════════════════════════════
+
+   ┌─────────────────────┐        ┌─────────────────────┐
+   │   MONITOR 1         │        │   MONITOR 2         │
+   │   (Operatore)       │        │   (Pubblico)        │
+   │                     │        │                     │
+   │  ┌──────────────┐   │        │  ╔══════════════╗  │
+   │  │ YouTube Tab  │   │        │  ║              ║  │
+   │  │              │   │  ───►  │  ║    VIDEO     ║  │
+   │  │ [Play] [⏸]  │   │        │  ║  FULLSCREEN  ║  │
+   │  │ [⏭] Volume  │   │        │  ║              ║  │
+   │  │              │   │        │  ║   NO ADS!    ║  │
+   │  └──────────────┘   │        │  ╚══════════════╝  │
+   │                     │        │                     │
+   └─────────────────────┘        └─────────────────────┘
+        Tu controlli                  Pubblico vede
+
+
+═══════════════════════════════════════════════════════════
+                    WORKFLOW TIPICO
+═══════════════════════════════════════════════════════════
+
+1. Apri YouTube sul Monitor 1
+   └─► Cerca il video karaoke desiderato
+
+2. Clicca Play sul video
+   └─► Il video inizia a caricarsi
+
+3. Premi Ctrl+Shift+K (o clicca il pulsante)
+   └─► Il video si apre automaticamente sul Monitor 2
+   └─► Fullscreen attivato
+   └─► Pubblicità saltate
+
+4. Controlla dal Monitor 1
+   └─► Pausa/Play
+   └─► Cambia volume
+   └─► Prepara il prossimo video
+
+5. Ripeti per ogni canzone!
+   └─► Workflow fluido e professionale
+
+
+═══════════════════════════════════════════════════════════
+                  FUNZIONALITÀ CHIAVE
+═══════════════════════════════════════════════════════════
+
+🚫 SALTA PUBBLICITÀ
+   ├─► Rilevamento automatico
+   ├─► Click automatico su "Salta annuncio"
+   ├─► Nessuna interruzione
+   └─► Può essere disattivato se necessario
+
+📺 FULLSCREEN MULTI-MONITOR
+   ├─► Rilevamento automatico display
+   ├─► Apertura su secondo monitor
+   ├─► Fallback per singolo monitor
+   └─► Gestione finestre intelligente
+
+⌨️ SCORCIATOIE
+   ├─► Ctrl+Shift+K (Windows/Linux)
+   ├─► Cmd+Shift+K (macOS)
+   └─► Attivazione istantanea
+
+💾 PERSISTENZA
+   ├─► Impostazioni salvate
+   ├─► Sincronizzazione Chrome
+   └─► Nessuna configurazione necessaria
+
+
+═══════════════════════════════════════════════════════════
+                    FILE PRINCIPALI
+═══════════════════════════════════════════════════════════
+
+📄 manifest.json
+   └─► Configurazione estensione (Manifest V3)
+
+📜 content.js
+   ├─► Salta pubblicità automaticamente
+   ├─► Observer DOM per rilevamento
+   └─► Gestione video e fullscreen
+
+📜 background.js
+   ├─► Gestione monitor multipli
+   ├─► Chrome System Display API
+   └─► Creazione finestre su display secondario
+
+📜 popup.js + popup.html + popup.css
+   └─► Interfaccia utente moderna e intuitiva
+
+🖼️ icons/
+   ├─► icon16.png
+   ├─► icon32.png
+   ├─► icon48.png
+   └─► icon128.png
+
+
+═══════════════════════════════════════════════════════════
+                 REQUISITI E COMPATIBILITÀ
+═══════════════════════════════════════════════════════════
+
+✅ Google Chrome 88+
+✅ Windows 10/11
+✅ macOS 10.14+
+✅ Linux (Ubuntu, Fedora, etc.)
+✅ 2 monitor (consigliato, funziona anche con 1)
+✅ Connessione internet
+
+═══════════════════════════════════════════════════════════
+                  🎤 PRONTO PER IL KARAOKE! 🎵
+═══════════════════════════════════════════════════════════
