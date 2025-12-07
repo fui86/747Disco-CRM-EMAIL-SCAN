@@ -113,7 +113,7 @@ class Disco747_Processor {
             // 🚀 HOOK: Lancia evento preventivo creato/confermato/annullato (per funnel automation)
             // ✅ FIX: Gestione corretta degli stati - solo preventivi ATTIVI entrano nel funnel
             if ($data['stato'] === 'confermato' && $data['acconto'] > 0) {
-                // Se è confermato, lancia hook conferma (stoppa pre-conferma, avvia pre-evento)
+                // Se è confermato con acconto, lancia hook conferma (stoppa pre-conferma, avvia pre-evento)
                 do_action('disco747_preventivo_confirmed', $preventivo_id);
                 $this->log('[747Disco-Create] 🎯 Hook disco747_preventivo_confirmed lanciato (ID: ' . $preventivo_id . ')');
             } elseif ($data['stato'] === 'annullato') {
@@ -125,6 +125,9 @@ class Disco747_Processor {
                 do_action('disco747_preventivo_created', $preventivo_id);
                 $this->log('[747Disco-Create] 🎯 Hook disco747_preventivo_created lanciato (ID: ' . $preventivo_id . ')');
             }
+            // Nota: Per design, uno stato 'confermato' deve sempre avere acconto > 0 (vedi calculate_stato())
+            // Se per qualche motivo uno stato non corrisponde a nessuna condizione, non lancia hook
+            // (questo previene preventivi in stati inconsistenti dall'entrare nel funnel)
             
             // STEP 7: Upsert dashboard
             $this->log('[747Disco-Create] STEP 7: Upsert dashboard');

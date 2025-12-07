@@ -180,16 +180,24 @@ class Disco747_Forms {
         
         $this->log('[Forms] ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Preventivo salvato con ID database: ' . $db_id);
         
-        // Ã°Å¸Å¡â‚¬ HOOK: Lancia evento preventivo creato/confermato (per funnel automation)
+        // 🚀 HOOK: Lancia evento preventivo creato/confermato/annullato (per funnel automation)
+        // ✅ FIX: Gestione corretta degli stati - solo preventivi ATTIVI entrano nel funnel
         if ($data['stato'] === 'confermato' && floatval($data['acconto']) > 0) {
-            // Se ÃƒÂ¨ confermato, lancia hook conferma
+            // Se è confermato con acconto, lancia hook conferma (stoppa pre-conferma, avvia pre-evento)
             do_action('disco747_preventivo_confirmed', $db_id);
-            $this->log('[Forms] Ã°Å¸Å½Â¯ Hook disco747_preventivo_confirmed lanciato (ID: ' . $db_id . ')');
-        } else {
-            // Se NON ÃƒÂ¨ confermato, lancia hook creazione (avvia funnel pre-conferma)
+            $this->log('[Forms] 🎯 Hook disco747_preventivo_confirmed lanciato (ID: ' . $db_id . ')');
+        } elseif ($data['stato'] === 'annullato') {
+            // Se è annullato, lancia hook annullamento (non avvia alcun funnel)
+            do_action('disco747_preventivo_cancelled', $db_id);
+            $this->log('[Forms] 🛑 Hook disco747_preventivo_cancelled lanciato (ID: ' . $db_id . ')');
+        } elseif ($data['stato'] === 'attivo') {
+            // Solo se è ATTIVO, lancia hook creazione (avvia funnel pre-conferma)
             do_action('disco747_preventivo_created', $db_id);
-            $this->log('[Forms] Ã°Å¸Å½Â¯ Hook disco747_preventivo_created lanciato (ID: ' . $db_id . ')');
+            $this->log('[Forms] 🎯 Hook disco747_preventivo_created lanciato (ID: ' . $db_id . ')');
         }
+        // Nota: Per design, uno stato 'confermato' deve sempre avere acconto > 0
+        // Se per qualche motivo uno stato non corrisponde a nessuna condizione, non lancia hook
+        // (questo previene preventivi in stati inconsistenti dall'entrare nel funnel)
         
         $this->log('[Forms] ========== ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ PREVENTIVO COMPLETATO ==========');
         
