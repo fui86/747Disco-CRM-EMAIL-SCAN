@@ -14,6 +14,10 @@ chrome.storage.sync.get(['adSkipperEnabled', 'autoFullscreenEnabled'], (result) 
   autoFullscreenEnabled = result.autoFullscreenEnabled || false;
 });
 
+// Variabile per tenere traccia del tab master (quello con i controlli)
+let masterTabId = null;
+let isKaraokeWindow = false;
+
 // Ascolta i messaggi dal popup o background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'updateSettings') {
@@ -25,24 +29,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({success: true, isFullscreen: isFullscreenActive});
   } else if (request.action === 'getFullscreenState') {
     sendResponse({isFullscreen: isFullscreenActive});
-  } else if (request.action === 'activateFullscreen') {
-    // Questo messaggio viene ricevuto dalla finestra karaoke sul secondo monitor
-    setTimeout(() => {
-      const video = document.querySelector('video');
-      if (video) {
-        if (video.requestFullscreen) {
-          video.requestFullscreen();
-        } else if (video.webkitRequestFullscreen) {
-          video.webkitRequestFullscreen();
-        } else if (video.mozRequestFullScreen) {
-          video.mozRequestFullScreen();
-        } else if (video.msRequestFullscreen) {
-          video.msRequestFullscreen();
-        }
-        console.log('YouTube Karaoke: Fullscreen attivato nella finestra karaoke');
-        sendResponse({success: true});
+  } else if (request.action === 'setAsKaraokeWindow') {
+    // Questo tab è la finestra karaoke sul secondo monitor
+    isKaraokeWindow = true;
+    masterTabId = request.masterTabId;
+    console.log('YouTube Karaoke: Questo tab è la finestra karaoke, master tab:', masterTabId);
+    sendResponse({success: true});
+  } else if (request.action === 'controlVideo') {
+    // Riceve comandi dal tab master per controllare il video
+    const video = document.querySelector('video');
+    if (video) {
+      if (request.command === 'play') {
+        video.play();
+        console.log('YouTube Karaoke: Play ricevuto dal master');
+      } else if (request.command === 'pause') {
+        video.pause();
+        console.log('YouTube Karaoke: Pause ricevuto dal master');
       }
-    }, 1000); // Ridotto a 1 secondo per essere più reattivo
+      sendResponse({success: true});
+    } else {
+      sendResponse({success: false, error: 'Video non trovato'});
+    }
+  } else if (request.action === 'activateFullscreen') {
+    // Questo messaggio viene ricevuto dalla finestra karaoke per andare fullscreen
+    setTimeout(() => {
+      // Richiedi alla finestra di andare fullscreen
+      chrome.windows.getCurrent((currentWindow) => {
+        chrome.runtime.sendMessage({
+          action: 'setWindowFullscreen',
+          windowId: currentWindow.id
+        }, (response) => {
+          if (response && response.success) {
+            console.log('YouTube Karaoke: Finestra impostata a fullscreen vero');
+            sendResponse({success: true});
+          } else {
+            console.error('YouTube Karaoke: Errore nell\'impostare fullscreen');
+            sendResponse({success: false});
+          }
+        });
+      });
+    }, 500);
   }
   return true;
 });
@@ -112,6 +138,7 @@ function closeKaraokeWindow() {
   }, (response) => {
     if (response && response.success) {
       isFullscreenActive = false;
+      karaokeTabId = null; // Reset del tab ID karaoke
       console.log('YouTube Karaoke: Finestra karaoke chiusa');
     }
   });
@@ -126,26 +153,42 @@ function openVideoInFullscreen() {
     return;
   }
 
-  // Invia messaggio al background per creare una nuova finestra sul secondo monitor
+  // Ottieni il tab ID corrente per riferimento
   chrome.runtime.sendMessage({
     action: 'moveToSecondaryDisplay'
   }, (response) => {
     if (response && response.secondaryDisplayAvailable) {
       isFullscreenActive = true;
+      karaokeTabId = response.tabId; // Salva l'ID del tab karaoke
       console.log('YouTube Karaoke: Finestra karaoke creata sul secondo monitor');
       console.log('Tab corrente rimane attivo per i controlli');
       
-      // Attendi che la nuova finestra carichi il video e poi avvia il fullscreen
-      setTimeout(() => {
-        // Invia messaggio alla nuova finestra per avviare il fullscreen
-        if (response.tabId) {
-          chrome.tabs.sendMessage(response.tabId, {
-            action: 'activateFullscreen'
-          }, (res) => {
-            console.log('Fullscreen attivato nella finestra karaoke');
-          });
+      // Ottieni l'ID del tab corrente (master)
+      chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+        if (tabs[0]) {
+          const currentTabId = tabs[0].id;
+          
+          // Attendi che la nuova finestra carichi il video
+          setTimeout(() => {
+            // Informa il tab karaoke che è la finestra karaoke e chi è il master
+            if (response.tabId) {
+              chrome.tabs.sendMessage(response.tabId, {
+                action: 'setAsKaraokeWindow',
+                masterTabId: currentTabId
+              }, (res) => {
+                console.log('YouTube Karaoke: Tab karaoke configurato');
+                
+                // Ora attiva il fullscreen vero
+                chrome.tabs.sendMessage(response.tabId, {
+                  action: 'activateFullscreen'
+                }, (res) => {
+                  console.log('Fullscreen attivato nella finestra karaoke');
+                });
+              });
+            }
+          }, 2000); // Attende 2 secondi per il caricamento della pagina
         }
-      }, 3000); // Attende 3 secondi per il caricamento e posizionamento della pagina
+      });
     } else {
       // Se non c'è un secondo monitor, usa fullscreen normale
       console.log('YouTube Karaoke: Secondo monitor non disponibile, uso fullscreen normale');
@@ -166,6 +209,7 @@ function openVideoInFullscreen() {
 // Variabili per gestire il fade audio
 let fadeInterval = null;
 let originalVolume = 1.0;
+let karaokeTabId = null; // ID del tab della finestra karaoke
 
 // Funzione per applicare fade-IN all'audio (quando si preme play)
 function applyAudioFadeIn(video) {
@@ -255,6 +299,16 @@ function monitorVideoState() {
     video.addEventListener('pause', () => {
       console.log('YouTube Karaoke: Video in pausa, avvio fade-out');
       applyAudioFadeOut(video);
+      
+      // Se questo è il tab master e c'è una finestra karaoke, invia comando pause
+      if (!isKaraokeWindow && karaokeTabId) {
+        chrome.tabs.sendMessage(karaokeTabId, {
+          action: 'controlVideo',
+          command: 'pause'
+        }, (response) => {
+          console.log('YouTube Karaoke: Comando pause inviato alla finestra karaoke');
+        });
+      }
     });
     
     // Listener per quando viene fermato (ended)
@@ -267,6 +321,16 @@ function monitorVideoState() {
     video.addEventListener('play', () => {
       console.log('YouTube Karaoke: Video in play, avvio fade-in');
       applyAudioFadeIn(video);
+      
+      // Se questo è il tab master e c'è una finestra karaoke, invia comando play
+      if (!isKaraokeWindow && karaokeTabId) {
+        chrome.tabs.sendMessage(karaokeTabId, {
+          action: 'controlVideo',
+          command: 'play'
+        }, (response) => {
+          console.log('YouTube Karaoke: Comando play inviato alla finestra karaoke');
+        });
+      }
     });
     
     // Listener per quando il video è effettivamente in riproduzione

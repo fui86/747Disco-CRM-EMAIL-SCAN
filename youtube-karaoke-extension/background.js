@@ -113,6 +113,30 @@ async function closeKaraokeWindow(tabId) {
   return { success: true, message: 'Nessuna finestra karaoke attiva' };
 }
 
+// Funzione per mettere la finestra in fullscreen dopo che è stata posizionata
+async function setWindowFullscreen(windowId) {
+  try {
+    await chrome.windows.update(windowId, {
+      state: 'fullscreen'
+    });
+    console.log('YouTube Karaoke: Finestra impostata a fullscreen');
+    return { success: true };
+  } catch (error) {
+    console.error('Errore nell\'impostare fullscreen:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Listener per i messaggi che richiedono di mettere la finestra in fullscreen
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'setWindowFullscreen' && request.windowId) {
+    setWindowFullscreen(request.windowId).then(result => {
+      sendResponse(result);
+    });
+    return true;
+  }
+});
+
 // Listener per l'installazione dell'estensione
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
