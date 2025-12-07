@@ -6,6 +6,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const fullscreenBtn = document.getElementById('fullscreenBtn');
   const status = document.getElementById('status');
 
+  // Helper function to validate YouTube URL
+  function isYouTubeUrl(url) {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname === 'www.youtube.com' || 
+             urlObj.hostname === 'youtube.com' || 
+             urlObj.hostname === 'm.youtube.com' ||
+             urlObj.hostname.endsWith('.youtube.com');
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Carica le impostazioni salvate
   chrome.storage.sync.get(['adSkipperEnabled', 'autoFullscreenEnabled'], (result) => {
     adSkipperToggle.checked = result.adSkipperEnabled !== false;
@@ -41,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Verifica che sia una pagina YouTube
-      if (!tab.url || !tab.url.includes('youtube.com')) {
+      if (!tab.url || !isYouTubeUrl(tab.url)) {
         showStatus('Apri prima un video di YouTube!', 'warning');
         return;
       }

@@ -75,11 +75,24 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
 });
 
+// Helper function to validate YouTube URL
+function isYouTubeUrl(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname === 'www.youtube.com' || 
+           urlObj.hostname === 'youtube.com' || 
+           urlObj.hostname === 'm.youtube.com' ||
+           urlObj.hostname.endsWith('.youtube.com');
+  } catch (e) {
+    return false;
+  }
+}
+
 // Listener per i comandi da tastiera (shortcuts)
 chrome.commands?.onCommand.addListener((command) => {
   if (command === 'open-karaoke-fullscreen') {
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-      if (tabs[0] && tabs[0].url.includes('youtube.com')) {
+      if (tabs[0] && isYouTubeUrl(tabs[0].url)) {
         chrome.tabs.sendMessage(tabs[0].id, {action: 'openFullscreen'});
       }
     });
