@@ -42,7 +42,7 @@ function playVideo(videoId, volume) {
   
   // Crea nuovo iframe con YouTube Player
   const iframe = document.createElement('iframe');
-  iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&showinfo=0&fs=1&loop=0`;
+  iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&showinfo=0&fs=1&loop=0&enablejsapi=1&origin=${window.location.origin}`;
   iframe.allow = 'autoplay; fullscreen';
   iframe.allowFullscreen = true;
   
