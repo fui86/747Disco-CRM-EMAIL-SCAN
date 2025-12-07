@@ -84,8 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
           action: 'updateSettings',
           adSkipperEnabled: adSkipperToggle.checked,
           autoFullscreenEnabled: autoFullscreenToggle.checked
-        }).catch(err => {
-          console.log('Tab non pronta per ricevere messaggi:', err);
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.log('Tab non pronta per ricevere messaggi:', chrome.runtime.lastError.message);
+          }
         });
       }
     });

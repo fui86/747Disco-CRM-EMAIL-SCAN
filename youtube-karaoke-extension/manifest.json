@@ -35,5 +35,14 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "open-karaoke-fullscreen": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Apri video a pieno schermo sul secondo monitor"
+    }
   }
 }

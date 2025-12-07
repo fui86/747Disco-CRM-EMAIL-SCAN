@@ -30,8 +30,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 function skipAd() {
   if (!adSkipperEnabled) return;
 
-  // Cerca il pulsante "Salta annuncio" / "Skip ad"
-  const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-skip-ad-button, button.ytp-ad-skip-button-modern');
+  // Cerca il pulsante "Salta annuncio" / "Skip ad" usando selettori specifici
+  const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-skip-ad-button, button.ytp-ad-skip-button-modern, .ytp-ad-skip-button-container button');
   
   if (skipButton && skipButton.offsetParent !== null) {
     console.log('YouTube Karaoke: Saltando pubblicità...');
@@ -39,14 +39,16 @@ function skipAd() {
     return true;
   }
 
-  // Cerca altri pulsanti di skip
-  const skipButtons = document.querySelectorAll('button');
-  for (let button of skipButtons) {
-    const text = button.textContent.toLowerCase();
-    if (text.includes('skip') || text.includes('salta')) {
-      console.log('YouTube Karaoke: Saltando pubblicità (alternativo)...');
-      button.click();
-      return true;
+  // Cerca pulsanti con attributi specifici per gli annunci
+  const adButtons = document.querySelectorAll('button[class*="skip"], button[class*="ytp-ad"]');
+  for (let button of adButtons) {
+    if (button.offsetParent !== null) {
+      const text = button.textContent.toLowerCase();
+      if (text.includes('skip') || text.includes('salta')) {
+        console.log('YouTube Karaoke: Saltando pubblicità (alternativo)...');
+        button.click();
+        return true;
+      }
     }
   }
 
@@ -113,12 +115,12 @@ function startObserver() {
   }
 }
 
-// Intervallo per controllare periodicamente le pubblicità
+// Intervallo per controllare periodicamente le pubblicità (backup per casi che l'observer potrebbe non catturare)
 setInterval(() => {
   if (adSkipperEnabled) {
     skipAd();
   }
-}, 500);
+}, 2000); // Ridotto a 2 secondi per ridurre l'impatto sulle performance
 
 // Avvia l'observer quando il DOM è caricato
 if (document.readyState === 'loading') {
