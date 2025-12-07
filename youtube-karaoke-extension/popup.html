@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Karaoke</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎤 YouTube Karaoke</h1>
+      <p class="subtitle">Salta pubblicità & Fullscreen</p>
+    </div>
+
+    <div class="settings">
+      <div class="setting-item">
+        <label class="switch">
+          <input type="checkbox" id="adSkipperToggle" checked>
+          <span class="slider"></span>
+        </label>
+        <div class="setting-label">
+          <strong>Salta Pubblicità</strong>
+          <small>Salta automaticamente gli annunci</small>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label class="switch">
+          <input type="checkbox" id="autoFullscreenToggle">
+          <span class="slider"></span>
+        </label>
+        <div class="setting-label">
+          <strong>Fullscreen Automatico</strong>
+          <small>Avvia in fullscreen quando possibile</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="fullscreenBtn" class="btn btn-primary">
+        📺 Apri su Secondo Monitor
+      </button>
+    </div>
+
+    <div class="info">
+      <p class="shortcut">
+        <strong>Scorciatoia:</strong> Ctrl+Shift+K
+      </p>
+      <p class="help-text">
+        Utilizza questa estensione per avviare i video di YouTube a pieno schermo sul secondo monitor per il karaoke!
+      </p>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
