@@ -344,7 +344,7 @@ class Disco747_Ajax {
                         'extra3' => $preventivo['extra3'] ?? '',
                         'extra3_importo' => $preventivo['extra3_importo'] ?? 0,
                         'importo_totale' => $preventivo['importo_totale'] ?? 0,
-                        'importo_preventivo' => $preventivo['importo_preventivo'] ?? $preventivo['importo_totale'] ?? 0,
+                        'importo_preventivo' => $preventivo['importo_totale'] ?? 0,
                         'acconto' => $preventivo['acconto'] ?? 0,
                         'note_aggiuntive' => $preventivo['note_aggiuntive'] ?? '',
                         'note_interne' => $preventivo['note_interne'] ?? '',
