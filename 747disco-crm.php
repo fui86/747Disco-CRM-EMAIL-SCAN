@@ -2,18 +2,18 @@
 /**
  * Plugin Name: 747 Disco CRM - PreventiviParty Enhanced
  * Plugin URI: https://gestionale.747disco.it
- * Description: Sistema CRM completo per la gestione dei preventivi della location 747 Disco. Replica del vecchio PreventiviParty con funzionalitÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š  avanzate.
+ * Description: Sistema CRM completo per la gestione dei preventivi della location 747 Disco.  Replica del vecchio PreventiviParty con funzionalità avanzate.
  * Version: 11.8.0
  * Author: 747 Disco Team
  * Author URI: https://gestionale.747disco.it
  * Text Domain: disco747
  * Domain Path: /languages/
  * Requires at least: 5.8
- * Tested up to: 6.4.2
+ * Tested up to: 6.4. 2
  * Requires PHP: 7.4
  * Network: false
  * License: GPL v2 or later
- * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * License URI: https://www.gnu.org/licenses/gpl-2.0. html
  *
  * @package    Disco747_CRM
  * @version    11.8.0
@@ -41,7 +41,7 @@ define('DISCO747_CRM_PLUGIN_BASENAME', plugin_basename(__FILE__));
 // Prefissi database
 define('DISCO747_CRM_DB_PREFIX', 'disco747_');
 
-// Debug mode (puÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â² essere disabilitato in produzione)
+// Debug mode (può essere disabilitato in produzione)
 define('DISCO747_CRM_DEBUG', true);
 
 // ========================================================================
@@ -113,7 +113,7 @@ final class Disco747_CRM_Plugin {
     public function init_plugin() {
         try {
             // Log inizializzazione
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Inizializzazione 747 Disco CRM v' . DISCO747_CRM_VERSION);
+            $this->public_log('🚀 Inizializzazione 747 Disco CRM v' . DISCO747_CRM_VERSION);
             
             // Carica autoloader
             $this->load_autoloader();
@@ -128,10 +128,10 @@ final class Disco747_CRM_Plugin {
             $this->register_final_hooks();
             
             $this->initialized = true;
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Plugin inizializzato correttamente');
+            $this->public_log('✅ Plugin inizializzato correttamente');
             
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore inizializzazione: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore inizializzazione: ' . $e->getMessage(), 'ERROR');
             add_action('admin_notices', array($this, 'show_init_error_notice'));
         }
     }
@@ -150,12 +150,12 @@ final class Disco747_CRM_Plugin {
             'includes/storage/class-disco747-googledrive.php',
             'includes/storage/class-disco747-dropbox.php',
             'includes/storage/class-disco747-storage-manager.php',
-            // Ã¢Å“â€¦ AGGIUNTO: Excel Scan Handler REALE
+            // ✅ AGGIUNTO: Excel Scan Handler REALE
             'includes/handlers/class-disco747-excel-scan-handler.php',
-            // Ã¢Å“â€¦ AGGIUNTO: AJAX Handlers per Excel Scan
+            // ✅ AGGIUNTO: AJAX Handlers per Excel Scan
             'includes/admin/ajax-handlers.php',
-            // Ã¢Å“â€¦ AGGIUNTO: Funnel Marketing System
-            // âœ… AGGIUNTO: Processor - CRITICO per lanciare gli hook funnel
+            // ✅ AGGIUNTO: Funnel Marketing System
+            // ✅ AGGIUNTO: Processor - CRITICO per lanciare gli hook funnel
             'includes/handlers/class-disco747-processor.php',
             'includes/funnel/class-disco747-funnel-database.php',
             'includes/funnel/class-disco747-funnel-manager.php',
@@ -172,27 +172,27 @@ final class Disco747_CRM_Plugin {
             if (file_exists($file_path)) {
                 require_once $file_path;
                 $loaded_files++;
-                $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Core caricato: {$file}");
+                $this->public_log("✅ Caricato: {$file}");
             } else {
                 // Alcuni file storage potrebbero non esistere ancora
                 if (strpos($file, 'storage/') !== false && strpos($file, 'storage-manager') === false) {
                     $optional_missing[] = $file;
-                    $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š File storage opzionale mancante: {$file}", 'WARNING');
+                    $this->public_log("⚠️ File storage opzionale mancante: {$file}", 'WARNING');
                 } elseif (strpos($file, 'ajax-handlers.php') !== false) {
-                    // AJAX handlers ÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ opzionale
+                    // AJAX handlers è opzionale
                     $optional_missing[] = $file;
-                    $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š AJAX handlers non trovato (opzionale): {$file}", 'WARNING');
+                    $this->public_log("⚠️ AJAX handlers opzionale mancante: {$file}", 'WARNING');
                 } elseif (strpos($file, 'excel-scan-handler.php') !== false) {
-                    // Excel scan handler ÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ opzionale
+                    // Excel scan handler è opzionale
                     $optional_missing[] = $file;
-                    $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š Excel scan handler non trovato (opzionale): {$file}", 'WARNING');
+                    $this->public_log("⚠️ Excel scan handler opzionale mancante: {$file}", 'WARNING');
                 } elseif (strpos($file, 'funnel/') !== false) {
-                    // Funnel system ÃƒÂ¨ opzionale
+                    // Funnel system è opzionale
                     $optional_missing[] = $file;
-                    $this->public_log("Ã¢Å¡Â Ã¯Â¸Â File funnel opzionale mancante: {$file}", 'WARNING');
+                    $this->public_log("⚠️ File funnel opzionale mancante: {$file}", 'WARNING');
                 } else {
                     $missing_files[] = $file;
-                    $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ File core critico mancante: {$file}", 'ERROR');
+                    $this->public_log("❌ File core critico mancante: {$file}", 'ERROR');
                 }
             }
         }
@@ -202,7 +202,7 @@ final class Disco747_CRM_Plugin {
             throw new Exception("File core critici mancanti: " . implode(', ', $missing_files));
         }
         
-        $message = "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Autoloader caricato ({$loaded_files} file core";
+        $message = "✅ Autoloader caricato ({$loaded_files} file core";
         if (count($optional_missing) > 0) {
             $message .= ", " . count($optional_missing) . " file opzionali mancanti";
         }
@@ -229,7 +229,7 @@ final class Disco747_CRM_Plugin {
             }
         }
         
-        // Auth Manager (verifica se ÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ singleton)
+        // Auth Manager (verifica se è singleton)
         if (class_exists('Disco747_CRM\\Core\\Disco747_Auth')) {
             if (method_exists('Disco747_CRM\\Core\\Disco747_Auth', 'get_instance')) {
                 $this->auth = Disco747_CRM\Core\Disco747_Auth::get_instance();
@@ -238,7 +238,7 @@ final class Disco747_CRM_Plugin {
             }
         }
         
-        // Storage Manager (verifica se ÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ singleton)
+        // Storage Manager (verifica se è singleton)
         if (class_exists('Disco747_CRM\\Storage\\Disco747_Storage_Manager')) {
             if (method_exists('Disco747_CRM\\Storage\\Disco747_Storage_Manager', 'get_instance')) {
                 $this->storage_manager = Disco747_CRM\Storage\Disco747_Storage_Manager::get_instance();
@@ -247,7 +247,7 @@ final class Disco747_CRM_Plugin {
             }
         }
         
-        $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Componenti core inizializzati');
+        $this->public_log('✅ Componenti core inizializzati');
     }
 
     /**
@@ -262,10 +262,10 @@ final class Disco747_CRM_Plugin {
                 } else {
                     $this->admin = new Disco747_CRM\Admin\Disco747_Admin();
                 }
-                $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Admin Manager caricato');
+                $this->public_log('✅ Admin Manager caricato');
             }
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento Admin Manager: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento Admin Manager: ' . $e->getMessage(), 'ERROR');
         }
         
         // PDF Generator
@@ -274,16 +274,16 @@ final class Disco747_CRM_Plugin {
                 $pdf_path = DISCO747_CRM_PLUGIN_DIR . 'includes/generators/class-disco747-pdf.php';
                 if (file_exists($pdf_path)) {
                     require_once $pdf_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/generators/class-disco747-pdf.php');
+                    $this->public_log('✅ Caricato: includes/generators/class-disco747-pdf.php');
                     
                     if (class_exists('Disco747_CRM\\Generators\\Disco747_PDF')) {
                         $this->pdf_generator = new Disco747_CRM\Generators\Disco747_PDF();
-                        $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ PDF Generator inizializzato');
+                        $this->public_log('✅ PDF Generator inizializzato');
                     }
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento PDF Generator: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento PDF Generator: ' . $e->getMessage(), 'ERROR');
         }
         
         // Excel Generator
@@ -292,16 +292,16 @@ final class Disco747_CRM_Plugin {
                 $excel_path = DISCO747_CRM_PLUGIN_DIR . 'includes/generators/class-disco747-excel.php';
                 if (file_exists($excel_path)) {
                     require_once $excel_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/generators/class-disco747-excel.php');
+                    $this->public_log('✅ Caricato: includes/generators/class-disco747-excel.php');
                     
                     if (class_exists('Disco747_CRM\\Generators\\Disco747_Excel')) {
                         $this->excel_generator = new Disco747_CRM\Generators\Disco747_Excel();
-                        $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Excel Generator inizializzato');
+                        $this->public_log('✅ Excel Generator inizializzato');
                     }
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento Excel Generator: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento Excel Generator: ' . $e->getMessage(), 'ERROR');
         }
         
         // Email Manager
@@ -310,7 +310,7 @@ final class Disco747_CRM_Plugin {
                 $email_path = DISCO747_CRM_PLUGIN_DIR . 'includes/communication/class-disco747-email.php';
                 if (file_exists($email_path)) {
                     require_once $email_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/communication/class-disco747-email.php');
+                    $this->public_log('✅ Caricato: includes/communication/class-disco747-email.php');
                     
                     if (class_exists('Disco747_CRM\\Communication\\Disco747_Email')) {
                         // Prova singleton prima
@@ -323,7 +323,7 @@ final class Disco747_CRM_Plugin {
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento Email Manager: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento Email Manager: ' .  $e->getMessage(), 'ERROR');
         }
         
         // Messaging Manager
@@ -332,11 +332,11 @@ final class Disco747_CRM_Plugin {
                 $messaging_path = DISCO747_CRM_PLUGIN_DIR . 'includes/communication/class-disco747-messaging.php';
                 if (file_exists($messaging_path)) {
                     require_once $messaging_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/communication/class-disco747-messaging.php');
+                    $this->public_log('✅ Caricato: includes/communication/class-disco747-messaging.php');
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento Messaging Manager: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento Messaging Manager: ' . $e->getMessage(), 'ERROR');
         }
         
         // Google Drive Sync
@@ -345,16 +345,16 @@ final class Disco747_CRM_Plugin {
                 $gdrive_sync_path = DISCO747_CRM_PLUGIN_DIR . 'includes/storage/class-disco747-googledrive-sync.php';
                 if (file_exists($gdrive_sync_path)) {
                     require_once $gdrive_sync_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/storage/class-disco747-googledrive-sync.php');
+                    $this->public_log('✅ Caricato: includes/storage/class-disco747-googledrive-sync.php');
                     
                     if (class_exists('Disco747_CRM\\Storage\\Disco747_GoogleDrive_Sync')) {
                         $this->gdrive_sync = new Disco747_CRM\Storage\Disco747_GoogleDrive_Sync();
-                        $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Google Drive Sync inizializzato');
+                        $this->public_log('✅ Google Drive Sync inizializzato');
                     }
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento Google Drive Sync: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento Google Drive Sync: ' . $e->getMessage(), 'ERROR');
         }
         
         // AJAX Handlers
@@ -363,31 +363,31 @@ final class Disco747_CRM_Plugin {
                 $ajax_path = DISCO747_CRM_PLUGIN_DIR . 'includes/handlers/class-disco747-ajax.php';
                 if (file_exists($ajax_path)) {
                     require_once $ajax_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/handlers/class-disco747-ajax.php');
+                    $this->public_log('✅ Caricato: includes/handlers/class-disco747-ajax.php');
                     
                     if (class_exists('Disco747_CRM\\Handlers\\Disco747_AJAX')) {
                         // Inizializza AJAX handlers
                         new Disco747_CRM\Handlers\Disco747_AJAX();
-                        $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ AJAX Handlers inizializzato');
+                        $this->public_log('✅ AJAX Handlers inizializzato');
                     }
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento AJAX Handlers: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento AJAX Handlers: ' . $e->getMessage(), 'ERROR');
         }
         
-        // ðŸš€ FUNNEL SCHEDULER - CRITICO per far funzionare gli hook
+        // 🚀 FUNNEL SCHEDULER - CRITICO per far funzionare gli hook
         try {
             add_action('init', function() {
                 if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Scheduler')) {
                     new Disco747_CRM\Funnel\Disco747_Funnel_Scheduler();
-                    $this->public_log('ðŸŽ¯ Funnel Scheduler inizializzato e in ascolto degli hook');
+                    $this->public_log('🎯 Funnel Scheduler inizializzato e in ascolto degli hook');
                 } else {
-                    $this->public_log('âš ï¸ Classe Disco747_Funnel_Scheduler non trovata', 'WARNING');
+                    $this->public_log('⚠️ Classe Disco747_Funnel_Scheduler non trovata', 'WARNING');
                 }
             }, 5); // Priority 5 - prima di altri componenti ma dopo il core
         } catch (Exception $e) {
-            $this->public_log('âŒ Errore inizializzazione Funnel Scheduler: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore inizializzazione Funnel Scheduler: ' . $e->getMessage(), 'ERROR');
         }
         
         // 🎯 PROCESSOR - CRITICO per lanciare gli hook do_action
@@ -412,22 +412,22 @@ final class Disco747_CRM_Plugin {
         // Hook per l'inizializzazione completata di WordPress
         add_action('wp_loaded', array($this, 'wp_init_complete'));
         
-        // Forms Handler - Carica dopo che tutto ÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ pronto
+        // Forms Handler - Carica dopo che tutto è pronto
         try {
             add_action('wp_loaded', function() {
-                $forms_path = DISCO747_CRM_PLUGIN_DIR . 'includes/handlers/class-disco747-forms.php';
+                $forms_path = DISCO747_CRM_PLUGIN_DIR .  'includes/handlers/class-disco747-forms.php';
                 if (file_exists($forms_path)) {
                     require_once $forms_path;
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Caricato: includes/handlers/class-disco747-forms.php');
+                    $this->public_log('✅ Caricato: includes/handlers/class-disco747-forms.php');
                 }
                 
                 if (class_exists('Disco747_CRM\\Handlers\\Disco747_Forms')) {
                     $this->forms_handler = new Disco747_CRM\Handlers\Disco747_Forms();
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Forms Handler caricato');
+                    $this->public_log('✅ Forms Handler caricato');
                 }
             });
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore caricamento Forms Handler: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore caricamento Forms Handler: ' . $e->getMessage(), 'ERROR');
         }
     }
 
@@ -435,7 +435,7 @@ final class Disco747_CRM_Plugin {
      * Callback WordPress init completato
      */
     public function wp_init_complete() {
-        $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Init WordPress completato');
+        $this->public_log('✅ Init WordPress completato');
         
         // Auto-migrazione dal vecchio plugin se presente
         $this->auto_migrate_if_needed();
@@ -445,21 +445,21 @@ final class Disco747_CRM_Plugin {
      * Auto-migrazione dal vecchio plugin se necessario
      */
     private function auto_migrate_if_needed() {
-        // Controlla se esiste giÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š  la tabella del vecchio plugin
+        // Controlla se esiste già la tabella del vecchio plugin
         global $wpdb;
         $old_table = $wpdb->prefix . 'preventivi_party';
         
         if ($wpdb->get_var("SHOW TABLES LIKE '{$old_table}'") && $this->database) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¾ Tabella vecchio plugin rilevata: ' . $old_table);
+            $this->public_log('🔄 Rilevata tabella vecchio plugin, avvio migrazione');
             
             try {
                 // Esegui migrazione automatica se il database manager lo supporta
                 if (method_exists($this->database, 'migrate_from_old_plugin')) {
                     $this->database->migrate_from_old_plugin();
-                    $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Dati migrati automaticamente dal vecchio plugin PreventiviParty!');
+                    $this->public_log('✅ Migrazione completata');
                 }
             } catch (Exception $e) {
-                $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore migrazione: ' . $e->getMessage(), 'ERROR');
+                $this->public_log('❌ Errore migrazione: ' . $e->getMessage(), 'ERROR');
             }
         }
     }
@@ -469,7 +469,7 @@ final class Disco747_CRM_Plugin {
     // ============================================================================
 
     /**
-     * Verifica se il plugin ÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¨ inizializzato
+     * Verifica se il plugin è inizializzato
      */
     public function is_initialized() {
         return $this->initialized;
@@ -546,7 +546,7 @@ final class Disco747_CRM_Plugin {
     }
 
     /**
-     * ALIAS: get_forms() per compatibilitÃƒÆ’Ã†â€™Ãƒâ€ 'ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€š 
+     * ALIAS: get_forms() per compatibilità
      */
     public function get_forms() {
         return $this->forms_handler;
@@ -561,7 +561,7 @@ final class Disco747_CRM_Plugin {
      */
     public function activate_plugin() {
         try {
-            $this->public_log('Ã°Å¸Å¡â‚¬ Attivazione plugin 747 Disco CRM v' . DISCO747_CRM_VERSION);
+            $this->public_log('🚀 Attivazione plugin 747 Disco CRM v' . DISCO747_CRM_VERSION);
             
             // Crea tabelle database se necessario
             if ($this->database && method_exists($this->database, 'create_tables')) {
@@ -572,23 +572,23 @@ final class Disco747_CRM_Plugin {
             if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Database')) {
                 $funnel_db = new Disco747_CRM\Funnel\Disco747_Funnel_Database();
                 $funnel_db->create_tables();
-                $this->public_log('Ã¢Å“â€¦ Tabelle funnel create');
+                $this->public_log('✅ Tabelle funnel create');
             }
             
             // Attiva scheduler funnel
             if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Scheduler')) {
                 $scheduler = new Disco747_CRM\Funnel\Disco747_Funnel_Scheduler();
                 $scheduler->activate();
-                $this->public_log('Ã¢Å“â€¦ Scheduler funnel attivato');
+                $this->public_log('✅ Scheduler funnel attivato');
             }
             
             // Flush rewrite rules
             flush_rewrite_rules();
             
-            $this->public_log('Ã¢Å“â€¦ Plugin attivato con successo');
+            $this->public_log('✅ Plugin attivato con successo');
             
         } catch (Exception $e) {
-            $this->public_log('Ã¢ÂÅ’ Errore attivazione: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore attivazione: ' . $e->getMessage(), 'ERROR');
         }
     }
 
@@ -597,13 +597,13 @@ final class Disco747_CRM_Plugin {
      */
     public function deactivate_plugin() {
         try {
-            $this->public_log('Ã°Å¸â€ºâ€˜ Disattivazione plugin 747 Disco CRM');
+            $this->public_log('🛑 Disattivazione plugin 747 Disco CRM');
             
             // Disattiva scheduler funnel
             if (class_exists('Disco747_CRM\\Funnel\\Disco747_Funnel_Scheduler')) {
                 $scheduler = new Disco747_CRM\Funnel\Disco747_Funnel_Scheduler();
                 $scheduler->deactivate();
-                $this->public_log('Ã¢Å“â€¦ Scheduler funnel disattivato');
+                $this->public_log('✅ Scheduler funnel disattivato');
             }
             
             // Flush rewrite rules
@@ -612,39 +612,80 @@ final class Disco747_CRM_Plugin {
             // Pulizia scheduled events
             wp_clear_scheduled_hook('disco747_cleanup_temp_files');
             
-            $this->public_log('Ã¢Å“â€¦ Plugin disattivato');
+            $this->public_log('✅ Plugin disattivato');
             
         } catch (Exception $e) {
-            $this->public_log('Ã¢ÂÅ’ Errore disattivazione: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore disattivazione: ' . $e->getMessage(), 'ERROR');
         }
     }
 
     /**
-     * Cleanup file temporanei vecchi
+     * ✅ MODIFICATO: Cleanup file temporanei E PDF preventivi vecchi
      */
     public function cleanup_old_files() {
         try {
             $upload_dir = wp_upload_dir();
+            $total_cleaned = 0;
+            
+            // 1️⃣ CLEANUP FILE TEMPORANEI (esistente - mantieni)
             $temp_dir = $upload_dir['basedir'] . '/preventivi/temp/';
             
             if (is_dir($temp_dir)) {
                 $files = glob($temp_dir . '*');
-                $count = 0;
+                $count_temp = 0;
                 
                 foreach ($files as $file) {
                     if (is_file($file) && (time() - filemtime($file)) > 86400) { // 24 ore
                         if (unlink($file)) {
-                            $count++;
+                            $count_temp++;
                         }
                     }
                 }
                 
-                if ($count > 0) {
-                    $this->public_log("ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â°ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¹ Cleanup: {$count} file temporanei eliminati");
+                if ($count_temp > 0) {
+                    $this->public_log("🗑️ Cleanup TEMP: {$count_temp} file temporanei eliminati");
+                    $total_cleaned += $count_temp;
                 }
             }
+            
+            // 2️⃣ NUOVO: CLEANUP PDF PREVENTIVI INVIATI VIA EMAIL
+            $preventivi_dir = $upload_dir['basedir'] . '/preventivi/';
+            
+            if (is_dir($preventivi_dir)) {
+                $pdf_files = glob($preventivi_dir . '*.pdf');
+                $count_pdf = 0;
+                $retention_days = 7; // Configurabile: elimina PDF dopo 7 giorni
+                $retention_seconds = $retention_days * 86400;
+                
+                foreach ($pdf_files as $pdf_file) {
+                    if (is_file($pdf_file)) {
+                        $file_age = time() - filemtime($pdf_file);
+                        
+                        // Cancella solo PDF più vecchi di $retention_days giorni
+                        if ($file_age > $retention_seconds) {
+                            if (unlink($pdf_file)) {
+                                $count_pdf++;
+                                $this->public_log("🗑️ PDF eliminato: " . basename($pdf_file) . " (età: " . round($file_age / 86400, 1) . " giorni)");
+                            }
+                        }
+                    }
+                }
+                
+                if ($count_pdf > 0) {
+                    $this->public_log("✅ Cleanup PDF: {$count_pdf} preventivi eliminati (>= {$retention_days} giorni)");
+                    $total_cleaned += $count_pdf;
+                }
+            }
+            
+            // Log finale
+            if ($total_cleaned > 0) {
+                $this->public_log("✅ Cleanup completato: {$total_cleaned} file totali eliminati");
+            } else {
+                $this->public_log("ℹ️ Cleanup eseguito: nessun file da eliminare");
+            }
+            
         } catch (Exception $e) {
-            $this->public_log('ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ Errore cleanup: ' . $e->getMessage(), 'ERROR');
+            $this->public_log('❌ Errore cleanup: ' . $e->getMessage(), 'ERROR');
         }
     }
 
@@ -652,7 +693,7 @@ final class Disco747_CRM_Plugin {
      * Mostra notice errore inizializzazione
      */
     public function show_init_error_notice() {
-        echo '<div class="notice notice-error"><p><strong>747 Disco CRM:</strong> Errore inizializzazione plugin. Controlla i log per dettagli.</p></div>';
+        echo '<div class="notice notice-error"><p><strong>747 Disco CRM:</strong> Errore inizializzazione plugin.  Controlla i log per dettagli.</p></div>';
     }
 
     /**
