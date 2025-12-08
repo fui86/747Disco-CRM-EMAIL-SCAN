@@ -41,6 +41,45 @@ function playVideo(videoId) {
   isPlaying = true;
 }
 
+// Quando siamo su YouTube, attiva automaticamente il fullscreen
+if (window.location.hostname === 'www.youtube.com') {
+  console.log('Karaoke Display: Siamo su YouTube, attivo fullscreen automatico');
+  
+  // Aspetta che il video sia caricato
+  const waitForVideo = setInterval(() => {
+    const video = document.querySelector('video');
+    if (video) {
+      clearInterval(waitForVideo);
+      console.log('Karaoke Display: Video trovato, attivo fullscreen');
+      
+      // Aspetta che il video inizi a riprodursi
+      setTimeout(() => {
+        // Prova a cliccare il pulsante fullscreen
+        const fullscreenButton = document.querySelector('.ytp-fullscreen-button');
+        if (fullscreenButton) {
+          console.log('Karaoke Display: Clic su pulsante fullscreen');
+          fullscreenButton.click();
+        } else {
+          // Se il pulsante non esiste, usa l'API fullscreen del video
+          console.log('Karaoke Display: Uso API fullscreen del video');
+          if (video.requestFullscreen) {
+            video.requestFullscreen();
+          } else if (video.webkitRequestFullscreen) {
+            video.webkitRequestFullscreen();
+          } else if (video.mozRequestFullScreen) {
+            video.mozRequestFullScreen();
+          } else if (video.msRequestFullscreen) {
+            video.msRequestFullscreen();
+          }
+        }
+      }, 2000); // Aspetta 2 secondi per l'autoplay
+    }
+  }, 500);
+  
+  // Timeout di sicurezza
+  setTimeout(() => clearInterval(waitForVideo), 10000);
+}
+
 // Inizializzazione
 console.log('Karaoke Display: Pronto a ricevere video');
 
