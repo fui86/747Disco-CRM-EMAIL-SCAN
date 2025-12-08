@@ -162,8 +162,14 @@ function togglePlayPause() {
     // Inizia dal primo video
     playVideo(0);
   } else {
-    // NOTA: Play/Pause manuale - usa i controlli nella finestra karaoke
-    showStatus('⚠️ Usa i controlli YouTube nella finestra del secondo monitor per play/pause', 'info');
+    // Toggle stato play/pause
+    isPlaying = !isPlaying;
+    updatePlayPauseButton();
+    if (isPlaying) {
+      showStatus('⚠️ Usa i controlli YouTube nella finestra per riprendere', 'info');
+    } else {
+      showStatus('⚠️ Usa i controlli YouTube nella finestra per mettere in pausa', 'info');
+    }
   }
 }
 

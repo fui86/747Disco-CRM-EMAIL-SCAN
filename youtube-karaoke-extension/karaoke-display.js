@@ -78,6 +78,25 @@ if (window.location.hostname === 'www.youtube.com') {
   
   // Timeout di sicurezza
   setTimeout(() => clearInterval(waitForVideo), 10000);
+  
+  // Aggiungi anche listener per F key come fallback
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      // Simula la pressione del tasto F per fullscreen
+      const video = document.querySelector('video');
+      if (video && !document.fullscreenElement) {
+        console.log('Karaoke Display: Tentativo pressione F per fullscreen');
+        const event = new KeyboardEvent('keydown', {
+          key: 'f',
+          code: 'KeyF',
+          keyCode: 70,
+          which: 70,
+          bubbles: true
+        });
+        document.dispatchEvent(event);
+      }
+    }, 3000);
+  });
 }
 
 // Inizializzazione
