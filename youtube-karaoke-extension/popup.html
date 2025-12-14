@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Karaoke</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎤 YouTube Karaoke</h1>
+      <p class="subtitle">Salta pubblicità & Fullscreen</p>
+    </div>
+
+    <div class="settings">
+      <div class="setting-item">
+        <label class="switch">
+          <input type="checkbox" id="adSkipperToggle" checked>
+          <span class="slider"></span>
+        </label>
+        <div class="setting-label">
+          <strong>Salta Pubblicità</strong>
+          <small>Salta automaticamente gli annunci</small>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label class="switch">
+          <input type="checkbox" id="autoFullscreenToggle">
+          <span class="slider"></span>
+        </label>
+        <div class="setting-label">
+          <strong>Fullscreen Automatico</strong>
+          <small>Avvia in fullscreen quando possibile</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="playerBtn" class="btn btn-primary">
+        🎤 Apri Player Karaoke
+      </button>
+      <button id="playlistBtn" class="btn btn-secondary">
+        🎵 Apri Playlist (Old)
+      </button>
+    </div>
+
+    <div class="info">
+      <p class="help-text">
+        Clicca il pulsante per attivare/disattivare il pieno schermo sul secondo monitor. Quando premi play, l'audio salirà gradualmente (fade-in 2 sec). Quando metti in pausa o fermi il video, l'audio scenderà gradualmente (fade-out 2 sec).
+      </p>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Karaoke - Ad Skipper & Fullscreen",
+  "version": "2.0.0",
+  "description": "Player karaoke professionale con playlist, controllo totale e trasmissione su secondo monitor",
+  "permissions": [
+    "tabs",
+    "storage",
+    "system.display"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["karaoke-display.html", "karaoke-display.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

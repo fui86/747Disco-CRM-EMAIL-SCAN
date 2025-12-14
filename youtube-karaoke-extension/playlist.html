@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playlist Karaoke</title>
+  <link rel="stylesheet" href="playlist.css">
+</head>
+<body>
+  <div class="playlist-container">
+    <div class="header">
+      <h1>🎵 Playlist Karaoke</h1>
+      <p class="subtitle">Gestisci i tuoi video</p>
+    </div>
+
+    <!-- Aggiungi nuovo video -->
+    <div class="add-video-section">
+      <h3>Aggiungi Video</h3>
+      <div class="input-group">
+        <input type="text" id="videoUrlInput" placeholder="Incolla link YouTube qui..." />
+        <button id="addVideoBtn" class="btn btn-add">➕ Aggiungi</button>
+      </div>
+    </div>
+
+    <!-- Player corrente -->
+    <div class="current-player" id="currentPlayer">
+      <h3>In Riproduzione</h3>
+      <div class="player-info" id="playerInfo">
+        <p class="no-video">Nessun video in riproduzione</p>
+      </div>
+      <div class="player-controls">
+        <button id="prevBtn" class="btn btn-control" disabled>⏮️ Precedente</button>
+        <button id="playBtn" class="btn btn-control btn-primary" disabled>▶️ Play</button>
+        <button id="nextBtn" class="btn btn-control" disabled>⏭️ Successivo</button>
+      </div>
+    </div>
+
+    <!-- Lista playlist -->
+    <div class="playlist-section">
+      <h3>Playlist (<span id="playlistCount">0</span> video)</h3>
+      <div id="playlistItems" class="playlist-items">
+        <p class="empty-playlist">La playlist è vuota. Aggiungi video sopra!</p>
+      </div>
+    </div>
+
+    <!-- Azioni -->
+    <div class="actions">
+      <button id="clearPlaylistBtn" class="btn btn-danger">🗑️ Svuota Playlist</button>
+      <button id="backToMainBtn" class="btn btn-secondary">← Torna al Menu</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="playlist.js"></script>
+</body>
+</html>
