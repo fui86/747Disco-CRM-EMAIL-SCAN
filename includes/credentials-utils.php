@@ -326,6 +326,75 @@ function disco747_reset_google_credentials() {
 }
 
 /**
+ * ✅ NUOVO: Sincronizza credenziali Google Drive esistenti
+ * Utile dopo migrazione o cambio sottodominio
+ */
+function disco747_sync_googledrive_credentials() {
+    disco747_log('🔄 Inizio sincronizzazione credenziali Google Drive...', 'INFO');
+    
+    try {
+        $plugin = disco747_crm();
+        if (!$plugin || !$plugin->is_initialized()) {
+            disco747_log('❌ Plugin non inizializzato', 'ERROR');
+            return [
+                'success' => false,
+                'message' => 'Plugin non disponibile'
+            ];
+        }
+        
+        $storage_manager = $plugin->get_storage_manager();
+        if (!$storage_manager) {
+            disco747_log('❌ Storage Manager non disponibile', 'ERROR');
+            return [
+                'success' => false,
+                'message' => 'Storage Manager non disponibile'
+            ];
+        }
+        
+        $googledrive = $storage_manager->get_googledrive_handler();
+        if (!$googledrive) {
+            disco747_log('❌ Google Drive handler non disponibile', 'ERROR');
+            return [
+                'success' => false,
+                'message' => 'Google Drive handler non disponibile'
+            ];
+        }
+        
+        // Forza sincronizzazione
+        if (method_exists($googledrive, 'sync_credentials')) {
+            $result = $googledrive->sync_credentials();
+            
+            if ($result) {
+                disco747_log('✅ Credenziali sincronizzate con successo', 'INFO');
+                return [
+                    'success' => true,
+                    'message' => 'Credenziali Google Drive sincronizzate in tutte le chiavi',
+                    'is_configured' => $googledrive->is_oauth_configured()
+                ];
+            } else {
+                disco747_log('⚠️ Nessuna credenziale trovata da sincronizzare', 'WARNING');
+                return [
+                    'success' => false,
+                    'message' => 'Nessuna credenziale trovata da sincronizzare'
+                ];
+            }
+        }
+        
+        return [
+            'success' => false,
+            'message' => 'Metodo sync_credentials non disponibile'
+        ];
+        
+    } catch (Exception $e) {
+        disco747_log('❌ Errore sincronizzazione: ' . $e->getMessage(), 'ERROR');
+        return [
+            'success' => false,
+            'message' => 'Errore: ' . $e->getMessage()
+        ];
+    }
+}
+
+/**
  * Verifica e ripara configurazione se possibile
  */
 function disco747_repair_configuration() {
@@ -337,6 +406,16 @@ function disco747_repair_configuration() {
         if (empty(get_option('disco747_storage_type'))) {
             update_option('disco747_storage_type', 'googledrive');
             $repaired[] = 'Storage type impostato a Google Drive';
+        }
+        
+        // ✅ NUOVO: Sincronizza credenziali Google Drive
+        $sync_result = disco747_sync_googledrive_credentials();
+        if ($sync_result['success']) {
+            $repaired[] = 'Credenziali Google Drive sincronizzate';
+        } else {
+            if (!empty($sync_result['message']) && $sync_result['message'] !== 'Nessuna credenziale trovata da sincronizzare') {
+                $errors[] = 'Sync credenziali: ' . $sync_result['message'];
+            }
         }
         
         // Verifica tabelle database

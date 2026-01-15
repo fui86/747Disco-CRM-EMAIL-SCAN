@@ -469,6 +469,7 @@ class Disco747_Settings_Helper {
 
     /**
      * Salva le credenziali Google Drive
+     * ✅ FIX: Sincronizza credenziali in tutte le chiavi dopo il salvataggio
      *
      * @since 1.0.0
      * @param array $post_data Dati POST del form
@@ -499,6 +500,19 @@ class Disco747_Settings_Helper {
                 'success' => false,
                 'message' => implode(' ', $errors)
             );
+        }
+        
+        // ✅ FIX: Sincronizza credenziali in tutte le chiavi per compatibilità
+        try {
+            $storage_manager = new Disco747_Storage_Manager();
+            $googledrive = $storage_manager->get_googledrive_handler();
+            
+            if ($googledrive && method_exists($googledrive, 'sync_credentials')) {
+                $googledrive->sync_credentials();
+                self::log('Credenziali Google Drive sincronizzate automaticamente');
+            }
+        } catch (\Exception $e) {
+            self::log('Errore sincronizzazione credenziali: ' . $e->getMessage(), 'error');
         }
 
         return array(

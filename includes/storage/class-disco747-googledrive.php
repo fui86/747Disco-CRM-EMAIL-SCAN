@@ -37,6 +37,9 @@ class Disco747_GoogleDrive {
     
     public function __construct() {
         $this->log('[GoogleDrive] Handler v12.0.0 inizializzato');
+        
+        // ✅ Sincronizza credenziali all'avvio (in caso ci siano credenziali salvate in chiavi diverse)
+        add_action('init', array($this, 'sync_credentials'), 5);
     }
     
     /**
@@ -513,6 +516,7 @@ class Disco747_GoogleDrive {
     /**
      * ========================================================================
      * CREDENZIALI: Ottiene configurazione OAuth
+     * ✅ FIX: Cerca credenziali in tutte le possibili chiavi (supporta migrazione)
      * ========================================================================
      */
     public function get_oauth_credentials() {
@@ -520,23 +524,43 @@ class Disco747_GoogleDrive {
             return $this->credentials_cache;
         }
         
+        // Prova prima l'array unificato disco747_gd_credentials
         $credentials = get_option('disco747_gd_credentials', array());
         
         if (empty($credentials['client_id'])) {
-            // Fallback a vecchia struttura
+            // ✅ FIX: Prova le chiavi disco747_googledrive_* (nuovo sistema)
             $credentials = array(
-                'client_id' => get_option('preventivi_googledrive_client_id', ''),
-                'client_secret' => get_option('preventivi_googledrive_client_secret', ''),
-                'redirect_uri' => get_option('preventivi_googledrive_redirect_uri', ''),
-                'refresh_token' => get_option('preventivi_googledrive_refresh_token', ''),
-                'folder_id' => get_option('preventivi_googledrive_folder_id', '')
+                'client_id' => get_option('disco747_googledrive_client_id', ''),
+                'client_secret' => get_option('disco747_googledrive_client_secret', ''),
+                'redirect_uri' => get_option('disco747_googledrive_redirect_uri', ''),
+                'refresh_token' => get_option('disco747_googledrive_refresh_token', ''),
+                'folder_id' => get_option('disco747_googledrive_folder_id', '')
             );
             
-            // Migra a nuova struttura se trovate
+            // Se non trovate, prova fallback a vecchia struttura preventivi_*
+            if (empty($credentials['client_id'])) {
+                $credentials = array(
+                    'client_id' => get_option('preventivi_googledrive_client_id', ''),
+                    'client_secret' => get_option('preventivi_googledrive_client_secret', ''),
+                    'redirect_uri' => get_option('preventivi_googledrive_redirect_uri', ''),
+                    'refresh_token' => get_option('preventivi_googledrive_refresh_token', ''),
+                    'folder_id' => get_option('preventivi_googledrive_folder_id', '')
+                );
+                
+                if (!empty($credentials['client_id'])) {
+                    $this->log('✅ Credenziali trovate in preventivi_googledrive_* (vecchio sistema)');
+                }
+            } else {
+                $this->log('✅ Credenziali trovate in disco747_googledrive_* (nuovo sistema)');
+            }
+            
+            // Migra a struttura unificata se trovate credenziali valide
             if (!empty($credentials['client_id'])) {
                 update_option('disco747_gd_credentials', $credentials);
-                $this->log('Credenziali migrate dal vecchio plugin');
+                $this->log('✅ Credenziali migrate a disco747_gd_credentials');
             }
+        } else {
+            $this->log('✅ Credenziali caricate da disco747_gd_credentials (array unificato)');
         }
         
         $this->credentials_cache = $credentials;
@@ -545,17 +569,33 @@ class Disco747_GoogleDrive {
     
     /**
      * Verifica se OAuth è configurato
+     * ✅ FIX: Usa get_oauth_credentials() che ora cerca in tutte le chiavi possibili
      */
     public function is_oauth_configured() {
         $credentials = $this->get_oauth_credentials();
-        return !empty($credentials['client_id']) && 
-               !empty($credentials['client_secret']) && 
-               !empty($credentials['refresh_token']);
+        
+        $has_client_id = !empty($credentials['client_id']);
+        $has_client_secret = !empty($credentials['client_secret']);
+        $has_refresh_token = !empty($credentials['refresh_token']);
+        
+        $is_configured = $has_client_id && $has_client_secret && $has_refresh_token;
+        
+        // Log dettagliato per debug
+        if ($this->debug_mode) {
+            $this->log('🔍 Verifica configurazione OAuth:');
+            $this->log('   - Client ID: ' . ($has_client_id ? 'presente' : 'MANCANTE'));
+            $this->log('   - Client Secret: ' . ($has_client_secret ? 'presente' : 'MANCANTE'));
+            $this->log('   - Refresh Token: ' . ($has_refresh_token ? 'presente' : 'MANCANTE'));
+            $this->log('   - Risultato: ' . ($is_configured ? '✅ CONFIGURATO' : '❌ NON CONFIGURATO'));
+        }
+        
+        return $is_configured;
     }
     
     /**
      * ========================================================================
      * OAUTH FLOW: Genera URL autorizzazione
+     * ✅ FIX: Usa il redirect_uri corretto dalla pagina storage
      * ========================================================================
      */
     public function generate_auth_url() {
@@ -571,9 +611,10 @@ class Disco747_GoogleDrive {
         $state = wp_create_nonce('googledrive_oauth_' . time());
         update_option('disco747_googledrive_oauth_state', $state);
         
+        // ✅ FIX: Usa redirect_uri dalla pagina storage (corretto)
         $redirect_uri = !empty($credentials['redirect_uri']) 
             ? $credentials['redirect_uri'] 
-            : admin_url('admin.php?page=disco747-settings&action=google_callback');
+            : admin_url('admin.php?page=disco747-storage&oauth_callback=googledrive');
         
         $params = array(
             'client_id' => $credentials['client_id'],
@@ -587,7 +628,8 @@ class Disco747_GoogleDrive {
         
         $auth_url = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query($params);
         
-        $this->log('URL autorizzazione generato');
+        $this->log('✅ URL autorizzazione generato');
+        $this->log('   - Redirect URI: ' . $redirect_uri);
         
         return array(
             'success' => true,
@@ -599,6 +641,7 @@ class Disco747_GoogleDrive {
     /**
      * ========================================================================
      * OAUTH FLOW: Scambia code per tokens
+     * ✅ FIX: Salva refresh_token in tutte le chiavi per compatibilità
      * ========================================================================
      */
     public function exchange_code_for_tokens($auth_code, $state) {
@@ -626,7 +669,7 @@ class Disco747_GoogleDrive {
         
         $redirect_uri = !empty($credentials['redirect_uri']) 
             ? $credentials['redirect_uri'] 
-            : admin_url('admin.php?page=disco747-settings&action=google_callback');
+            : admin_url('admin.php?page=disco747-storage&oauth_callback=googledrive');
         
         $response = wp_remote_post('https://oauth2.googleapis.com/token', array(
             'body' => array(
@@ -658,14 +701,26 @@ class Disco747_GoogleDrive {
         }
         
         if (isset($body['refresh_token'])) {
-            // Salva refresh token
+            // ✅ FIX: Salva refresh token in TUTTE le chiavi per compatibilità
             $credentials['refresh_token'] = $body['refresh_token'];
+            
+            // Salva nell'array unificato
             update_option('disco747_gd_credentials', $credentials);
+            
+            // Salva anche nelle chiavi separate per compatibilità con altri componenti
+            update_option('disco747_googledrive_refresh_token', $body['refresh_token']);
+            update_option('preventivi_googledrive_refresh_token', $body['refresh_token']); // Vecchio sistema
             
             // Salva access token
             $this->save_access_token($body);
             
-            $this->log('✅ Refresh token salvato');
+            // Invalida cache credenziali
+            $this->credentials_cache = null;
+            
+            $this->log('✅ Refresh token salvato in tutte le chiavi');
+            $this->log('   - disco747_gd_credentials (array)');
+            $this->log('   - disco747_googledrive_refresh_token');
+            $this->log('   - preventivi_googledrive_refresh_token (compatibilità)');
             
             return array(
                 'success' => true,
@@ -949,6 +1004,59 @@ class Disco747_GoogleDrive {
             $this->log('Errore creazione cartella: ' . $e->getMessage(), 'ERROR');
             return false;
         }
+    }
+    
+    /**
+     * ========================================================================
+     * SINCRONIZZAZIONE CREDENZIALI
+     * ✅ NUOVO: Sincronizza credenziali tra tutte le chiavi
+     * ========================================================================
+     */
+    public function sync_credentials() {
+        $this->log('🔄 Sincronizzazione credenziali...');
+        
+        // Ottieni credenziali (questo già cerca in tutte le chiavi)
+        $credentials = $this->get_oauth_credentials();
+        
+        if (empty($credentials['client_id'])) {
+            $this->log('⚠️ Nessuna credenziale da sincronizzare');
+            return false;
+        }
+        
+        // Salva nell'array unificato
+        update_option('disco747_gd_credentials', $credentials);
+        
+        // Salva anche nelle chiavi separate per compatibilità
+        if (!empty($credentials['client_id'])) {
+            update_option('disco747_googledrive_client_id', $credentials['client_id']);
+            update_option('preventivi_googledrive_client_id', $credentials['client_id']);
+        }
+        
+        if (!empty($credentials['client_secret'])) {
+            update_option('disco747_googledrive_client_secret', $credentials['client_secret']);
+            update_option('preventivi_googledrive_client_secret', $credentials['client_secret']);
+        }
+        
+        if (!empty($credentials['redirect_uri'])) {
+            update_option('disco747_googledrive_redirect_uri', $credentials['redirect_uri']);
+            update_option('preventivi_googledrive_redirect_uri', $credentials['redirect_uri']);
+        }
+        
+        if (!empty($credentials['refresh_token'])) {
+            update_option('disco747_googledrive_refresh_token', $credentials['refresh_token']);
+            update_option('preventivi_googledrive_refresh_token', $credentials['refresh_token']);
+        }
+        
+        if (!empty($credentials['folder_id'])) {
+            update_option('disco747_googledrive_folder_id', $credentials['folder_id']);
+            update_option('preventivi_googledrive_folder_id', $credentials['folder_id']);
+        }
+        
+        // Invalida cache
+        $this->credentials_cache = null;
+        
+        $this->log('✅ Credenziali sincronizzate in tutte le chiavi');
+        return true;
     }
     
     /**
